@@ -55,3 +55,4 @@ memory/test_credentials.md
 
 # System files
 .DS_Store
+.aider*

@@ -9,7 +9,7 @@ import SyncBadge from './SyncBadge';
  * page-scoped action (currently only rendered on the dashboard route).
  * When the sidebar is collapsed, a chevron re-opener appears on the left.
  */
-export default function TopHeader({ examTrack, title, activeKey, isDark, courseCount, onToggleTheme, onNewWorksheet, sidebarOpen, onOpenSidebar, syncStatus, isDemo }) {
+export default function TopHeader({ title, activeKey, isDark, courseCount, onToggleTheme, onNewWorksheet, sidebarOpen, onOpenSidebar, syncStatus, isDemo }) {
   return (
     <header className="px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-2 flex items-start justify-between gap-3 border-b border-[color:var(--color-border)] bg-white" data-testid="top-header">
       <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
@@ -24,9 +24,6 @@ export default function TopHeader({ examTrack, title, activeKey, isDark, courseC
           </button>
         )}
         <div className="min-w-0">
-          <div className="eyebrow-muted mb-1 flex items-center gap-2">
-            <span>{examTrack}</span>
-          </div>
           <h1 className="text-[22px] sm:text-[28px] font-semibold tracking-tight text-slate-900 truncate" data-testid="page-title">{title}</h1>
         </div>
       </div>

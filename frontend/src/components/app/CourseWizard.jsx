@@ -137,7 +137,6 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className={`text-[13.5px] font-semibold ${sel ? 'text-blue-700' : 'text-slate-900'}`}>{t.name}</div>
-                          <div className="text-[12px] text-slate-500 mt-0.5 leading-snug">{t.title}</div>
                         </div>
                         {sel && <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />}
                       </div>

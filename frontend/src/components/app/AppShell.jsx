@@ -200,7 +200,6 @@ export default function AppShell({ hash }) {
       <main className="min-w-0 flex-1 relative">
         {isDemo && <DemoBanner onResetDemo={resetDemo} onExit={exitAccount} />}
         <TopHeader
-          examTrack={state.user?.examTrack || 'SSLC'}
           title={current.label}
           activeKey={current.key}
           isDark={isDark}
