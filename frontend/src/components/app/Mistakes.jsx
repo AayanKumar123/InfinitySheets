@@ -26,6 +26,8 @@ export default function Mistakes() {
       <SubjectGroupedList
         items={list}
         testIdPrefix="mistakes"
+        itemLabelSingular="mistake"
+        itemLabelPlural="mistakes"
         renderItem={(m) => {
           const shown = reveal[m.id];
           return (

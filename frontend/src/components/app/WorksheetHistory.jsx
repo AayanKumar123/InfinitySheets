@@ -49,6 +49,8 @@ export default function WorksheetHistory() {
       <SubjectGroupedList
         items={ws}
         testIdPrefix="history"
+        itemLabelSingular="worksheet"
+        itemLabelPlural="worksheets"
         renderItem={(w) => (
           <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">
             <div className="min-w-0">

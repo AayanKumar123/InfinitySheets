@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Filter, SlidersHorizontal, RotateCcw, Sparkles } from 'lucide-react';
+import { Filter, SlidersHorizontal, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { useStrengthsWeaknesses } from '../../hooks/useStrengthsWeaknesses';
@@ -346,25 +346,95 @@ export default function Strengths() {
               : `No topics${subject !== 'all' ? ` in ${subject}` : ''} yet.`}
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {filtered.map((t) => (
-            <div key={t.topic} className="rounded-xl border border-[color:var(--color-border)] bg-white p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[14.5px] font-medium">
-                  {t.topic} <span className="text-slate-400 font-normal">· {t.subject}</span>
-                </div>
-                <div className="text-[13px] text-slate-700 tabular-nums">{t.acc}% · {t.correct}/{t.total}</div>
-              </div>
-              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className={`h-full ${t.acc >= strengthMin ? 'bg-blue-500' : t.acc < weaknessMax ? 'bg-rose-400' : 'bg-amber-400'}`}
-                  style={{ width: `${t.acc}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+        <TopicGroupedBySubject
+          topics={filtered}
+          strengthMin={strengthMin}
+          weaknessMax={weaknessMax}
+          itemLabel={level === 'strengths' ? 'strength' : level === 'weaknesses' ? 'weakness' : 'topic'}
+        />
       )}
+    </div>
+  );
+}
+
+// Group topics into one collapsible dropdown per subject. Each header shows
+// the subject name, the topic count, and a chevron that rotates with the
+// open/closed state. Topics are classified visually by the same thresholds
+// the page uses (strength / neutral / weakness) so the colours stay
+// consistent inside the dropdown.
+function TopicGroupedBySubject({ topics, strengthMin, weaknessMax, itemLabel }) {
+  const [open, setOpen] = useState({});
+  const toggle = (subject) => setOpen((m) => ({ ...m, [subject]: !m[subject] }));
+
+  const groups = useMemo(() => {
+    const map = new Map();
+    topics.forEach((t) => {
+      const key = (t.subject || '').trim() || 'Other';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(t);
+    });
+    return Array.from(map.entries())
+      .map(([subject, list]) => ({ subject, list }))
+      .sort((a, b) => {
+        if (a.subject === 'Other') return 1;
+        if (b.subject === 'Other') return -1;
+        return a.subject.localeCompare(b.subject);
+      });
+  }, [topics]);
+
+  return (
+    <div className="flex flex-col gap-3" data-testid="sw-grouped-list">
+      {groups.map(({ subject, list }) => {
+        const isOpen = !!open[subject];
+        const contentId = `sw-group-${subject}`;
+        return (
+          <section
+            key={subject}
+            className="rounded-xl border border-[color:var(--color-border)] bg-white overflow-hidden"
+            data-testid={`sw-group-${subject}`}
+          >
+            <button
+              type="button"
+              onClick={() => toggle(subject)}
+              aria-expanded={isOpen}
+              aria-controls={contentId}
+              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50/60 transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <ChevronDown
+                  className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-0' : '-rotate-90'}`}
+                />
+                <h3 className="text-[14.5px] font-semibold text-slate-900 truncate">{subject}</h3>
+              </div>
+              <span className="text-[12px] font-medium text-slate-500 shrink-0">
+                {list.length} {list.length === 1 ? itemLabel : `${itemLabel}s`}
+              </span>
+            </button>
+            {isOpen && (
+              <div
+                id={contentId}
+                className="flex flex-col gap-3 px-5 pb-5 pt-1 border-t border-[color:var(--color-border)]"
+                data-testid={contentId}
+              >
+                {list.map((t) => (
+                  <div key={`${t.subject}-${t.topic}`} className="rounded-lg border border-[color:var(--color-border)] p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[14px] font-medium text-slate-900 truncate">{t.topic}</div>
+                      <div className="text-[13px] text-slate-700 tabular-nums shrink-0">{t.acc}% · {t.correct}/{t.total}</div>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className={`h-full ${t.acc >= strengthMin ? 'bg-blue-500' : t.acc < weaknessMax ? 'bg-rose-400' : 'bg-amber-400'}`}
+                        style={{ width: `${t.acc}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
