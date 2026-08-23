@@ -1,11 +1,22 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { EXAM_TRACKS, SUBJECTS, SUBJECT_INFO } from '../../data/mock';
 import { ArrowRight, ArrowLeft, Calendar, CheckCircle2, GraduationCap, BookOpen, X, Sparkles, CalendarClock, Target } from 'lucide-react';
 import StudyDecor from '../decor/StudyDecor';
 import { toast } from 'sonner';
 
-const STEP_LABELS = ['Exam', 'Subjects', 'Dates', 'Schedule'];
+// Entrance exams have a fixed syllabus — every candidate sits the same
+// subjects — so the subject-picking step is skipped and all of them are
+// selected automatically. IB instead gains an HL/SL step, because level
+// choice changes the syllabus and the predicted-grade scale.
+const FIXED_SUBJECT_TRACKS = ['NEET', 'JEE', 'SAT', 'LSAT'];
+const IB_LEVELS = ['HL', 'SL'];
+
+function stepsFor(track) {
+  if (FIXED_SUBJECT_TRACKS.includes(track)) return ['Exam', 'Dates', 'Schedule'];
+  if (track === 'IB') return ['Exam', 'Subjects', 'HL / SL', 'Dates', 'Schedule'];
+  return ['Exam', 'Subjects', 'Dates', 'Schedule'];
+}
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 const FREQUENCY_OPTIONS = [
   { id: 'daily', label: 'Every day', hint: '7 sessions / week' },
@@ -27,6 +38,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const [examTrack, setExamTrack] = useState(state.user?.examTrack || 'SSLC');
   const trackSubjects = useMemo(() => SUBJECTS[examTrack] || [], [examTrack]);
   const [picked, setPicked] = useState([]); // [subject, ...]
+  const [ibLevels, setIbLevels] = useState({}); // { subject: 'HL' | 'SL' }
   const [dates, setDates] = useState({});   // { subject: 'YYYY-MM-DD' }
   const [target, setTarget] = useState('');
   const [level, setLevel] = useState('Intermediate');
@@ -34,16 +46,37 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const [frequency, setFrequency] = useState(state.settings?.frequency || '3-4 per week');
   const [weeklyGoal, setWeeklyGoal] = useState(state.settings?.weeklyGoal || 50);
 
+  const steps = useMemo(() => stepsFor(examTrack), [examTrack]);
+  const stepName = steps[step];
+  const isFixedTrack = FIXED_SUBJECT_TRACKS.includes(examTrack);
+  const isIB = examTrack === 'IB';
+
+  // Fixed-syllabus tracks: take every subject automatically and keep the
+  // selection in sync if the student changes track mid-wizard.
+  useEffect(() => {
+    if (isFixedTrack) setPicked(SUBJECTS[examTrack] || []);
+  }, [examTrack, isFixedTrack]);
+
+  // Never leave the wizard pointing past the end of a shorter step list.
+  useEffect(() => {
+    setStep((v) => Math.min(v, stepsFor(examTrack).length - 1));
+  }, [examTrack]);
+
   const togglePick = (s) => setPicked((arr) => arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s]);
+  const setIbLevel = (subject, lvl) => setIbLevels((m) => ({ ...m, [subject]: lvl }));
 
   const validate = () => {
-    if (step === 0 && !examTrack) return 'Pick an exam track';
-    if (step === 1 && picked.length === 0) return 'Pick at least one subject';
-    if (step === 2) {
+    if (stepName === 'Exam' && !examTrack) return 'Pick an exam track';
+    if (stepName === 'Subjects' && picked.length === 0) return 'Pick at least one subject';
+    if (stepName === 'HL / SL') {
+      const missing = picked.filter((s) => !ibLevels[s]);
+      if (missing.length) return `Choose HL or SL for ${missing.join(', ')}`;
+    }
+    if (stepName === 'Dates') {
       const missing = picked.filter((s) => !dates[s]);
       if (missing.length) return `Set a date for ${missing.join(', ')}`;
     }
-    if (step === 3) {
+    if (stepName === 'Schedule') {
       if (!frequency) return 'Pick how often you want to practice';
       if (!weeklyGoal || weeklyGoal < 1) return 'Set a weekly goal';
     }
@@ -52,14 +85,14 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
 
   const next = () => {
     const err = validate(); if (err) { toast.error(err); return; }
-    if (step < 3) { setStep((v) => v + 1); return; }
+    if (step < steps.length - 1) { setStep((v) => v + 1); return; }
     finish();
   };
   const back = () => setStep((v) => Math.max(0, v - 1));
 
   const finish = () => {
     const exam = EXAM_TRACKS.find((e) => e.id === examTrack);
-    const subjects = picked.map((s) => ({ subject: s, examDate: dates[s], target, level }));
+    const subjects = picked.map((s) => ({ subject: s, examDate: dates[s], target, level, ...(isIB ? { ibLevel: ibLevels[s] } : {}) }));
     const name = (courseName || '').trim() || `${exam?.name || examTrack} ${picked.length > 1 ? 'Term' : picked[0]}`;
     const courseId = `c_${Date.now()}`;
     addCourse({ id: courseId, name, exam: examTrack, subjects, status: 'Active', target, level });
@@ -102,7 +135,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
         </div>
 
         <div className="flex items-center gap-3 mb-5">
-          {STEP_LABELS.map((label, i) => (
+          {steps.map((label, i) => (
             <React.Fragment key={label}>
               <div className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold transition-colors ${i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
@@ -110,17 +143,17 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                 </div>
                 <span className={`text-[12.5px] font-medium ${i === step ? 'text-slate-900' : 'text-slate-500'}`}>{label}</span>
               </div>
-              {i < STEP_LABELS.length - 1 && <div className={`flex-1 h-0.5 rounded-full ${i < step ? 'bg-emerald-300' : 'bg-slate-200'}`} />}
+              {i < steps.length - 1 && <div className={`flex-1 h-0.5 rounded-full ${i < step ? 'bg-emerald-300' : 'bg-slate-200'}`} />}
             </React.Fragment>
           ))}
         </div>
 
         <div className="bg-white rounded-2xl border border-[color:var(--color-border)] overflow-hidden">
           <div className="h-1 w-full bg-slate-100">
-            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((step + 1) / 4) * 100}%` }} />
+            <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
           </div>
 
-          {step === 0 && (
+          {stepName === 'Exam' && (
             <div className="p-6 lg:p-8">
               <div className="flex items-center gap-2 mb-2">
                 <GraduationCap className="w-5 h-5 text-blue-600" />
@@ -147,7 +180,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
             </div>
           )}
 
-          {step === 1 && (
+          {stepName === 'Subjects' && (
             <div className="p-6 lg:p-8">
               <div className="flex items-center gap-2 mb-2">
                 <BookOpen className="w-5 h-5 text-red-600" />
@@ -186,7 +219,61 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
             </div>
           )}
 
-          {step === 2 && (
+          {stepName === 'HL / SL' && (
+            <div className="p-6 lg:p-8">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-5 h-5 text-blue-600" />
+                <span className="text-[11px] tracking-[0.16em] uppercase font-semibold text-blue-700">IB levels</span>
+              </div>
+              <h2 className="text-[26px] font-semibold tracking-tight text-slate-900">Higher or Standard Level?</h2>
+              <p className="text-[13.5px] text-slate-500 mt-1">
+                IB syllabuses and grade boundaries differ by level, so worksheets and predicted grades follow whichever you pick.
+              </p>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="text-[12.5px] text-slate-500">
+                  {picked.filter((s) => ibLevels[s]).length} of {picked.length} set
+                </div>
+                <div className="flex items-center gap-2">
+                  {IB_LEVELS.map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => setIbLevels(Object.fromEntries(picked.map((s) => [s, lvl])))}
+                      className="text-[12.5px] text-blue-700 hover:text-blue-900 transition-colors"
+                    >
+                      All {lvl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-2.5">
+                {picked.map((s) => (
+                  <div key={s} className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3">
+                    <span className="text-[13.5px] font-semibold text-slate-900 min-w-0 truncate">{s}</span>
+                    <div className="flex items-center gap-2 shrink-0" role="group" aria-label={`Level for ${s}`}>
+                      {IB_LEVELS.map((lvl) => {
+                        const sel = ibLevels[s] === lvl;
+                        return (
+                          <button
+                            key={lvl}
+                            onClick={() => setIbLevel(s, lvl)}
+                            data-testid={`ib-level-${s}-${lvl}`}
+                            aria-pressed={sel}
+                            className={`px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold border transition-colors ${
+                              sel ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-[color:var(--color-border)] text-slate-600 hover:bg-slate-100'
+                            }`}
+                          >
+                            {lvl}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {stepName === 'Dates' && (
             <div className="p-6 lg:p-8">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5 text-violet-600" />
@@ -247,7 +334,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
             </div>
           )}
 
-          {step === 3 && (
+          {stepName === 'Schedule' && (
             <div className="p-6 lg:p-8">
               <div className="flex items-center gap-2 mb-2">
                 <CalendarClock className="w-5 h-5 text-blue-600" />
@@ -329,7 +416,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                 </button>
               )}
               <button onClick={next} data-testid="wizard-next" className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-blue-600 hover:opacity-95 transition-opacity">
-                {step === 3 ? (<><Sparkles className="w-5 h-5" /> {isOnboarding ? 'Finish setup' : 'Add course'}</>) : (<>Continue <ArrowRight className="w-5 h-5" /></>)}
+                {step === steps.length - 1 ? (<><Sparkles className="w-5 h-5" /> {isOnboarding ? 'Finish setup' : 'Add course'}</>) : (<>Continue <ArrowRight className="w-5 h-5" /></>)}
               </button>
             </div>
           </div>

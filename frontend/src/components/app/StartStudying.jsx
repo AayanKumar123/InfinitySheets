@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { SUBJECTS, SUBJECT_INFO } from '../../data/mock';
+import { SUBJECTS, SUBJECT_INFO, EXAM_TRACKS } from '../../data/mock';
+
+const boardName = (id) => EXAM_TRACKS.find((t) => t.id === id)?.name || id;
 import { BookOpen, ArrowRight, Search } from 'lucide-react';
 import InfinityBackground from '../decor/InfinityBackground';
 import SubjectOverview from './SubjectOverview';
@@ -38,10 +40,28 @@ const ALL_SUBJECTS = buildAllSubjects();
 // 1) subjects inside their added courses (CourseWizard + CustomCourseWizard)
 // 2) subjects picked during onboarding
 // 3) every subject in the active exam track
-function enrolledSubjects(state, track) {
+// Which board does each subject actually belong to? Courses carry their own
+// `exam` value, so a student taking IGCSE Physics and IB Economics sees the
+// right board on each card instead of the single global exam track (which
+// defaulted to CBSE for everyone).
+function subjectBoards(courses, fallbackTrack) {
+  const map = {};
+  (courses || []).forEach((c) => {
+    const board = c.exam || fallbackTrack;
+    const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
+    subs.forEach((entry) => {
+      const name = typeof entry === 'string' ? entry : entry?.subject;
+      if (!name) return;
+      if (!map[name]) map[name] = { board, ibLevel: typeof entry === 'object' ? entry?.ibLevel : undefined };
+    });
+  });
+  return map;
+}
+
+function enrolledSubjects(courses, userSubjects, track) {
   const trackSubs = SUBJECTS[track] || [];
   const fromCourses = [];
-  (state.courses || []).forEach((c) => {
+  (courses || []).forEach((c) => {
     const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
     subs.forEach((entry) => {
       const name = typeof entry === 'string' ? entry : entry?.subject;
@@ -49,7 +69,7 @@ function enrolledSubjects(state, track) {
     });
   });
   if (fromCourses.length) return fromCourses;
-  const fromUser = state.user?.subjects || [];
+  const fromUser = userSubjects || [];
   if (fromUser.length) return fromUser;
   return trackSubs;
 }
@@ -57,7 +77,10 @@ function enrolledSubjects(state, track) {
 export default function StartStudying({ go, subjectParam }) {
   const { state } = useApp();
   const track = state.user?.examTrack || 'SSLC';
-  const list = useMemo(() => enrolledSubjects(state, track), [state.courses, state.user?.subjects, track]);
+  const courses = state.courses;
+  const userSubjects = state.user?.subjects;
+  const list = useMemo(() => enrolledSubjects(courses, userSubjects, track), [courses, userSubjects, track]);
+  const boards = useMemo(() => subjectBoards(courses, track), [courses, track]);
 
   // Drive the grid from the search query if the user has typed something;
   // otherwise show the student's enrolled subjects. Search runs against
@@ -134,6 +157,18 @@ export default function StartStudying({ go, subjectParam }) {
                   </div>
                 </div>
                 <div className="relative mt-4 text-[16.5px] font-semibold text-slate-900">{s}</div>
+                {boards[s] && (
+                  <div className="relative mt-1 flex items-center gap-1.5">
+                    <span className="text-[11px] tracking-[0.1em] uppercase font-semibold text-blue-700" data-testid={`subject-board-${s}`}>
+                      {boardName(boards[s].board)}
+                    </span>
+                    {boards[s].ibLevel && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                        {boards[s].ibLevel}
+                      </span>
+                    )}
+                  </div>
+                )}
               </button>
             );
           })}

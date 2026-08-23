@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { SUBJECTS, TOPICS } from '../data/mock';
+import { SEED_PAST_PAPERS } from '../data/pastPapers';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as store from '../lib/dataStore';
 
@@ -22,7 +23,7 @@ const defaultState = {
   worksheets: [],
   mistakes: [],
   courses: [],
-  pastPapers: [],
+  pastPapers: SEED_PAST_PAPERS,
   streak: 0,
   lastStudyDate: null,
   tutorialDone: false,
@@ -128,6 +129,12 @@ export function AppProvider({ children }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) hydrated = { ...defaultState, ...JSON.parse(raw) };
+      // Stored state predates the seeded papers, so merge them back in.
+      const storedIds = new Set((hydrated.pastPapers || []).map((p) => p.id));
+      hydrated.pastPapers = [
+        ...(hydrated.pastPapers || []),
+        ...SEED_PAST_PAPERS.filter((p) => !storedIds.has(p.id)),
+      ];
     } catch (err) { logError('hydrate', err); }
 
     const demoLocal = !!(hydrated.user && hydrated.user.isDemo);
@@ -477,7 +484,12 @@ export function AppProvider({ children }) {
   const refreshPastPapers = useCallback(async () => {
     try {
       const list = await store.listPastPapers();
-      setState((s) => ({ ...s, pastPapers: Array.isArray(list) ? list : [] }));
+      // Seeded papers ship with the repo so the worksheet builder always has
+      // past-paper content; database rows are layered on top of them.
+      const remote = Array.isArray(list) ? list : [];
+      const remoteIds = new Set(remote.map((p) => p.id));
+      const merged = [...remote, ...SEED_PAST_PAPERS.filter((p) => !remoteIds.has(p.id))];
+      setState((s) => ({ ...s, pastPapers: merged }));
       return list;
     } catch (err) { logError('past-papers/list', err); return null; }
   }, []);
