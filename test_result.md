@@ -166,6 +166,18 @@ frontend:
         -agent: "main"
         -comment: "Added a 'My subjects' section to the Dashboard using the same enrolled-subjects derivation as StartStudying (courses -> user.subjects -> track fallback), with per-subject board + IB HL/SL badges. Each card navigates to #study?subject=<name>, which renders SubjectOverview. Verified in demo mode desktop (1920) and mobile (390, no overflow): grid shows all subjects and clicking Mathematics opened the Subject Overview page."
 
+  - task: "Start Studying: 'Subjects Taken' / 'Subjects Not Taken' split + '+ Add Subject' -> pick course"
+    implemented: true
+    working: true
+    file: "frontend/src/components/app/StartStudying.jsx, frontend/src/context/AppContext.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Start Studying now splits subjects into two sections: 'Subjects Taken' (enrolled) and 'Subjects Not Taken' (everything else), both filtered by the search box. Each not-taken card has a '+ Add Subject' button that opens a modal listing the student's courses; picking one appends the subject to that course via updateCourse (idempotent guard against duplicates), after which it moves into 'Subjects Taken'. If no courses exist, the modal prompts to create one. Verified in demo desktop: created a JEE course, added Biology to it via the modal (toast 'Added Biology to JEE Term'), Biology moved to Taken with JEE board tag. Mobile 390px: no horizontal scroll (only decorative SVGs overflow)."
+
 metadata:
   created_by: "main_agent"
   version: "2.0"
