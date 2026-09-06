@@ -154,6 +154,18 @@ frontend:
         -agent: "main"
         -comment: "dataStore maps camelCase<->snake_case with a data jsonb for lossless round-trip. Mutations write to Supabase when signed-in and !isDemo; demo mode never touches network. Migrate-on-first-signin uploads local worksheets/courses/mistakes once (per-user synced flag). Data-layer persistence validated end-to-end. Full UI worksheet-completion + cross-browser check pending (needs frontend testing agent permission)."
 
+  - task: "Dashboard 'My subjects' grid mirrors Start Studying; cards open Subject Overview"
+    implemented: true
+    working: true
+    file: "frontend/src/components/app/Dashboard.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Added a 'My subjects' section to the Dashboard using the same enrolled-subjects derivation as StartStudying (courses -> user.subjects -> track fallback), with per-subject board + IB HL/SL badges. Each card navigates to #study?subject=<name>, which renders SubjectOverview. Verified in demo mode desktop (1920) and mobile (390, no overflow): grid shows all subjects and clicking Mathematics opened the Subject Overview page."
+
 metadata:
   created_by: "main_agent"
   version: "2.0"

@@ -1,10 +1,55 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight } from 'lucide-react';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
+import { SUBJECTS, SUBJECT_INFO, EXAM_TRACKS } from '../../data/mock';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
+
+const boardName = (id) => EXAM_TRACKS.find((t) => t.id === id)?.name || id;
+
+const SUBJECT_TONE_BADGE = {
+  primary: 'bg-blue-100 text-blue-700',
+  violet: 'bg-blue-100 text-blue-700',
+  blue: 'bg-violet-100 text-violet-700',
+  secondary: 'bg-violet-100 text-violet-700',
+  cyan: 'bg-red-100 text-red-700',
+  accent: 'bg-red-100 text-red-700',
+  success: 'bg-emerald-100 text-emerald-700',
+};
+
+// Enrolled subjects + their board/level — mirrors the derivation in
+// StartStudying so the dashboard lists the exact same subjects.
+function dashEnrolledSubjects(courses, userSubjects, track) {
+  const trackSubs = SUBJECTS[track] || [];
+  const fromCourses = [];
+  (courses || []).forEach((c) => {
+    const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
+    subs.forEach((entry) => {
+      const name = typeof entry === 'string' ? entry : entry?.subject;
+      if (name && !fromCourses.includes(name)) fromCourses.push(name);
+    });
+  });
+  if (fromCourses.length) return fromCourses;
+  const fromUser = userSubjects || [];
+  if (fromUser.length) return fromUser;
+  return trackSubs;
+}
+
+function dashSubjectBoards(courses, fallbackTrack) {
+  const map = {};
+  (courses || []).forEach((c) => {
+    const board = c.exam || fallbackTrack;
+    const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
+    subs.forEach((entry) => {
+      const name = typeof entry === 'string' ? entry : entry?.subject;
+      if (!name) return;
+      if (!map[name]) map[name] = { board, ibLevel: typeof entry === 'object' ? entry?.ibLevel : undefined };
+    });
+  });
+  return map;
+}
 
 // Rotating dashboard greetings. `{name}` is substituted with the student's
 // first name (falling back to "Student"). One is picked per component mount,
@@ -209,6 +254,19 @@ export default function Dashboard({ go }) {
   // Random greeting — picked once per mount, so it changes every refresh.
   const [greeting] = useState(() => pickGreeting(state.user?.name));
 
+  // The student's subjects, matching what Start Studying shows. Each card
+  // deep-links into that subject's overview (#study?subject=...).
+  const studyTrack = state.user?.examTrack || 'SSLC';
+  const mySubjects = useMemo(
+    () => dashEnrolledSubjects(state.courses, state.user?.subjects, studyTrack),
+    [state.courses, state.user, studyTrack],
+  );
+  const mySubjectBoards = useMemo(
+    () => dashSubjectBoards(state.courses, studyTrack),
+    [state.courses, studyTrack],
+  );
+  const openSubject = (s) => { window.location.hash = `#study?subject=${encodeURIComponent(s)}`; };
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -236,6 +294,56 @@ export default function Dashboard({ go }) {
         <Stat label="Questions answered" value={stats.total} />
         <Stat label="Worksheets completed" value={stats.sheets} />
       </div>
+
+      {mySubjects.length > 0 && (
+        <div data-testid="dashboard-my-subjects">
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <div className="eyebrow-muted flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-blue-600" /> My subjects
+            </div>
+            <button
+              onClick={() => go('study')}
+              className="text-[12.5px] text-blue-700 hover:text-blue-900 font-medium transition-colors"
+            >
+              Browse all &rarr;
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {mySubjects.map((s) => {
+              const info = SUBJECT_INFO[s] || { emoji: '\u25A0', tone: 'primary' };
+              const b = mySubjectBoards[s];
+              return (
+                <button
+                  key={s}
+                  onClick={() => openSubject(s)}
+                  data-testid={`dashboard-subject-${s}`}
+                  className="group text-left rounded-xl border border-[color:var(--color-border)] bg-white p-4 hover:border-blue-300 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-semibold ${SUBJECT_TONE_BADGE[info.tone] || SUBJECT_TONE_BADGE.primary}`}>
+                      {info.emoji}
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="mt-3 text-[14px] font-semibold text-slate-900 truncate">{s}</div>
+                  {b && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="text-[10.5px] tracking-[0.1em] uppercase font-semibold text-blue-700">
+                        {boardName(b.board)}
+                      </span>
+                      {b.ibLevel && (
+                        <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                          {b.ibLevel}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white">
