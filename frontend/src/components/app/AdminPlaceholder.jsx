@@ -219,7 +219,7 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
   return (
     <div className="grid lg:grid-cols-[1fr_1.1fr] gap-5">
       {/* Left column: add form + bulk PDF upload */}
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5 min-w-0">
         <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5">
           <div className="flex items-center justify-between mb-1">
             <div className="text-[12px] tracking-[0.16em] uppercase font-semibold text-blue-700">Add a past-paper question</div>
@@ -322,7 +322,7 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
       </div>
 
       {/* Right column: library */}
-      <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5">
+      <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5 min-w-0">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
             <div className="text-[12px] tracking-[0.16em] uppercase font-semibold text-blue-700">Past-paper library</div>
