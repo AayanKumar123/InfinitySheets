@@ -773,3 +773,40 @@ html.dark .sidebar-item:hover svg,
 html.dark .sidebar-item:focus-visible svg {
     color: #60a5fa !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Landing data-viz (TheProblem / ActiveLearning). Series colours validated for
+   colour-blind separation on both surfaces; text never wears a series colour. */
+:root {
+    --viz-single: #1e40af;
+    --viz-track: #e6e4dd;
+    --viz-grid: #e1e0d9;
+    --viz-s1: #6d28d9;
+    --viz-s2: #eda100;
+    --viz-s3: #1baf7a;
+}
+html.dark {
+    --viz-single: #60a5fa;
+    --viz-track: #262626;
+    --viz-grid: #2c2c2a;
+    --viz-s1: #9085e9;
+    --viz-s2: #c98500;
+    --viz-s3: #199e70;
+}
+.viz-track { height: 22px; background: var(--viz-track); border-radius: 0 4px 4px 0; overflow: hidden; }
+.viz-bar { height: 100%; background: var(--viz-single); border-radius: 0 4px 4px 0; transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.viz-axis { display: flex; justify-content: space-between; padding-right: 3.25rem; font-size: 11px; color: var(--color-text-2); border-top: 1px solid var(--viz-grid); padding-top: 6px; }
+.viz-plot { position: relative; height: 180px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 26px 4px 0; }
+.viz-plot::after { content: ''; position: absolute; left: 0; right: 0; bottom: var(--baseline); height: 1px; background: var(--color-text-2); opacity: 0.55; }
+.viz-col { position: relative; height: 100%; }
+.viz-colbar { position: absolute; left: 50%; transform: translateX(-50%); width: 24px; max-width: 60%; border-radius: 4px 4px 0 0; transition: height 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.viz-colbar-neg { border-radius: 0 0 4px 4px; }
+.viz-val { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12.5px; font-weight: 600; color: var(--color-text); white-space: nowrap; transition: bottom 0.9s cubic-bezier(0.22, 1, 0.36, 1), top 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.viz-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.viz-s1 { background: var(--viz-s1); }
+.viz-s2 { background: var(--viz-s2); }
+.viz-s3 { background: var(--viz-s3); }
+.viz-col:hover .viz-colbar, .viz-row:hover .viz-bar { filter: brightness(1.08); }
+@media (prefers-reduced-motion: reduce) {
+    .viz-bar, .viz-colbar, .viz-val { transition: none; }
+}

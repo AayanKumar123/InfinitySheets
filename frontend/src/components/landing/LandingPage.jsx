@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import Navbar from './Navbar';
 import Hero from './Hero';
 import ProductStats from './ProductStats';
+import TheProblem from './TheProblem';
+import ActiveLearning from './ActiveLearning';
 import WhyDifferent from './WhyDifferent';
 import HowItWorks from './HowItWorks';
 import TryQuestion from './TryQuestion';
@@ -58,9 +60,11 @@ export default function LandingPage({ hash }) {
       <Hero />
       <StudentGallery3D />
       <ProductStats />
+      <TheProblem />
       <FoundingStory />
       <PredictedGrade />
       <WhyDifferent />
+      <ActiveLearning />
       <HowItWorks />
       <FreeResources />
       <Pricing />
