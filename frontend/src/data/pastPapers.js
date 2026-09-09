@@ -112,9 +112,9 @@ const SEED_QUESTIONS_V1 = [
   pp('SAT', 'SAT', 'Grammar', 'Choose the correct form: “Neither of the answers ___ correct.”', ['are', 'is', 'were', 'be'], 1),
 
   // ---- JEE ----
-  pp('JEE', 'Physics', 'Mechanics', 'A particle moves with constant speed in a circle. Its acceleration is:', ['Zero', 'Directed along the velocity', 'Directed towards the centre', 'Directed outwards'], 2, 'Exam level'),
-  pp('JEE', 'Chemistry', 'Physical', 'The pH of a 0.01 M strong acid solution is:', ['1', '2', '10', '12'], 1, 'Exam level'),
-  pp('JEE', 'Mathematics', 'Algebra', 'The number of real roots of x² + 4 = 0 is:', ['0', '1', '2', 'Infinite'], 0, 'Exam level'),
+  pp('JEE', 'JEE', 'Mechanics', 'A particle moves with constant speed in a circle. Its acceleration is:', ['Zero', 'Directed along the velocity', 'Directed towards the centre', 'Directed outwards'], 2, 'Exam level'),
+  pp('JEE', 'JEE', 'Physical', 'The pH of a 0.01 M strong acid solution is:', ['1', '2', '10', '12'], 1, 'Exam level'),
+  pp('JEE', 'JEE', 'Algebra', 'The number of real roots of x² + 4 = 0 is:', ['0', '1', '2', 'Infinite'], 0, 'Exam level'),
 
   // ---- NEET (one combined subject) ----
   pp('NEET', 'NEET', 'Human Physiology', 'Exchange of gases in the lungs happens across the:', ['Bronchi', 'Trachea', 'Alveoli', 'Pleura'], 2),
@@ -122,8 +122,8 @@ const SEED_QUESTIONS_V1 = [
   pp('NEET', 'NEET', 'Organic', 'Which compound shows optical isomerism?', ['CH₄', 'CHClBrF', 'CO₂', 'C₂H₆'], 1),
 
   // ---- LSAT ----
-  pp('LSAT', 'Logical Reasoning', 'Assumptions', 'An argument’s necessary assumption is a claim that:', ['Restates the conclusion', 'Must be true for the conclusion to hold', 'Weakens the evidence', 'Introduces new evidence'], 1),
-  pp('LSAT', 'Reading Comprehension', 'Main Point', 'The main point of a passage is best found by identifying:', ['The longest paragraph', 'The author’s overall claim', 'The first sentence', 'Any statistic quoted'], 1),
+  pp('LSAT', 'LSAT', 'Assumptions', 'An argument’s necessary assumption is a claim that:', ['Restates the conclusion', 'Must be true for the conclusion to hold', 'Weakens the evidence', 'Introduces new evidence'], 1),
+  pp('LSAT', 'LSAT', 'Main Point', 'The main point of a passage is best found by identifying:', ['The longest paragraph', 'The author’s overall claim', 'The first sentence', 'Any statistic quoted'], 1),
 ];
 
 
@@ -186,10 +186,10 @@ const SEED_QUESTIONS_V2 = [
   pp('SAT', 'SAT', 'Vocabulary in Context', 'As used in “the committee reached a tentative agreement,” “tentative” most nearly means:', ['Final', 'Provisional', 'Reluctant', 'Enthusiastic'], 1, 'Easy'),
   pp('SAT', 'SAT', 'Rhetoric', 'Which choice most effectively combines the sentences: “The bridge was built in 1932. It still carries traffic today.”', ['Built in 1932, the bridge still carries traffic today.', 'The bridge was built in 1932, it still carries traffic today.', 'The bridge, built in 1932 and it still carries traffic today.', 'Being built in 1932, and the bridge still carries traffic.'], 0),
   // ---- JEE ----
-  pp('JEE', 'Physics', 'Electrostatics', 'The electric field inside a uniformly charged hollow conducting sphere is:', ['Maximum at the centre', 'Zero', 'Proportional to distance from centre', 'Inversely proportional to distance'], 1),
-  pp('JEE', 'Chemistry', 'Coordination Compounds', 'The oxidation state of cobalt in [Co(NH₃)₆]Cl₃ is:', ['+1', '+2', '+3', '+6'], 2),
-  pp('JEE', 'Mathematics', 'Calculus', 'The value of lim (x→0) (sin 3x)/x is:', ['0', '1', '3', '1/3'], 2, 'Easy'),
-  pp('JEE', 'Physics', 'Waves', 'Two tuning forks of frequencies 256 Hz and 260 Hz are sounded together. The beat frequency is:', ['2 Hz', '4 Hz', '258 Hz', '516 Hz'], 1, 'Easy'),
+  pp('JEE', 'JEE', 'Electrostatics', 'The electric field inside a uniformly charged hollow conducting sphere is:', ['Maximum at the centre', 'Zero', 'Proportional to distance from centre', 'Inversely proportional to distance'], 1),
+  pp('JEE', 'JEE', 'Coordination Compounds', 'The oxidation state of cobalt in [Co(NH₃)₆]Cl₃ is:', ['+1', '+2', '+3', '+6'], 2),
+  pp('JEE', 'JEE', 'Calculus', 'The value of lim (x→0) (sin 3x)/x is:', ['0', '1', '3', '1/3'], 2, 'Easy'),
+  pp('JEE', 'JEE', 'Waves', 'Two tuning forks of frequencies 256 Hz and 260 Hz are sounded together. The beat frequency is:', ['2 Hz', '4 Hz', '258 Hz', '516 Hz'], 1, 'Easy'),
   // ---- NEET (one combined subject) ----
   pp('NEET', 'NEET', 'Modern Physics', 'The de Broglie wavelength of a moving particle is inversely proportional to its:', ['Mass only', 'Velocity only', 'Momentum', 'Kinetic energy'], 2),
   pp('NEET', 'NEET', 'Mechanics', 'A body is thrown vertically upward with velocity 20 m/s (g = 10 m/s²). Its maximum height is:', ['10 m', '20 m', '40 m', '80 m'], 1, 'Easy'),
@@ -197,9 +197,9 @@ const SEED_QUESTIONS_V2 = [
   pp('NEET', 'NEET', 'Genetics', 'In humans, haemophilia is inherited as a:', ['Autosomal dominant trait', 'Autosomal recessive trait', 'X-linked recessive trait', 'Y-linked trait'], 2),
   pp('NEET', 'NEET', 'Cell Biology', 'The enzyme that unwinds the DNA double helix during replication is:', ['DNA ligase', 'Helicase', 'Primase', 'Topoisomerase'], 1),
   // ---- LSAT ----
-  pp('LSAT', 'Logical Reasoning', 'Assumptions', 'Everyone who studied for the exam passed. Rahul passed. Therefore Rahul studied. The reasoning is flawed because it:', ['Confuses a sufficient condition with a necessary one', 'Relies on an unrepresentative sample', 'Attacks the person rather than the argument', 'Assumes correlation implies causation'], 0),
-  pp('LSAT', 'Logical Reasoning', 'Assumptions', 'The town council argues that a new library will raise literacy because towns with libraries have higher literacy rates. The argument is most vulnerable to the criticism that it:', ['Fails to define literacy', 'Overlooks that higher literacy may cause towns to build libraries', 'Ignores the cost of the library', 'Relies on an appeal to authority'], 1),
-  pp('LSAT', 'Reading Comprehension', 'Main Point', 'A passage argues that early city planners underestimated pedestrian needs, then notes that modern planners are reversing course. The primary purpose of the passage is to:', ['Criticise modern planners', 'Trace a change in planning priorities', 'Advocate abolishing cars', 'Describe a single city’s history'], 1),
+  pp('LSAT', 'LSAT', 'Assumptions', 'Everyone who studied for the exam passed. Rahul passed. Therefore Rahul studied. The reasoning is flawed because it:', ['Confuses a sufficient condition with a necessary one', 'Relies on an unrepresentative sample', 'Attacks the person rather than the argument', 'Assumes correlation implies causation'], 0),
+  pp('LSAT', 'LSAT', 'Assumptions', 'The town council argues that a new library will raise literacy because towns with libraries have higher literacy rates. The argument is most vulnerable to the criticism that it:', ['Fails to define literacy', 'Overlooks that higher literacy may cause towns to build libraries', 'Ignores the cost of the library', 'Relies on an appeal to authority'], 1),
+  pp('LSAT', 'LSAT', 'Main Point', 'A passage argues that early city planners underestimated pedestrian needs, then notes that modern planners are reversing course. The primary purpose of the passage is to:', ['Criticise modern planners', 'Trace a change in planning priorities', 'Advocate abolishing cars', 'Describe a single city’s history'], 1),
 ];
 
 // Full past papers — the real thing, hosted by the awarding body. These rows
@@ -248,13 +248,12 @@ export const SEED_PAPER_LINKS = [
   paper('AP', 'Calculus AB', 'AP Calculus AB — past free-response questions', 2025, 'https://apcentral.collegeboard.org/courses/ap-calculus-ab/exam/past-exam-questions'),
   paper('SAT', 'SAT', 'Digital SAT — official full-length paper practice tests', 2025, 'https://satsuite.collegeboard.org/practice/practice-tests/paper'),
   paper('SAT', 'SAT', 'Bluebook — official digital adaptive practice tests', 2025, 'https://bluebook.collegeboard.org/students/practice'),
-  paper('JEE', 'Physics', 'JEE Main — official question paper archive (NTA)', 2025, 'https://jeemain.nta.nic.in/document-category/archive/'),
-  paper('JEE', 'Chemistry', 'JEE Main — official question paper archive (NTA)', 2025, 'https://jeemain.nta.nic.in/document-category/archive/'),
-  paper('JEE', 'Mathematics', 'JEE Advanced — past papers (Archive section)', 2025, 'https://jeeadv.ac.in/'),
+  paper('JEE', 'JEE', 'JEE Main — official question paper archive (NTA)', 2025, 'https://jeemain.nta.nic.in/document-category/archive/'),
+  paper('JEE', 'JEE', 'JEE Advanced — past papers (Archive section)', 2025, 'https://jeeadv.ac.in/'),
   paper('NEET', 'NEET', 'NEET (UG) — official question paper archive (NTA)', 2025, 'https://neet.nta.nic.in/document-category/archive/'),
   paper('NEET', 'NEET', 'NEET — code-wise official papers 2015 onwards', 2025, 'https://medicine.careers360.com/articles/neet-question-paper'),
-  paper('LSAT', 'Logical Reasoning', 'LawHub — free official LSAT PrepTests', 2025, 'https://app.lawhub.org/library/fulltests'),
-  paper('LSAT', 'Reading Comprehension', 'LSAC — official LSAT practice tests', 2025, 'https://www.lsac.org/lsat/prepare/official-lsat-practice-tests'),
+  paper('LSAT', 'LSAT', 'LawHub — free official LSAT PrepTests', 2025, 'https://app.lawhub.org/library/fulltests'),
+  paper('LSAT', 'LSAT', 'LSAC — official LSAT practice tests', 2025, 'https://www.lsac.org/lsat/prepare/official-lsat-practice-tests'),
   paper('SSLC', 'Mathematics', 'Karnataka SSLC — official question papers (KSEAB)', 2025, 'https://kseab.karnataka.gov.in/new-page/SSLC%20QUESTION%20PAPERS/en'),
   paper('SSLC', 'Physics', 'Karnataka SSLC — 2025-26 model question papers with keys', 2025, 'https://kseeb.karnataka.gov.in/QP2026/SSLC2025-26MODEL_QP'),
   paper('SSLC', 'Social Science', 'Tamil Nadu SSLC — official question bank (TNDGE)', 2025, 'https://apply1.tndge.org/dge-notification/questbank'),

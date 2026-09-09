@@ -16,6 +16,7 @@ import CourseWizard from './CourseWizard';
 import QuestionBank from './QuestionBank';
 import AdminPlaceholder from './AdminPlaceholder';
 import CourseOverview from './CourseOverview';
+import TopicOverview from './TopicOverview';
 import ResourcesPage from '../landing/ResourcesPage';
 import Sidebar from './shell/Sidebar';
 import DemoBanner from './shell/DemoBanner';
@@ -38,6 +39,7 @@ const HIDDEN_ROUTES = [
   { key: 'worksheets', label: 'Create a Worksheet', Icon: FileText },
   { key: 'mistakes', label: 'Mistake History', Icon: AlertTriangle },
   { key: 'course-overview', label: 'Course Overview', Icon: GraduationCap },
+  { key: 'topic', label: 'Topic overview', Icon: GraduationCap },
 ];
 
 const SIDEBAR_STORAGE_KEY = 'infinitysheets_sidebar_open';
@@ -89,6 +91,7 @@ function renderRoute(activeKey, params, go, isAdmin) {
     case 'resources': return <ResourcesPage embedded />;
     case 'admin': return isAdmin ? <AdminPlaceholder /> : <Dashboard go={go} />;
     case 'course-overview': return <CourseOverview courseId={params.id} go={go} />;
+    case 'topic': return <TopicOverview subject={params.subject} topic={params.topic} go={go} />;
     default: return <Dashboard go={go} />;
   }
 }

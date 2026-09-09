@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { toast } from 'sonner';
-import { User, Sliders, Accessibility, GraduationCap, AlertTriangle, Save, RotateCcw, Trash2, Sun, Moon, Keyboard, BookOpen, Calendar } from 'lucide-react';
+import { User, Sliders, Accessibility, GraduationCap, AlertTriangle, Save, RotateCcw, Trash2, Sun, Moon, Keyboard, BookOpen, Calendar, Bot } from 'lucide-react';
 import { EXAM_TRACKS, SUBJECTS } from '../../data/mock';
 
 const GOALS = [5, 10, 20];
@@ -24,6 +24,7 @@ export default function SettingsView() {
 
       <Preferences settings={state.settings} updateSettings={updateSettings} />
 
+      <AiSection settings={state.settings} updateSettings={updateSettings} />
       <AccessibilitySection settings={state.settings} updateSettings={updateSettings} theme={state.theme} toggleTheme={toggleTheme} />
 
       <SetupSection user={state.user} settings={state.settings} restartOnboarding={restartOnboarding} />
@@ -193,6 +194,21 @@ function Preferences({ settings, updateSettings }) {
 // --------------------------------------------------------------------------
 // Accessibility
 // --------------------------------------------------------------------------
+
+function AiSection({ settings, updateSettings }) {
+  const on = settings.aiEnabled !== false;
+  return (
+    <Section title="AI assistants" icon={Bot} subtitle="The topic overviews, doubt-clearing tutor and the study coach in Smart Recommendations.">
+      <Toggle
+        checked={on}
+        onChange={(v) => { updateSettings({ aiEnabled: v }); toast.success(v ? 'AI assistants enabled' : 'All AI assistants turned off'); }}
+        label={<span className="inline-flex items-center gap-1.5"><Bot className="w-4 h-4 text-slate-600" /> Enable AI assistants</span>}
+        hint="Turning this off hides every AI chatbot and AI overview across the app. Your questions are sent to Google Gemini only while this is on."
+        testid="pref-ai"
+      />
+    </Section>
+  );
+}
 
 function AccessibilitySection({ settings, updateSettings, theme, toggleTheme }) {
   return (

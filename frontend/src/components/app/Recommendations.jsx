@@ -4,6 +4,8 @@ import { Sparkles, ArrowRight, TrendingDown } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
+import { subjectBoards, boardName } from '../../lib/subjects';
+import AiChat from './ai/AiChat';
 
 export default function Recommendations({ go }) {
   const { state } = useApp();
@@ -16,7 +18,42 @@ export default function Recommendations({ go }) {
     weaknessMax,
     isCustom,
     weaknesses,
+    strengths,
   } = useStrengthsWeaknesses(ws, swOverrides);
+
+  // What the AI coach knows about this student: boards, exam date, weakest and
+  // strongest topics. Sent as a hidden first message, never stored anywhere.
+  const examTrack = state.user?.examTrack || 'CBSE';
+  const boards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
+  const coach = useMemo(() => {
+    const boardList = Array.from(new Set([...Object.values(boards).map((b) => b.board), examTrack]));
+    const weak = [...weaknesses].sort((a, b) => a.acc - b.acc).slice(0, 6).map((t) => `${t.topic} (${t.subject}, ${t.acc}%)`);
+    const strong = [...(strengths || [])].sort((a, b) => b.acc - a.acc).slice(0, 3).map((t) => `${t.topic} (${t.subject}, ${t.acc}%)`);
+    const subjects = Array.from(new Set(ws.map((w) => w.subject)));
+    const primer = [
+      `Student profile — boards: ${boardList.map(boardName).join(', ')}.`,
+      state.settings?.examDate ? `Exam date: ${state.settings.examDate}.` : 'Exam date: not set.',
+      `Subjects with attempts: ${subjects.join(', ') || 'none yet'}. Worksheets completed: ${ws.length}.`,
+      `Weakest topics: ${weak.join('; ') || 'none identified yet'}.`,
+      `Strongest topics: ${strong.join('; ') || 'none identified yet'}.`,
+      'Use this to give prioritised, specific advice.',
+    ].join('\n');
+    return { primer, context: { board: boardList[0], boards: boardList } };
+  }, [boards, examTrack, weaknesses, strengths, ws, state.settings?.examDate]);
+
+  const coachPanel = (
+    <AiChat
+      title="AI study coach"
+      subtitle="Knows your weak topics, your boards and your exam date."
+      mode="recommend"
+      context={coach.context}
+      primer={coach.primer}
+      intro="I can see your results. Ask me what to practise next, why a topic keeps tripping you up, or for a plan up to your exam."
+      suggestions={['What should I focus on this week?', 'Make me a 7-day revision plan', 'Why do I keep losing marks?', 'How do I turn my weakest topic around?']}
+      placeholder="Ask your coach…"
+      testid="recommendations-chat"
+    />
+  );
 
   // Prioritize adaptive weaknesses first (ascending accuracy → hardest first).
   // If there are fewer than 4 weaknesses, backfill with the next lowest topics
@@ -33,6 +70,7 @@ export default function Recommendations({ go }) {
 
   if (recs.length === 0) {
     return (
+      <div className="flex flex-col gap-3 max-w-[820px]">
       <div className="relative rounded-2xl border border-dashed border-[color:var(--color-border)] bg-white overflow-hidden min-h-[360px]">
         <EmptyStateScene variant="lab" className="absolute inset-0" />
         <div className="relative p-12 text-center">
@@ -40,6 +78,8 @@ export default function Recommendations({ go }) {
           <div className="text-[15px] font-medium text-slate-700">No recommendations yet</div>
           <div className="text-[13px] text-slate-500 mt-1">Complete a worksheet so we can suggest your next best actions.</div>
         </div>
+      </div>
+      {coachPanel}
       </div>
     );
   }
@@ -101,6 +141,8 @@ export default function Recommendations({ go }) {
           </div>
         );
       })}
+
+      {coachPanel}
     </div>
   );
 }

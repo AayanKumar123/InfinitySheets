@@ -37,6 +37,7 @@ const defaultState = {
     examDate: '',
     keyboardShortcuts: true,
     sound: true,
+    aiEnabled: true,
   },
   questionsToday: 0,
   goalDate: null,
