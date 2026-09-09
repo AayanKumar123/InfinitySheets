@@ -4,6 +4,7 @@ import { SUBJECT_INFO } from '../../data/mock';
 import { TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { predictedScore, predictedBreakdown, formatGrade, TONE_CLASSES, isGradedTrack } from '../../lib/predictedGrade';
+import { subjectBoards } from '../../lib/subjects';
 import { useStrengthsWeaknesses, useSavedSwOverridesFor, useSavedSwPrefs, computeSw, pickOverridesFor } from '../../hooks/useStrengthsWeaknesses';
 import PredictedScoreMini from './PredictedScoreMini';
 
@@ -22,8 +23,13 @@ export default function ProgressView() {
   const { state } = useApp();
   const ws = state.worksheets || [];
   const examTrack = state.user?.examTrack || 'CBSE';
+  // A subject's grade format follows the board of the course it belongs to
+  // (a CBSE + IB student gets a % for one and a 1-7 grade for the other).
+  const subjBoards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
+  const boardOf = useCallback((sub) => subjBoards[sub]?.board || examTrack, [subjBoards, examTrack]);
 
   const allSubjects = useMemo(() => Array.from(new Set(ws.map((w) => w.subject))), [ws]);
+  const boardsInPlay = useMemo(() => Array.from(new Set(allSubjects.map(boardOf))), [allSubjects, boardOf]);
   const [hidden, setHidden] = useState({});
   const [hoveredSubject, setHoveredSubject] = useState(null);
   const [focusedSubject, setFocusedSubject] = useState(null); // set briefly on click for a flash-highlight
@@ -76,7 +82,8 @@ export default function ProgressView() {
         map[s] = null; return;
       }
       const bd = predictedBreakdown(list);
-      const grade = formatGrade(bd.score, examTrack);
+      const board = boardOf(s);
+      const grade = formatGrade(bd.score, board);
       // Best (max score) and latest (most recent) worksheet.
       const best = list.reduce((m, w) => (w.score > m.score ? w : m), list[0]);
       const latest = [...list].sort((a, b) => {
@@ -85,10 +92,10 @@ export default function ProgressView() {
         return tb - ta;
       })[0];
       const sw = computeSw(list, pickOverridesFor(swPrefs, s));
-      map[s] = { bd, grade, best, latest, sw, count: list.length };
+      map[s] = { bd, grade, board, best, latest, sw, count: list.length };
     });
     return map;
-  }, [ws, allSubjects, examTrack, swPrefs]);
+  }, [ws, allSubjects, boardOf, swPrefs]);
 
   // Convenience: predictedBySubject (subset of subjectDetails filtered to visible)
   const predictedBySubject = useMemo(() => {
@@ -97,10 +104,10 @@ export default function ProgressView() {
       const d = subjectDetails[s];
       map[s] = d
         ? { predicted: d.bd.score, count: d.count, grade: d.grade }
-        : { predicted: 0, count: 0, grade: formatGrade(0, examTrack) };
+        : { predicted: 0, count: 0, grade: formatGrade(0, boardOf(s)) };
     });
     return map;
-  }, [visibleSubjects, subjectDetails, examTrack]);
+  }, [visibleSubjects, subjectDetails, boardOf]);
 
   // Click a subject line/label → scroll to the cards section and briefly
   // highlight the matching subject card.
@@ -128,7 +135,7 @@ export default function ProgressView() {
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <PredictedScoreMini predictedBySubject={predictedBySubject} visibleSubjects={visibleSubjects} examTrack={examTrack} />
+        <PredictedScoreMini predictedBySubject={predictedBySubject} visibleSubjects={visibleSubjects} examTrack={examTrack} subjectBoards={subjBoards} />
         <Mini label="Worksheets" value={visibleWS.length} />
         <Mini label="Questions" value={visibleWS.reduce((s, x) => s + x.total, 0)} />
       </div>
@@ -216,9 +223,11 @@ export default function ProgressView() {
           <div>
             <div className="eyebrow-muted">Predicted grade per subject</div>
             <div className="text-[12px] text-slate-500 mt-0.5">
-              {isGradedTrack(examTrack)
-                ? `${(examTrack || '').toUpperCase()}-style grade, heavily biased toward your most recent worksheet and adjusted for its difficulty.`
-                : 'Heavily biased toward your most recent worksheet and adjusted for its difficulty.'}
+              {boardsInPlay.length > 1
+                ? 'Each subject is graded in its own board\u2019s format, heavily biased toward your most recent worksheet and adjusted for its difficulty.'
+                : isGradedTrack(boardsInPlay[0] || examTrack)
+                  ? `${(boardsInPlay[0] || examTrack).toUpperCase()}-style grade, heavily biased toward your most recent worksheet and adjusted for its difficulty.`
+                  : 'Heavily biased toward your most recent worksheet and adjusted for its difficulty.'}
               <span className="ml-1 text-emerald-700">
                 An extra upward nudge is applied when you&rsquo;re improving.
               </span>

@@ -1,10 +1,22 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle } from 'lucide-react';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
+import { SUBJECT_INFO } from '../../data/mock';
+import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
+
+const SUBJECT_TONE_BADGE = {
+  primary: 'bg-blue-100 text-blue-700',
+  violet: 'bg-blue-100 text-blue-700',
+  blue: 'bg-violet-100 text-violet-700',
+  secondary: 'bg-violet-100 text-violet-700',
+  cyan: 'bg-red-100 text-red-700',
+  accent: 'bg-red-100 text-red-700',
+  success: 'bg-emerald-100 text-emerald-700',
+};
 
 // Rotating dashboard greetings. `{name}` is substituted with the student's
 // first name (falling back to "Student"). One is picked per component mount,
@@ -73,8 +85,13 @@ function DaysStat({ days, subLabel }) {
 }
 
 export default function Dashboard({ go }) {
-  const { state } = useApp();
+  const { state, clearDraftWorksheet } = useApp();
   const ws = state.worksheets || [];
+  const draft = state.draftWorksheet;
+  const resumeDraft = () => {
+    try { window.sessionStorage.setItem('resume_ws_draft', '1'); } catch (_) { /* ignore */ }
+    go('worksheets');
+  };
 
   const stats = useMemo(() => {
     const total = ws.reduce((s, w) => s + (w.total || 0), 0);
@@ -102,21 +119,28 @@ export default function Dashboard({ go }) {
   // Per-subject predicted grade + optional IB total.
   // ---------------------------------------------------------------------------
   const examTrack = state.user?.examTrack || 'CBSE';
-  const isIB = (examTrack || '').toUpperCase() === 'IB';
+  // Each subject's board comes from the course it belongs to (falling back to
+  // the student's exam track). Predicted grades are then computed and shown
+  // per board, never mixed across boards.
+  const subjBoards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
+  const boardOf = (s) => subjBoards[s]?.board || examTrack;
   const perSubjectGrades = useMemo(() => {
     const subjects = Array.from(new Set(ws.map((w) => w.subject))).sort();
     return subjects.map((s) => {
       const list = ws.filter((w) => w.subject === s);
       const score = predictedScore(list);
+      const board = subjBoards[s]?.board || examTrack;
       return {
         subject: s,
         score,
+        board,
         count: list.length,
-        grade: formatGrade(score, examTrack),
+        grade: formatGrade(score, board),
         ibGrade: scoreToIBGrade(score), // handy for the IB total
       };
     });
-  }, [ws, examTrack]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, subjBoards, examTrack]);
 
   // Shape the same map the Performance tab's PredictedScoreMini expects,
   // so the tile renders identically in both places.
@@ -168,12 +192,15 @@ export default function Dashboard({ go }) {
 
   // IB total: sum of per-subject IB grades (out of subjectCount × 7).
   // Only shown when the student is on the IB track — CBSE/ICSE stay per-subject.
+  // IB diploma-style total (sum of 1-7 grades) — computed from IB-board
+  // subjects only, so it appears for a mixed CBSE+IB student too.
   const ibTotal = useMemo(() => {
-    if (!isIB || perSubjectGrades.length === 0) return null;
-    const sum = perSubjectGrades.reduce((acc, g) => acc + g.ibGrade, 0);
-    const max = perSubjectGrades.length * 7;
-    return { sum, max, subjects: perSubjectGrades.length };
-  }, [isIB, perSubjectGrades]);
+    const ibSubs = perSubjectGrades.filter((g) => (g.board || '').toUpperCase() === 'IB');
+    if (ibSubs.length === 0) return null;
+    const sum = ibSubs.reduce((acc, g) => acc + g.ibGrade, 0);
+    const max = ibSubs.length * 7;
+    return { sum, max, subjects: ibSubs.length };
+  }, [perSubjectGrades]);
 
   const goalDate = new Date().toDateString();
   const questionsToday = state.goalDate === goalDate ? state.questionsToday : 0;
@@ -209,18 +236,71 @@ export default function Dashboard({ go }) {
   // Random greeting — picked once per mount, so it changes every refresh.
   const [greeting] = useState(() => pickGreeting(state.user?.name));
 
+  // The student's subjects, matching what Start Studying shows. Each card
+  // deep-links into that subject's overview (#study?subject=...).
+  const studyTrack = state.user?.examTrack || 'SSLC';
+  const mySubjects = useMemo(
+    () => enrolledSubjects(state.courses, state.user?.subjects, studyTrack),
+    [state.courses, state.user, studyTrack],
+  );
+  const mySubjectBoards = useMemo(
+    () => subjectBoards(state.courses, studyTrack),
+    [state.courses, studyTrack],
+  );
+  const openSubject = (s) => { window.location.hash = `#study?subject=${encodeURIComponent(s)}`; };
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">{greeting}</h2>
         <p className="text-[14px] text-slate-500 mt-1">Here is your study overview.</p>
       </div>
+
+      {draft && (draft.questions || []).length > 0 && (
+        <div
+          className="rounded-xl border border-amber-300 bg-amber-50 p-5 flex flex-wrap items-center justify-between gap-4"
+          data-testid="dashboard-continue-worksheet"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <PlayCircle className="w-6 h-6" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-amber-700">Unfinished worksheet</div>
+              <div className="text-[15px] font-semibold text-slate-900 truncate">
+                Continue {draft.subject}{draft.topics && draft.topics.length ? ` · ${draft.topics.join(', ')}` : ''}
+              </div>
+              <div className="text-[12px] text-slate-500 mt-0.5">
+                {draft.answered || 0} of {draft.total || (draft.questions || []).length} answered
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => clearDraftWorksheet()}
+              data-testid="dashboard-discard-worksheet"
+              className="px-3.5 py-2 rounded-lg text-[13px] font-medium border border-[color:var(--color-border)] bg-white hover:bg-slate-100 text-slate-700 transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={resumeDraft}
+              data-testid="dashboard-resume-worksheet"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-amber-600 hover:opacity-95 transition-opacity"
+            >
+              <PlayCircle className="w-5 h-5" /> Continue
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <DaysStat days={examCountdown} subLabel={examLabel} />
         <PredictedScoreMini
           predictedBySubject={predictedBySubject}
           visibleSubjects={visibleSubjects}
           examTrack={examTrack}
+          subjectBoards={subjBoards}
           label="Predicted grade"
           footer={
             overallAccuracy !== null && (
@@ -236,6 +316,56 @@ export default function Dashboard({ go }) {
         <Stat label="Questions answered" value={stats.total} />
         <Stat label="Worksheets completed" value={stats.sheets} />
       </div>
+
+      {mySubjects.length > 0 && (
+        <div data-testid="dashboard-my-subjects">
+          <div className="flex items-center justify-between mb-3 gap-3">
+            <div className="eyebrow-muted flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-blue-600" /> My subjects
+            </div>
+            <button
+              onClick={() => go('study')}
+              className="text-[12.5px] text-blue-700 hover:text-blue-900 font-medium transition-colors"
+            >
+              Browse all &rarr;
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {mySubjects.map((s) => {
+              const info = SUBJECT_INFO[s] || { emoji: '\u25A0', tone: 'primary' };
+              const b = mySubjectBoards[s];
+              return (
+                <button
+                  key={s}
+                  onClick={() => openSubject(s)}
+                  data-testid={`dashboard-subject-${s}`}
+                  className="group text-left rounded-xl border border-[color:var(--color-border)] bg-white p-4 hover:border-blue-300 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-[18px] font-semibold ${SUBJECT_TONE_BADGE[info.tone] || SUBJECT_TONE_BADGE.primary}`}>
+                      {info.emoji}
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="mt-3 text-[14px] font-semibold text-slate-900 truncate">{s}</div>
+                  {b && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="text-[10.5px] tracking-[0.1em] uppercase font-semibold text-blue-700">
+                        {boardName(b.board)}
+                      </span>
+                      {b.ibLevel && (
+                        <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                          {b.ibLevel}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white">

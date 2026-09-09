@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { SUBJECTS, TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
+import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
+import { enrolledSubjects } from '../../lib/subjects';
 import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -347,7 +348,7 @@ function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerTy
 /* ================== Main component ================== */
 
 export default function Worksheets({ go }) {
-  const { state, recordWorksheet } = useApp();
+  const { state, recordWorksheet, saveDraftWorksheet, clearDraftWorksheet } = useApp();
   const track = state.user?.examTrack || 'SSLC';
   const examMinutes = EXAM_DURATIONS[track] || 60;
 
@@ -357,10 +358,6 @@ export default function Worksheets({ go }) {
     return (state.pastPapers || []).filter((p) => !p.board || p.board === track);
   }, [state.pastPapers, track]);
 
-  // Only subjects the user has actually chosen (from onboarding / courses).
-  // Includes any subject on a custom course too, so custom subjects show up
-  // in the picker.
-  const allTrackSubjects = SUBJECTS[track] || [];
   const customSubjectTopics = useMemo(() => {
     // Map<subject, topics[]> for custom courses.
     const m = {};
@@ -375,19 +372,30 @@ export default function Worksheets({ go }) {
     return m;
   }, [state.courses]);
 
-  const chosenSubjects = useMemo(() => {
-    const fromUser = state.user?.subjects || [];
-    const fromCourses = [];
-    (state.courses || []).forEach((c) => {
-      const subs = Array.isArray(c.subjects) ? c.subjects.map((x) => x.subject) : [c.subject];
-      subs.forEach((s) => { if (s && !fromCourses.includes(s)) fromCourses.push(s); });
+  // Topics observed in the past-paper library per subject — used as a fallback
+  // so any subject the student takes (even non-track ones like IB "Mathematics
+  // AA") still has topics to practise, sourced from real past-paper content.
+  const pastPaperTopicsBySubject = useMemo(() => {
+    const m = {};
+    (state.pastPapers || []).forEach((p) => {
+      if (!p.subject || !p.topic) return;
+      (m[p.subject] = m[p.subject] || new Set()).add(p.topic);
     });
-    // Standard-track subjects + any custom-course subjects (even if not on the track).
-    const merged = Array.from(new Set([...fromUser, ...fromCourses])).filter((s) => allTrackSubjects.includes(s) || customSubjectTopics[s]);
-    return merged.length ? merged : allTrackSubjects;
-  }, [state.user?.subjects, state.courses, allTrackSubjects, customSubjectTopics]);
+    const out = {};
+    Object.entries(m).forEach(([k, v]) => { out[k] = Array.from(v); });
+    return out;
+  }, [state.pastPapers]);
 
-  const topicsForSubject = (s) => (customSubjectTopics[s] || TOPICS[s] || []);
+  // The subject list MUST match "My subjects" exactly (Dashboard / Start
+  // Studying), so it comes from the same shared derivation — the subjects the
+  // student actually added, not a single-track filtered guess.
+  const chosenSubjects = useMemo(
+    () => enrolledSubjects(state.courses, state.user?.subjects, track),
+    [state.courses, state.user?.subjects, track],
+  );
+  const hasCourses = (state.courses || []).length > 0;
+
+  const topicsForSubject = (s) => (customSubjectTopics[s] || TOPICS[s] || pastPaperTopicsBySubject[s] || []);
 
   const preselect = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_subject') : null;
   const preselectTopic = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_topic') : null;
@@ -416,7 +424,33 @@ export default function Worksheets({ go }) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [result, setResult] = useState(null);
 
+  // --- In-progress draft plumbing ------------------------------------------
+  const draftIdRef = useRef(null);
+  const skipTopicResetRef = useRef(false);
+  // Always-fresh snapshot of the take-stage state for saving on navigate-away.
+  const liveRef = useRef({});
+  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated };
+  const countAnswered = (arr) => (arr || []).filter((a) => a !== -1 && a !== '' && a !== undefined && a !== null).length;
+  const makeDraft = (d) => ({
+    id: draftIdRef.current || `draft_${Date.now()}`,
+    subject: d.subject,
+    topics: d.topics,
+    answerType: d.answerType,
+    difficulty: d.difficulty,
+    duration: d.duration,
+    pastPapers: d.pastPapers,
+    aiGenerated: d.aiGenerated,
+    questions: d.questions,
+    answers: d.answers,
+    current: d.current,
+    timeLeft: d.timeLeft,
+    total: (d.questions || []).length,
+    answered: countAnswered(d.answers),
+    savedAt: new Date().toISOString(),
+  });
+
   useEffect(() => {
+    if (skipTopicResetRef.current) { skipTopicResetRef.current = false; return; }
     const t = topicsForSubject(subject);
     setTopics(t.length ? [t[0]] : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -426,6 +460,51 @@ export default function Worksheets({ go }) {
     if (preselect) window.sessionStorage.removeItem('preselect_subject');
     if (preselectTopic) window.sessionStorage.removeItem('preselect_topic');
   }, [preselect, preselectTopic]);
+
+  // Resume a saved draft when arriving from a "Continue worksheet" action.
+  useEffect(() => {
+    let wantResume = null;
+    try { wantResume = window.sessionStorage.getItem('resume_ws_draft'); } catch (_) { /* ignore */ }
+    if (wantResume && state.draftWorksheet) {
+      const d = state.draftWorksheet;
+      skipTopicResetRef.current = true;
+      draftIdRef.current = d.id;
+      setSubject(d.subject);
+      setTopics(d.topics || []);
+      setAnswerType(d.answerType || 'Multiple choice');
+      setDifficulty(d.difficulty || 'Medium');
+      setDuration(d.duration || examMinutes);
+      setPastPapers(!!d.pastPapers);
+      setAiGenerated(d.aiGenerated !== false);
+      setQuestions(d.questions || []);
+      setAnswers(d.answers || []);
+      setCurrent(d.current || 0);
+      const secs = typeof d.timeLeft === 'number' ? d.timeLeft : (d.duration || examMinutes) * 60;
+      setTimeLeft(secs);
+      setStartTime(Date.now() - Math.max(0, ((d.duration || examMinutes) * 60 - secs)) * 1000);
+      setStage('take');
+    }
+    try { window.sessionStorage.removeItem('resume_ws_draft'); } catch (_) { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist the draft as the student answers / navigates while taking it.
+  useEffect(() => {
+    if (stage === 'take' && questions.length) {
+      saveDraftWorksheet(makeDraft(liveRef.current));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, answers, current]);
+
+  // Save the latest progress if the component unmounts mid-worksheet
+  // (e.g. the student navigates away without submitting).
+  useEffect(() => () => {
+    const d = liveRef.current;
+    if (d.stage === 'take' && (d.questions || []).length) {
+      saveDraftWorksheet(makeDraft(d));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (stage !== 'take') return;
@@ -454,6 +533,7 @@ export default function Worksheets({ go }) {
     }
     const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
     const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool });
+    draftIdRef.current = `draft_${Date.now()}`;
     setQuestions(qs);
     // For MCQ, -1 means unanswered. For typed/exam, empty string.
     setAnswers(new Array(qs.length).fill(answerType === 'Multiple choice' ? -1 : ''));
@@ -604,8 +684,17 @@ export default function Worksheets({ go }) {
       <div className="max-w-[820px]">
         <div className="flex items-center justify-between mb-5">
           <div className="text-[13px] text-zinc-500">{subject} · {topics.join(' · ')}</div>
-          <div className="inline-flex items-center gap-2 text-[13px] text-zinc-700 bg-blue-50 px-3 py-1.5 rounded-md">
-            <Clock className="w-4 h-4" /> {fmtTime(timeLeft)}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-2 text-[13px] text-zinc-700 bg-blue-50 px-3 py-1.5 rounded-md">
+              <Clock className="w-4 h-4" /> {fmtTime(timeLeft)}
+            </div>
+            <button
+              onClick={() => { saveDraftWorksheet(makeDraft(liveRef.current)); toast.success('Progress saved — resume it anytime'); go('dashboard'); }}
+              data-testid="ws-save-exit"
+              className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium"
+            >
+              <X className="w-4 h-4" /> Save &amp; exit
+            </button>
           </div>
         </div>
         <div className="rounded-2xl border border-zinc-200 p-6">
@@ -776,8 +865,8 @@ export default function Worksheets({ go }) {
             <select className="input-base" value={subject} onChange={(e) => setSubject(e.target.value)} data-testid="ws-subject">
               {chosenSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            {chosenSubjects.length < allTrackSubjects.length && (
-              <div className="text-[11px] text-slate-500 mt-1">Only showing subjects from your courses.</div>
+            {hasCourses && (
+              <div className="text-[11px] text-slate-500 mt-1">Showing the subjects from your courses.</div>
             )}
           </Field>
           <Field label="Answer type">
