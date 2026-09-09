@@ -14,6 +14,7 @@ import StudentGallery3D from './StudentGallery3D';
 import Waitlist from './Waitlist';
 import Footer from './Footer';
 import MobileStickyCTA from './MobileStickyCTA';
+import AuthModal from './AuthModal';
 
 // On a fresh page load, a leftover section anchor (#signup, #pricing...)
 // makes the page restore scroll deep into the content. Handle the initial
@@ -42,6 +43,15 @@ export default function LandingPage({ hash }) {
 
   const onStart = () => { window.location.hash = '#signup'; };
 
+  const authOpen = hash === '#signup' || hash === '#login';
+  const closeAuth = () => {
+    if (window.location.hash === '#signup' || window.location.hash === '#login') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      // Nudge listeners that rely on the hashchange event.
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }
+  };
+
   return (
     <div className="section-bg">
       <Navbar onStart={onStart} />
@@ -60,6 +70,7 @@ export default function LandingPage({ hash }) {
       <Waitlist id="signup" />
       <Footer />
       <MobileStickyCTA />
+      <AuthModal open={authOpen} initialTab={hash === '#login' ? 'login' : 'signup'} onClose={closeAuth} />
     </div>
   );
 }

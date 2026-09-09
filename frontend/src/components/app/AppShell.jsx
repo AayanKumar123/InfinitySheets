@@ -94,7 +94,7 @@ function renderRoute(activeKey, params, go, isAdmin) {
 }
 
 export default function AppShell({ hash }) {
-  const { state, logout, apiLogout, toggleTheme, restartTutorial, restartOnboarding, resetProgress } = useApp();
+  const { state, syncStatus, logout, apiLogout, toggleTheme, restartTutorial, restartOnboarding, resetProgress } = useApp();
   const { key: active, params } = parseHash(hash);
   const isDemo = !!state.user?.isDemo;
   const isAdmin = state.user?.role === 'admin' || isDemo;
@@ -200,7 +200,6 @@ export default function AppShell({ hash }) {
       <main className="min-w-0 flex-1 relative">
         {isDemo && <DemoBanner onResetDemo={resetDemo} onExit={exitAccount} />}
         <TopHeader
-          examTrack={state.user?.examTrack || 'SSLC'}
           title={current.label}
           activeKey={current.key}
           isDark={isDark}
@@ -209,6 +208,8 @@ export default function AppShell({ hash }) {
           onNewWorksheet={() => go('worksheets')}
           sidebarOpen={sidebarOpen && !isMobile}
           onOpenSidebar={() => setSidebarOpen(true)}
+          syncStatus={syncStatus}
+          isDemo={!!state.user?.isDemo}
         />
         <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-7 max-w-[1280px]">
           {renderRoute(current.key, params, go, isAdmin)}

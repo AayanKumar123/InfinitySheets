@@ -116,12 +116,12 @@ export default function MyCourses() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <p className="text-[14px] text-slate-500">Each course can contain multiple subjects, and every subject has its own exam date.</p>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setCustomOpen(true)} data-testid="add-custom-course" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-semibold border border-blue-300 text-blue-800 bg-white hover:bg-blue-50 transition-colors">
-            <Sparkles className="w-5 h-5" /> + Custom Course
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => setOpen(true)} className="btn-violet inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-medium">
             <Plus className="w-5 h-5" /> Add course
+          </button>
+          <button onClick={() => setCustomOpen(true)} data-testid="add-custom-course" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-semibold border border-blue-300 text-blue-800 bg-white hover:bg-blue-50 transition-colors">
+            <Sparkles className="w-5 h-5" /> + Custom Course
           </button>
         </div>
       </div>

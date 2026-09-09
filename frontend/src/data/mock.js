@@ -72,12 +72,13 @@ export const TESTIMONIALS = [
 
 // Subjects per exam track
 export const SUBJECTS = {
-  SSLC: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English'],
-  CBSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English'],
-  ICSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Applications', 'English'],
-  IGCSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'English'],
-  ASA: ['Mathematics', 'Further Maths', 'Physics', 'Chemistry', 'Economics', 'Biology'],
-  IB: ['Mathematics AA', 'Mathematics AI', 'Physics', 'Chemistry', 'Economics', 'English'],
+  SSLC: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English', 'Computer Science'],
+  CBSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English', 'Computer Science', 'Accountancy', 'Business Studies', 'Economics'],
+  ICSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Applications', 'English', 'History', 'Geography', 'Economics'],
+  IGCSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'English', 'English Literature', 'Business Studies', 'Computer Science', 'History', 'Geography'],
+  ASA: ['Mathematics', 'Further Maths', 'Physics', 'Chemistry', 'Economics', 'Biology', 'Business Studies', 'Computer Science', 'Psychology'],
+  IB: ['Mathematics AA', 'Mathematics AI', 'Physics', 'Chemistry', 'Biology', 'Economics', 'English', 'Business Management', 'Psychology', 'Computer Science', 'Environmental Systems', 'History'],
+  AP: ['Calculus AB', 'Calculus BC', 'Physics', 'Chemistry', 'Biology', 'Statistics', 'English', 'History', 'Psychology', 'Computer Science', 'Economics'],
   SAT: ['Math', 'Reading', 'Writing'],
   JEE: ['Physics', 'Chemistry', 'Mathematics'],
   NEET: ['Biology', 'Chemistry', 'Physics'],
@@ -85,6 +86,18 @@ export const SUBJECTS = {
 };
 
 export const TOPICS = {
+  'Computer Science': ['Programming Basics', 'Data Structures', 'Algorithms', 'Databases', 'Networks'],
+  'Business Studies': ['Business Objectives', 'Marketing', 'Finance & Accounts', 'People in Business', 'Operations'],
+  'Business Management': ['Business Organisation', 'Human Resources', 'Marketing', 'Finance & Accounts', 'Operations Management'],
+  Accountancy: ['Partnership Accounts', 'Company Accounts', 'Financial Statements', 'Cash Flow', 'Ratio Analysis'],
+  History: ['Sources & Evidence', 'Revolutions', 'World Wars', 'Cold War', 'Independence Movements'],
+  Geography: ['Physical Geography', 'Population & Settlement', 'Economic Activity', 'Environmental Risks', 'Map Skills'],
+  Psychology: ['Research Methods', 'Biological Approach', 'Cognitive Approach', 'Sociocultural Approach', 'Abnormal Psychology'],
+  'Environmental Systems': ['Systems & Models', 'Ecosystems', 'Biodiversity', 'Pollution Management', 'Climate Change'],
+  'English Literature': ['Prose', 'Poetry', 'Drama', 'Unseen Texts', 'Literary Devices'],
+  Statistics: ['Exploring Data', 'Sampling & Experiments', 'Probability', 'Inference for Means', 'Inference for Proportions'],
+  'Calculus AB': ['Limits & Continuity', 'Differentiation', 'Applications of Derivatives', 'Integration', 'Differential Equations'],
+  'Calculus BC': ['Parametric & Polar', 'Series', 'Advanced Integration', 'Vector Functions', 'Applications of Series'],
   Mathematics: ['Algebra', 'Trigonometry', 'Geometry', 'Calculus', 'Probability', 'Statistics'],
   'Mathematics AA': ['Functions', 'Sequences', 'Calculus', 'Probability'],
   'Mathematics AI': ['Statistics', 'Modelling', 'Geometry'],
@@ -177,6 +190,76 @@ export const TOPIC_SUMMARY = {
 
 // Question bank for worksheet generation
 export const QUESTION_BANK = {
+  'Programming Basics': [
+    { q: 'Which data type would best store the value 3.14159?', options: ['int', 'float', 'boolean', 'char'], a: 1 },
+    { q: 'A loop that runs while a condition stays true is called a:', options: ['for loop', 'while loop', 'switch', 'function'], a: 1 },
+    { q: 'What is the output of 7 % 3 in most languages?', options: ['2', '1', '2.33', '0'], a: 1 },
+  ],
+  'Data Structures': [
+    { q: 'Which structure follows Last In, First Out?', options: ['Queue', 'Stack', 'Linked list', 'Tree'], a: 1 },
+    { q: 'Accessing an element by index in an array takes:', options: ['O(n) time', 'O(log n) time', 'O(1) time', 'O(n²) time'], a: 2 },
+  ],
+  Algorithms: [
+    { q: 'Binary search requires the input list to be:', options: ['Sorted', 'Unsorted', 'All positive', 'Of even length'], a: 0 },
+    { q: 'The worst-case time complexity of bubble sort is:', options: ['O(n)', 'O(n log n)', 'O(n²)', 'O(1)'], a: 2 },
+  ],
+  Marketing: [
+    { q: 'Which of these is NOT one of the four Ps of the marketing mix?', options: ['Product', 'Price', 'Promotion', 'Profit'], a: 3 },
+    { q: 'Dividing a market into groups with shared characteristics is called:', options: ['Segmentation', 'Diversification', 'Integration', 'Liquidation'], a: 0 },
+  ],
+  'Finance & Accounts': [
+    { q: 'Gross profit is calculated as:', options: ['Revenue − cost of sales', 'Revenue − all expenses', 'Assets − liabilities', 'Cash in − cash out'], a: 0 },
+    { q: 'A break-even point is reached when:', options: ['Profit is maximised', 'Total revenue equals total costs', 'Fixed costs are zero', 'Variable costs equal fixed costs'], a: 1 },
+  ],
+  'Financial Statements': [
+    { q: 'Which statement shows a firm’s position at a single point in time?', options: ['Income statement', 'Balance sheet', 'Cash flow statement', 'Trial balance'], a: 1 },
+    { q: 'In the accounting equation, assets equal:', options: ['Liabilities + capital', 'Capital − liabilities', 'Revenue − expenses', 'Cash + stock'], a: 0 },
+  ],
+  'Research Methods': [
+    { q: 'A study where neither participant nor researcher knows the condition is:', options: ['Single blind', 'Double blind', 'Field study', 'Case study'], a: 1 },
+    { q: 'The variable a researcher deliberately changes is the:', options: ['Dependent variable', 'Control variable', 'Independent variable', 'Confounding variable'], a: 2 },
+  ],
+  'Cognitive Approach': [
+    { q: 'The multi-store model divides memory into sensory, short-term and:', options: ['Working memory', 'Long-term memory', 'Episodic buffer', 'Procedural memory'], a: 1 },
+  ],
+  Ecosystems: [
+    { q: 'Roughly what proportion of energy transfers between trophic levels?', options: ['1%', '10%', '50%', '90%'], a: 1 },
+    { q: 'An organism that makes its own food from sunlight is a:', options: ['Producer', 'Primary consumer', 'Decomposer', 'Detritivore'], a: 0 },
+  ],
+  'Climate Change': [
+    { q: 'Which gas contributes most to the enhanced greenhouse effect by volume released?', options: ['Carbon dioxide', 'Helium', 'Nitrogen', 'Argon'], a: 0 },
+  ],
+  'Limits & Continuity': [
+    { q: 'What is the limit of (x² − 1)/(x − 1) as x approaches 1?', options: ['0', '1', '2', 'Undefined'], a: 2 },
+    { q: 'A function is continuous at x = a when the limit at a equals:', options: ['Zero', 'f(a)', 'The derivative at a', 'Infinity'], a: 1 },
+  ],
+  Differentiation: [
+    { q: 'The derivative of sin(x) is:', options: ['cos(x)', '−cos(x)', 'sin(x)', '−sin(x)'], a: 0 },
+    { q: 'Using the power rule, the derivative of 5x³ is:', options: ['15x²', '5x²', '3x²', '15x³'], a: 0 },
+  ],
+  Series: [
+    { q: 'The geometric series with |r| < 1 converges to:', options: ['a/(1 − r)', 'a(1 − r)', 'arⁿ', 'Infinity'], a: 0 },
+  ],
+  'Exploring Data': [
+    { q: 'Which measure of centre is most resistant to outliers?', options: ['Mean', 'Median', 'Range', 'Standard deviation'], a: 1 },
+    { q: 'A distribution with a long right tail is described as:', options: ['Skewed left', 'Skewed right', 'Symmetric', 'Uniform'], a: 1 },
+  ],
+  'Sources & Evidence': [
+    { q: 'A letter written by someone present at an event is best described as a:', options: ['Primary source', 'Secondary source', 'Tertiary source', 'Historiography'], a: 0 },
+  ],
+  'World Wars': [
+    { q: 'The treaty that formally ended the First World War with Germany was signed at:', options: ['Vienna', 'Versailles', 'Yalta', 'Potsdam'], a: 1 },
+  ],
+  'Physical Geography': [
+    { q: 'A landform created by deposition at a river mouth is a:', options: ['Delta', 'Meander', 'Gorge', 'Waterfall'], a: 0 },
+    { q: 'Relief rainfall occurs when air is forced to rise over:', options: ['A warm front', 'High ground', 'A city', 'The sea'], a: 1 },
+  ],
+  Prose: [
+    { q: 'A narrator who knows the thoughts of every character is:', options: ['First person', 'Third person limited', 'Third person omniscient', 'Unreliable'], a: 2 },
+  ],
+  'Literary Devices': [
+    { q: '“The wind whispered through the trees” is an example of:', options: ['Simile', 'Personification', 'Hyperbole', 'Onomatopoeia'], a: 1 },
+  ],
   Mechanics: [
     { q: 'A body moves with a uniform velocity of 10 m/s. What is its acceleration?', options: ['10 m/s\u00b2', '0 m/s\u00b2', '5 m/s\u00b2', '\u22125 m/s\u00b2'], a: 1 },
     { q: 'The SI unit of force is:', options: ['Joule', 'Watt', 'Newton', 'Pascal'], a: 2 },
@@ -293,6 +376,118 @@ export const STATS_LANDING = [
 
 // Subject overview info: symbol, tagline, description, key topics, study tips
 export const SUBJECT_INFO = {
+  'Logical Reasoning': {
+    emoji: 'LR',
+    tone: 'secondary',
+    tagline: 'Find the gap in the argument.',
+    description: 'Assumptions, flaws, strengthen and weaken, inference and parallel reasoning — the reasoning skills that make up most of an LSAT score.',
+    keyTopics: ['Assumptions', 'Strengthen & weaken', 'Flaws', 'Inference', 'Parallel reasoning'],
+    studyTips: ['Name the conclusion before the answers', 'Predict before reading options', 'Review every wrong answer for why'],
+  },
+  'Reading Comprehension': {
+    emoji: 'RC',
+    tone: 'accent',
+    tagline: 'Structure first, detail second.',
+    description: 'Main point, author attitude, comparative passages and structural questions, practised for speed and accuracy together.',
+    keyTopics: ['Main point', 'Author attitude', 'Comparative passages', 'Detail & structure'],
+    studyTips: ['Map each paragraph in a few words', 'Track the author opinion markers', 'Answer from the text, not memory'],
+  },
+  'Computer Science': {
+    emoji: 'CS',
+    tone: 'primary',
+    tagline: 'Think in algorithms, write in code.',
+    description: 'Programming constructs, data structures, algorithms and databases — practised the way papers actually test them, with tracing questions and complexity reasoning.',
+    keyTopics: ['Programming basics', 'Data structures', 'Algorithms', 'Databases', 'Networks'],
+    studyTips: ['Trace code by hand before running it', 'Learn one sorting algorithm properly', 'Write pseudocode first'],
+  },
+  'Business Studies': {
+    emoji: 'BS',
+    tone: 'success',
+    tagline: 'How organisations actually run.',
+    description: 'Objectives, marketing, finance, people and operations, with the case-study technique these papers reward.',
+    keyTopics: ['Business objectives', 'Marketing', 'Finance & accounts', 'People in business', 'Operations'],
+    studyTips: ['Always apply theory to the case', 'Quote figures from the stimulus', 'Finish with a judgement'],
+  },
+  'Business Management': {
+    emoji: 'BM',
+    tone: 'success',
+    tagline: 'Strategy, people and numbers together.',
+    description: 'The IB business toolkit — organisation, human resources, marketing, finance and operations, assessed through applied commentary.',
+    keyTopics: ['Business organisation', 'Human resources', 'Marketing', 'Finance & accounts', 'Operations management'],
+    studyTips: ['Use the business tools by name', 'Evaluate, do not just describe', 'Practise with real company data'],
+  },
+  Accountancy: {
+    emoji: 'AC',
+    tone: 'secondary',
+    tagline: 'Every number tells a story.',
+    description: 'Partnership and company accounts, financial statements, cash flow and ratio analysis, drilled until the formats are automatic.',
+    keyTopics: ['Partnership accounts', 'Company accounts', 'Financial statements', 'Cash flow', 'Ratio analysis'],
+    studyTips: ['Learn the formats cold', 'Check that the balance sheet balances', 'Show your workings for method marks'],
+  },
+  History: {
+    emoji: 'HI',
+    tone: 'accent',
+    tagline: 'Evidence, cause and consequence.',
+    description: 'Source analysis and essay technique across revolutions, world wars, the Cold War and independence movements.',
+    keyTopics: ['Sources & evidence', 'Revolutions', 'World wars', 'Cold War', 'Independence movements'],
+    studyTips: ['Date every source you use', 'Argue with specific evidence', 'Plan the essay before writing'],
+  },
+  Geography: {
+    emoji: 'GE',
+    tone: 'success',
+    tagline: 'Place, process and pattern.',
+    description: 'Physical and human geography with the map, graph and case-study skills examiners look for.',
+    keyTopics: ['Physical geography', 'Population & settlement', 'Economic activity', 'Environmental risks', 'Map skills'],
+    studyTips: ['Memorise two case studies per topic', 'Practise grid references', 'Describe the pattern, then explain it'],
+  },
+  Psychology: {
+    emoji: 'PS',
+    tone: 'secondary',
+    tagline: 'Why people do what they do.',
+    description: 'Research methods and the biological, cognitive and sociocultural approaches, with the study-evaluation technique papers reward.',
+    keyTopics: ['Research methods', 'Biological approach', 'Cognitive approach', 'Sociocultural approach', 'Abnormal psychology'],
+    studyTips: ['Learn studies by name, date and finding', 'Evaluate methodology, not just results', 'Use the approach vocabulary'],
+  },
+  'Environmental Systems': {
+    emoji: 'ES',
+    tone: 'success',
+    tagline: 'Systems thinking for a changing planet.',
+    description: 'Ecosystems, biodiversity, pollution management and climate change, framed through systems and models.',
+    keyTopics: ['Systems & models', 'Ecosystems', 'Biodiversity', 'Pollution management', 'Climate change'],
+    studyTips: ['Draw systems diagrams with flows', 'Quantify wherever you can', 'Link every issue to a management strategy'],
+  },
+  'English Literature': {
+    emoji: 'EL',
+    tone: 'accent',
+    tagline: 'Close reading, clearly argued.',
+    description: 'Prose, poetry, drama and unseen texts, practised through the analytical paragraph structure these papers expect.',
+    keyTopics: ['Prose', 'Poetry', 'Drama', 'Unseen texts', 'Literary devices'],
+    studyTips: ['Quote briefly and analyse deeply', 'Name the technique and its effect', 'Track one theme across the text'],
+  },
+  Statistics: {
+    emoji: 'ST',
+    tone: 'primary',
+    tagline: 'Reading the story inside the data.',
+    description: 'Exploring data, sampling, probability and inference, with the interpretation-in-context that earns full marks.',
+    keyTopics: ['Exploring data', 'Sampling & experiments', 'Probability', 'Inference for means', 'Inference for proportions'],
+    studyTips: ['State conditions before every test', 'Interpret in context, not just numerically', 'Sketch the distribution first'],
+  },
+  'Calculus AB': {
+    emoji: 'AB',
+    tone: 'primary',
+    tagline: 'Rates of change, rigorously.',
+    description: 'Limits, derivatives, integrals and differential equations at AP Calculus AB scope, with justification-writing practice.',
+    keyTopics: ['Limits & continuity', 'Differentiation', 'Applications of derivatives', 'Integration', 'Differential equations'],
+    studyTips: ['Justify answers with theorems by name', 'Practise without the calculator too', 'Watch units in applied problems'],
+  },
+  'Calculus BC': {
+    emoji: 'BC',
+    tone: 'primary',
+    tagline: 'AB, plus series and parametrics.',
+    description: 'Everything in AB extended with parametric and polar functions, vector-valued functions and infinite series.',
+    keyTopics: ['Parametric & polar', 'Series', 'Advanced integration', 'Vector functions', 'Applications of series'],
+    studyTips: ['Know every convergence test', 'Practise integration by parts daily', 'Convert fluently between forms'],
+  },
   Mathematics: {
     emoji: 'M',
     tone: 'primary',

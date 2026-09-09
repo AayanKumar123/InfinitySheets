@@ -539,45 +539,6 @@ html.dark .liquid-glass-clear {
     letter-spacing: -0.01em;
 }
 
-/* ===== Mascot (Sheety) ===== */
-.mascot-glow { filter: drop-shadow(0 0 6px rgba(76, 160, 255, 0.85)) drop-shadow(0 0 12px rgba(76, 160, 255, 0.35)); }
-@keyframes mascot-pulse {
-    0%, 100% { transform: scale(1); filter: brightness(1); }
-    50% { transform: scale(1.06); filter: brightness(1.15); }
-}
-.mascot-pulse { transform-box: fill-box; transform-origin: center; animation: mascot-pulse 2.4s ease-in-out infinite; }
-@keyframes mascot-blink {
-    0%, 92%, 100% { opacity: 0; }
-    94% { opacity: 0.65; }
-    96% { opacity: 0.2; }
-}
-.mascot-blink { animation: mascot-blink 4.6s ease-in-out infinite; }
-@keyframes mascot-bob {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-7px); }
-}
-.mascot-bob { animation: mascot-bob 3.6s ease-in-out infinite; }
-@keyframes mascot-wave {
-    0%, 100% { transform: rotate(0deg); }
-    30% { transform: rotate(-18deg); }
-    60% { transform: rotate(8deg); }
-}
-.mascot-wave-arm { transform-origin: 96px 76px; animation: mascot-wave 1.8s ease-in-out infinite; }
-@keyframes mascot-kick {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(6deg); }
-}
-.mascot-leg-l { transform-origin: 50px 96px; animation: mascot-kick 2.4s ease-in-out infinite; }
-.mascot-leg-r { transform-origin: 70px 96px; animation: mascot-kick 2.4s ease-in-out -1.2s infinite; }
-@keyframes mascot-sparkle {
-    0%, 100% { opacity: 0.35; }
-    50% { opacity: 1; }
-}
-.mascot-sparkle { animation: mascot-sparkle 2.8s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) {
-    .mascot-bob, .mascot-wave-arm, .mascot-leg-l, .mascot-leg-r, .mascot-sparkle, .mascot-pulse, .mascot-blink { animation: none; }
-}
-
 /* Screenshot tilt-on-hover (premium depth; JS sets the custom props) */
 .tilt-card {
     transform: perspective(1100px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));

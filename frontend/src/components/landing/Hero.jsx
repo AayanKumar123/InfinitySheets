@@ -6,7 +6,6 @@ import { DoodleBooks, DoodleFlask, DoodleEquations } from '../decor/StudyDoodles
 import Emphasis from './Emphasis';
 import WatchVideoModal from './WatchVideoModal';
 import FeatureCarousel from './FeatureCarousel';
-import Waitlist from './Waitlist';
 import { EXAM_TRACKS } from '../../data/mock';
 
 /* Static heading; the word "you" gets swept with a marker highlight
@@ -71,14 +70,6 @@ export default function Hero() {
         >
           or try a real exam question right now &darr;
         </motion.a>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full flex justify-center"
-        >
-          <Waitlist variant="inline" />
-        </motion.div>
         <FeatureCarousel />
         <motion.div
           initial={{ opacity: 0 }}

@@ -1,9 +1,8 @@
-"""Past-paper question bank API.
+"""Past-paper question bank API (Supabase-backed admin tooling).
 
-Admin-uploaded questions used to enrich the worksheet builder. No auth is
-enforced yet: the app currently runs in demo mode with an open admin surface.
-If you need to lock this down, add a dependency on `require_admin` from
-`auth.deps` to the mutation endpoints.
+Questions live in the `past_papers` Postgres table. Reads are open to any
+authenticated user (enforced by RLS); writes (manual create, delete, and PDF
+extraction autosave) require an admin and go through the service-role client.
 """
 
 from __future__ import annotations
@@ -16,25 +15,20 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
-from fastapi import APIRouter, File, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from auth_supabase import require_admin
+from supabase_client import admin_client
 from .topics import normalize_topic
 
-load_dotenv()
-
-
 router = APIRouter(prefix="/past-papers", tags=["past-papers"])
-
 
 ANSWER_TYPES = {"Multiple choice", "Typed response", "Exam style"}
 DIFFICULTIES = {"Easy", "Medium", "Exam level", "Hard"}
 
 
 class PastPaperIn(BaseModel):
-    """Payload accepted from the admin UI."""
-
     model_config = ConfigDict(extra="ignore")
 
     subject: str
@@ -45,23 +39,53 @@ class PastPaperIn(BaseModel):
     year: Optional[int] = None
     board: Optional[str] = None
     marks: Optional[int] = None
-    link: Optional[str] = None  # optional URL reference (source paper, syllabus, video, etc.)
-    addedBy: Optional[str] = None  # admin account identifier ("demo", email, etc.)
-    # MCQ
+    link: Optional[str] = None
+    addedBy: Optional[str] = None
     options: Optional[List[str]] = None
     a: Optional[int] = None
-    # Typed
     typedAnswer: Optional[str] = None
     typedAliases: Optional[List[str]] = None
-    # Exam-style
     examAnswer: Optional[str] = None
     examKeywords: Optional[List[str]] = None
 
 
-class PastPaper(PastPaperIn):
-    id: str = Field(default_factory=lambda: f"pp_{uuid.uuid4().hex[:12]}")
-    addedAt: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    source: str = "past-paper"
+def _new_id() -> str:
+    return f"pp_{uuid.uuid4().hex[:12]}"
+
+
+def _to_row(d: Dict[str, Any], pp_id: Optional[str] = None) -> Dict[str, Any]:
+    """Map the frontend-shaped dict to a past_papers row (columns + data jsonb)."""
+    added_at = datetime.now(timezone.utc).isoformat()
+    payload = {**d, "source": "past-paper", "addedAt": added_at, "id": pp_id or _new_id()}
+    return {
+        "id": payload["id"],
+        "subject": d.get("subject"),
+        "topic": d.get("topic"),
+        "difficulty": d.get("difficulty", "Medium"),
+        "answer_type": d.get("answerType", "Multiple choice"),
+        "q": d.get("q"),
+        "year": d.get("year"),
+        "board": d.get("board"),
+        "marks": d.get("marks"),
+        "link": d.get("link"),
+        "added_by": d.get("addedBy"),
+        "options": d.get("options"),
+        "a": d.get("a"),
+        "typed_answer": d.get("typedAnswer"),
+        "typed_aliases": d.get("typedAliases"),
+        "exam_answer": d.get("examAnswer"),
+        "exam_keywords": d.get("examKeywords"),
+        "source": "past-paper",
+        "data": payload,
+        "created_at": added_at,
+    }
+
+
+def _row_to_pp(row: Dict[str, Any]) -> Dict[str, Any]:
+    data = row.get("data")
+    if isinstance(data, dict):
+        return {**data, "id": row.get("id")}
+    return row
 
 
 def _validate(payload: PastPaperIn) -> None:
@@ -91,17 +115,17 @@ def _validate(payload: PastPaperIn) -> None:
             raise HTTPException(status_code=422, detail="examAnswer is required for exam-style")
 
 
-@router.post("", response_model=PastPaper, status_code=status.HTTP_201_CREATED)
-async def create_past_paper(payload: PastPaperIn, request: Request) -> PastPaper:
+@router.post("", status_code=status.HTTP_201_CREATED)
+async def create_past_paper(payload: PastPaperIn, _admin: dict = Depends(require_admin)) -> Dict[str, Any]:
     _validate(payload)
-    doc = PastPaper(**payload.model_dump()).model_dump()
-    await request.app.state.db.past_papers.insert_one({**doc, "_id": doc["id"]})
-    return PastPaper(**doc)
+    row = _to_row(payload.model_dump())
+    res = admin_client().table("past_papers").insert(row).execute()
+    saved = res.data[0] if res.data else row
+    return _row_to_pp(saved)
 
 
-@router.get("", response_model=List[PastPaper])
+@router.get("")
 async def list_past_papers(
-    request: Request,
     subject: Optional[str] = Query(None),
     topic: Optional[str] = Query(None),
     answerType: Optional[str] = Query(None),
@@ -109,25 +133,25 @@ async def list_past_papers(
     addedBy: Optional[str] = Query(None),
     limit: int = Query(500, ge=1, le=2000),
 ) -> List[Dict[str, Any]]:
-    query: Dict[str, Any] = {}
+    query = admin_client().table("past_papers").select("*").order("created_at", desc=True).limit(limit)
     if subject:
-        query["subject"] = subject
+        query = query.eq("subject", subject)
     if topic:
-        query["topic"] = topic
+        query = query.eq("topic", topic)
     if answerType:
-        query["answerType"] = answerType
+        query = query.eq("answer_type", answerType)
     if board:
-        query["board"] = board
+        query = query.eq("board", board)
     if addedBy:
-        query["addedBy"] = addedBy
-    cursor = request.app.state.db.past_papers.find(query, {"_id": 0}).sort("addedAt", -1).limit(limit)
-    return [doc async for doc in cursor]
+        query = query.eq("added_by", addedBy)
+    res = query.execute()
+    return [_row_to_pp(r) for r in (res.data or [])]
 
 
 @router.delete("/{pp_id}")
-async def delete_past_paper(pp_id: str, request: Request) -> Response:
-    result = await request.app.state.db.past_papers.delete_one({"id": pp_id})
-    if result.deleted_count == 0:
+async def delete_past_paper(pp_id: str, _admin: dict = Depends(require_admin)) -> Response:
+    res = admin_client().table("past_papers").delete().eq("id", pp_id).execute()
+    if not res.data:
         raise HTTPException(status_code=404, detail="Past-paper question not found")
     return Response(status_code=204)
 
@@ -147,11 +171,11 @@ Return ONLY a raw JSON object, no prose, no code fences, matching this exact sch
       "difficulty": "Easy" | "Medium" | "Exam level" | "Hard",
       "marks": integer or null,
       "topic": "string, a short topic label for this question or null",
-      "options": ["A", "B", "C", "D"] | null,   // only for Multiple choice
-      "a": 0 | null,                            // zero-based correct index, only for Multiple choice
-      "typedAnswer": "string or null",          // only for Typed response
-      "examAnswer": "string or null",           // only for Exam style
-      "examKeywords": ["kw1","kw2"] | null      // only for Exam style
+      "options": ["A", "B", "C", "D"] | null,
+      "a": 0 | null,
+      "typedAnswer": "string or null",
+      "examAnswer": "string or null",
+      "examKeywords": ["kw1","kw2"] | null
     }
   ]
 }
@@ -166,10 +190,8 @@ Guidelines:
 
 
 def _extract_json_object(text: str) -> Dict[str, Any]:
-    """Best-effort extraction of a JSON object from an LLM response."""
     if not text:
         raise HTTPException(status_code=502, detail="LLM returned an empty response")
-    # Strip common wrappers
     stripped = text.strip()
     stripped = re.sub(r"^```(?:json)?", "", stripped).strip()
     stripped = re.sub(r"```$", "", stripped).strip()
@@ -177,7 +199,6 @@ def _extract_json_object(text: str) -> Dict[str, Any]:
         return json.loads(stripped)
     except json.JSONDecodeError:
         pass
-    # Fall back to finding the first {...} block.
     match = re.search(r"\{[\s\S]*\}", stripped)
     if not match:
         raise HTTPException(status_code=502, detail="Could not parse JSON from LLM output")
@@ -185,10 +206,6 @@ def _extract_json_object(text: str) -> Dict[str, Any]:
         return json.loads(match.group(0))
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=502, detail=f"LLM produced invalid JSON: {exc}") from exc
-
-
-_ALLOWED_ANSWER_TYPES = ANSWER_TYPES
-_ALLOWED_DIFFICULTIES = DIFFICULTIES
 
 
 def _sanitize_extracted(raw: Dict[str, Any], defaults: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -203,10 +220,9 @@ def _sanitize_extracted(raw: Dict[str, Any], defaults: Dict[str, Any]) -> List[D
         q_text = (item.get("q") or "").strip()
         if not q_text:
             continue
-        answer_type = item.get("answerType") if item.get("answerType") in _ALLOWED_ANSWER_TYPES else "Multiple choice"
-        difficulty = item.get("difficulty") if item.get("difficulty") in _ALLOWED_DIFFICULTIES else defaults.get("difficulty", "Medium")
+        answer_type = item.get("answerType") if item.get("answerType") in ANSWER_TYPES else "Multiple choice"
+        difficulty = item.get("difficulty") if item.get("difficulty") in DIFFICULTIES else defaults.get("difficulty", "Medium")
         subject = subject_default or (item.get("subject") or "")
-        # Snap LLM-proposed topic to the closest canonical topic for the subject.
         raw_topic = (item.get("topic") or "").strip() or defaults.get("topic")
         normalized_topic = normalize_topic(subject, raw_topic) or raw_topic or (defaults.get("topic") or "")
         cleaned: Dict[str, Any] = {
@@ -240,7 +256,6 @@ def _sanitize_extracted(raw: Dict[str, Any], defaults: Dict[str, Any]) -> List[D
 
 @router.post("/extract")
 async def extract_past_papers_from_pdf(
-    request: Request,
     file: UploadFile = File(...),
     subject: str = Query(""),
     topic: str = Query(""),
@@ -250,11 +265,8 @@ async def extract_past_papers_from_pdf(
     link: Optional[str] = Query(None),
     addedBy: Optional[str] = Query(None),
     autosave: bool = Query(False),
+    _admin: dict = Depends(require_admin),
 ) -> Dict[str, Any]:
-    """Accept a PDF past paper, run it through an LLM, and return a list of
-    extracted question dicts. When `autosave=true`, the extracted questions are
-    also persisted to the database immediately (skipping the admin review step).
-    """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=422, detail="Only PDF uploads are supported")
 
@@ -262,14 +274,11 @@ async def extract_past_papers_from_pdf(
     if not api_key:
         raise HTTPException(status_code=503, detail="LLM key not configured on the server")
 
-    # Persist upload to a temp file — the emergentintegrations Gemini client reads
-    # from a file path.
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=422, detail="Uploaded PDF is empty")
 
     try:
-        # Import locally so a missing library doesn't take down the whole router.
         from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=503, detail=f"LLM library unavailable: {exc}") from exc
@@ -300,27 +309,26 @@ async def extract_past_papers_from_pdf(
             "topic": topic,
             "year": year,
             "board": board,
-            "difficulty": difficulty if difficulty in _ALLOWED_DIFFICULTIES else "Medium",
+            "difficulty": difficulty if difficulty in DIFFICULTIES else "Medium",
             "link": link,
-            "addedBy": addedBy or "demo",
+            "addedBy": addedBy or "admin",
         }
         questions = _sanitize_extracted(parsed, defaults)
 
         saved: List[Dict[str, Any]] = []
         if autosave and questions:
-            db = request.app.state.db
+            rows = []
             for q in questions:
-                # Skip drafts that clearly won't pass MCQ/typed/exam requirements.
                 if q["answerType"] == "Multiple choice" and (not q.get("options") or not any((o or "").strip() for o in q["options"])):
                     continue
                 if q["answerType"] == "Typed response" and not q.get("typedAnswer"):
                     continue
                 if q["answerType"] == "Exam style" and not q.get("examAnswer"):
-                    # Backfill examAnswer with the question text so the admin still has something to edit.
                     q["examAnswer"] = q.get("examAnswer") or q["q"]
-                doc = PastPaper(**q).model_dump()
-                await db.past_papers.insert_one({**doc, "_id": doc["id"]})
-                saved.append(doc)
+                rows.append(_to_row(q))
+            if rows:
+                res = admin_client().table("past_papers").insert(rows).execute()
+                saved = [_row_to_pp(r) for r in (res.data or [])]
 
         return {
             "questions": questions,

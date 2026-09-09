@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { FileText, AlertTriangle } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import CreateWorksheetButton from './CreateWorksheetButton';
+import SubjectGroupedList from './SubjectGroupedList';
 
 // Action row shown above the worksheet list. Kept as its own component so it
 // renders identically in the empty state and the populated state below.
@@ -45,11 +46,15 @@ export default function WorksheetHistory() {
   return (
     <div>
       <ActionButtons />
-      <div className="flex flex-col gap-3">
-        {ws.map((w) => (
-          <div key={w.id} className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">
+      <SubjectGroupedList
+        items={ws}
+        testIdPrefix="history"
+        itemLabelSingular="worksheet"
+        itemLabelPlural="worksheets"
+        renderItem={(w) => (
+          <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">
             <div className="min-w-0">
-              <div className="text-[15px] font-semibold text-slate-900">{w.subject} &middot; {w.topic}</div>
+              <div className="text-[15px] font-semibold text-slate-900">{w.topic}</div>
               <div className="text-[12.5px] text-slate-500 mt-1">{new Date(w.date).toLocaleString()} &middot; {w.difficulty} &middot; {w.length} questions</div>
             </div>
             <div className="text-right">
@@ -57,8 +62,8 @@ export default function WorksheetHistory() {
               <div className="text-[12.5px] text-slate-500">{w.correct}/{w.total} correct</div>
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 }

@@ -1,0 +1,10 @@
+{
+  "name": "infinitysheets",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "yarn --cwd frontend start",
+    "build": "yarn --cwd frontend build",
+    "start": "yarn --cwd frontend start"
+  }
+}

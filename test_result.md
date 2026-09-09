@@ -102,240 +102,72 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Regression test on past-papers backend after adding new fields (link, board) and new bulk extraction endpoint (POST /api/past-papers/extract). Verify: (1) link field accepted and returned on POST/GET, (2) board field accepted and returned on POST/GET, (3) POST /api/past-papers/extract with PDF returns extracted questions, (4-5) Invalid extract requests return 422, (6) Pre-existing endpoints still work."
+user_problem_statement: "Migrate InfinitySheets from MongoDB + custom JWT auth to Supabase (Postgres + Supabase Auth). Auth via email/password + Google OAuth; all study data (profiles, courses, worksheets, mistakes, achievements, user_settings, past_papers) moved from localStorage/Mongo into Postgres with RLS keyed to auth.uid(). Demo mode stays local-only. Migrate local data on first sign-in. Keep FastAPI for past-paper PDF extraction/admin using the service_role key. Acceptance: sign up, complete a worksheet, sign in on another browser, still see worksheet/streak/mistakes."
 
 backend:
-  - task: "Past-paper API - GET /api/past-papers (list all)"
+  - task: "Supabase schema + RLS + triggers (SQL migrations)"
     implemented: true
     working: true
-    file: "backend/past_papers/routes.py"
+    file: "supabase/migrations/0001_schema.sql, 0002_rls.sql, 0003_triggers.sql"
     stuck_count: 0
     priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Applied to Supabase project via SQL editor. Validated over raw HTTP (GoTrue+PostgREST) with anon key: signup creates instant session; handle_new_user trigger auto-creates profiles + user_settings; A can insert/read own worksheets+mistakes; RLS blocks B from reading A's rows and blocks B inserting rows owned by A (403); anonymous blocked; fresh login (cross-session) sees persisted worksheet+mistakes; past_papers readable by authenticated, non-admin write blocked."
+
+  - task: "FastAPI past-papers migrated to Supabase service_role (+ admin gating, Gemini PDF extraction)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py, backend/supabase_client.py, backend/auth_supabase.py, backend/past_papers/routes.py"
+    stuck_count: 0
+    priority: "medium"
     needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Implemented GET /api/past-papers endpoint with optional filters (subject, topic, answerType). Returns list of past-paper questions sorted by addedAt descending, limit 500 by default."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: GET /api/past-papers returns JSON array (200). Initial count: 2 items. Endpoint working correctly."
+        -comment: "Rewrote backend: removed Mongo/JWT auth; past_papers now use a requests-based PostgREST client with service_role (bypasses RLS); token verification via GoTrue /auth/v1/user (project uses legacy HS256); mutations gated by require_admin (profiles.role='admin'); Gemini PDF extraction preserved. NOT run in this sandbox (supervisor is frontend-only on :3000, ingress routes /api to the CRA app). Delivered as code for separate deployment; not tested by an agent."
 
-  - task: "Past-paper API - POST /api/past-papers (create MCQ)"
+frontend:
+  - task: "Supabase browser client + auth (email/password, Google OAuth, session persistence)"
     implemented: true
     working: true
-    file: "backend/past_papers/routes.py"
+    file: "frontend/src/lib/supabase.js, frontend/src/context/AppContext.jsx, frontend/src/components/landing/AuthModal.jsx, frontend/src/components/landing/LandingPage.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-        -working: "NA"
+        -working: true
         -agent: "main"
-        -comment: "Implemented POST /api/past-papers with validation for Multiple choice questions. Validates options array and 'a' index. Returns 201 with created item including id, addedAt, source='past-paper'."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST MCQ past-paper returns 201 with correct structure. Created item includes id (pp_521ecb95e492), addedAt (ISO timestamp), source='past-paper'. All required fields present."
+        -comment: "Added @supabase/supabase-js client. AppContext apiRegister/apiLogin/apiGoogleAuth/apiLogout now use Supabase; onAuthStateChange restores session across reloads. AuthModal (reuses signup/login data-testids) opens from all existing #signup CTAs. Verified in-browser: signup creates Supabase account, shows success toast, lands in signed-in app (onboarding+dashboard). Google wired via signInWithOAuth (requires dashboard provider setup - documented)."
 
-  - task: "Past-paper API - POST /api/past-papers (create Typed response)"
+  - task: "AppContext study-data CRUD synced to Supabase (worksheets, mistakes, courses, settings, profile) + demo local-only + migrate-on-first-signin"
     implemented: true
     working: true
-    file: "backend/past_papers/routes.py"
+    file: "frontend/src/context/AppContext.jsx, frontend/src/lib/dataStore.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
-        -working: "NA"
+        -working: true
         -agent: "main"
-        -comment: "Implemented POST /api/past-papers with validation for Typed response questions. Validates typedAnswer is present. Returns 201 with created item."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST Typed response past-paper returns 201 with correct structure. Created item includes id, addedAt, source='past-paper', answerType='Typed response'."
-
-  - task: "Past-paper API - POST /api/past-papers (create Exam style)"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Implemented POST /api/past-papers with validation for Exam style questions. Validates examAnswer is present. Returns 201 with created item."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST Exam style past-paper returns 201 with correct structure. Created item includes id, addedAt, source='past-paper', answerType='Exam style'."
-
-  - task: "Past-paper API - GET filters (subject, answerType)"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Implemented query parameter filters for subject, topic, and answerType on GET /api/past-papers endpoint."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: Both filters working correctly. GET /api/past-papers?subject=Physics returned 2 Physics questions. GET /api/past-papers?answerType=Typed response returned 1 Typed response question. Filtering logic verified."
-
-  - task: "Past-paper API - Validation (422 errors)"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Implemented comprehensive validation in _validate() function. Checks answerType in allowed set, difficulty in allowed set, required fields (subject, topic, q), MCQ requires valid 'a' index, Typed requires typedAnswer, Exam requires examAnswer. Returns 422 for validation failures."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: Validation working correctly. (1) Invalid MCQ missing 'a' field correctly returns 422 with detail: '`a` must be a valid index into `options`'. (2) Invalid answerType='Foo' correctly returns 422 with detail: 'answerType must be one of [Exam style, Multiple choice, Typed response]'."
-
-  - task: "Past-paper API - DELETE /api/past-papers/{id}"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Implemented DELETE /api/past-papers/{pp_id} endpoint. Returns 204 on success, 404 if item not found."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: DELETE endpoint working correctly. (1) DELETE existing item (pp_521ecb95e492) returns 204 with empty body. (2) DELETE non-existent item (does-not-exist) returns 404. Both success and error cases verified."
-
-  - task: "Pre-existing API - GET /api/ (Hello World)"
-    implemented: true
-    working: true
-    file: "backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: Pre-existing root endpoint still working. GET /api/ returns 200 with {'message': 'Hello World'}. No regression from past-paper API addition."
-
-  - task: "Past-paper API - POST with link and board fields"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Added optional link and board fields to PastPaperIn model. These fields are accepted in POST requests and returned in responses."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST /api/past-papers with link='https://example.com/reference.pdf' and board='CBSE' returns 201. Response includes both fields with correct values. Created item id=pp_8d5c3afba056."
-
-  - task: "Past-paper API - GET returns link and board fields"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "GET /api/past-papers now returns items with link and board fields where populated."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: GET /api/past-papers returns items with link and board fields. Found 1 item with link, 2 items with board. Fields are properly included in response."
-
-  - task: "Past-paper API - POST /api/past-papers/extract (PDF extraction)"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Implemented POST /api/past-papers/extract endpoint. Accepts PDF file upload with query params (subject, board, difficulty, link). Uses Emergent LLM (Gemini 2.5 Flash) to extract questions from PDF. Returns {questions: [...], count: N}. Timeout budget: 90s."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST /api/past-papers/extract with valid PDF (/tmp/test_paper.pdf) returns 200. Extracted 4 questions successfully. Sample question: 'State Newton's first law of motion...', answerType='Exam style', difficulty='Easy'. All questions have required fields (q, answerType, difficulty) with valid values. LLM integration working correctly."
-
-  - task: "Past-paper API - Extract validation (non-PDF file)"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Validation checks that uploaded file has .pdf extension. Returns 422 for non-PDF files."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST /api/past-papers/extract with text file correctly returns 422 with detail: 'Only PDF uploads are supported'. Validation working as expected."
-
-  - task: "Past-paper API - Extract validation (no file)"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "FastAPI validation requires file parameter. Returns 422 if no file provided."
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: POST /api/past-papers/extract with no file correctly returns 422 with Pydantic validation error: 'Field required'. Validation working as expected."
-
-  - task: "Regression check - Pre-existing endpoints after new features"
-    implemented: true
-    working: true
-    file: "backend/past_papers/routes.py, backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: true
-        -agent: "testing"
-        -comment: "✅ PASS: All pre-existing endpoints still functional after adding new fields and extract endpoint. Verified: (1) GET /api/ returns Hello World ✅, (2) GET /api/past-papers returns list ✅, (3) POST /api/past-papers creates item ✅, (4) DELETE /api/past-papers/{id} deletes item ✅. No regressions detected."
+        -comment: "dataStore maps camelCase<->snake_case with a data jsonb for lossless round-trip. Mutations write to Supabase when signed-in and !isDemo; demo mode never touches network. Migrate-on-first-signin uploads local worksheets/courses/mistakes once (per-user synced flag). Data-layer persistence validated end-to-end. Full UI worksheet-completion + cross-browser check pending (needs frontend testing agent permission)."
 
 metadata:
   created_by: "main_agent"
-  version: "1.4"
-  test_sequence: 4
+  version: "2.0"
+  test_sequence: 0
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Regression testing complete - new fields and extract endpoint verified"
+    - "Frontend E2E: sign up -> complete a worksheet -> sign in on a different browser session -> worksheet/streak/mistakes persist"
+    - "Demo mode stays local-only (no Supabase writes)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Implemented past-paper API endpoints in backend/past_papers/routes.py. All CRUD operations complete with validation. Routes: GET /api/past-papers (list with filters), POST /api/past-papers (create with validation), DELETE /api/past-papers/{id}. No auth required. Please test all endpoints as specified in the review request."
-    -agent: "testing"
-    -message: "✅ ALL TESTS PASSED (11/11). Past-paper API endpoints fully functional. Comprehensive test suite created in /app/backend_test.py covering: (1) GET list returns array ✅, (2-4) POST MCQ/Typed/Exam all return 201 with correct structure ✅, (5-6) Filters by subject/answerType working ✅, (7-8) Validation returns 422 for invalid payloads ✅, (9-10) DELETE returns 204/404 correctly ✅, (11) Pre-existing GET /api/ still works ✅. No issues found. All endpoints working as specified. Backend is production-ready for past-paper functionality."
-    -agent: "testing"
-    -message: "✅ REGRESSION TEST COMPLETE (9/9 tests passed). New features verified: (1) link field accepted and returned in POST/GET ✅, (2) board field accepted and returned in POST/GET ✅, (3) POST /api/past-papers/extract successfully extracts questions from PDF using Emergent LLM (Gemini 2.5 Flash) - extracted 4 questions from test PDF ✅, (4) Non-PDF file correctly rejected with 422 ✅, (5) Missing file correctly rejected with 422 ✅, (6) All pre-existing endpoints (GET /api/, GET/POST/DELETE /api/past-papers) still working correctly ✅. No regressions detected. Backend is production-ready with new features."
-    -agent: "main"
-    -message: "Frontend-only change on Strengths & Weaknesses page (/app/frontend/src/components/app/Strengths.jsx): (1) Fixed \\u00b7 literal rendering glitch by replacing the JSX-text escape sequences with the actual middle-dot character '·'. Same cleanup applied to AdminPlaceholder.jsx and Worksheets.jsx template literals. (2) Added a segmented pill filter at the top of the page with three tabs: All / Strengths (>=70% accuracy) / Weaknesses (<40% accuracy), including per-tab counts. Verified via UI: All=7 items, Strengths=3 items (Kinematics 90%, Algebra 80%, Calculus 70%), Weaknesses=3 items (Organic Chem 30%, Electrostatics 20%, Genetics 10%). No backend changes were made."
-    -agent: "main"
-    -message: "Follow-ups (a)+(b)+(c) implemented. Added shared hook /app/frontend/src/hooks/useStrengthsWeaknesses.js that computes adaptive strength/weakness thresholds from the student's weighted-average accuracy (strengthMin = clamp(avg+10, 60, 90); weaknessMax = clamp(avg-10, 20, 55)) and exposes useSavedSwOverrides() so any consumer picks up user-customized thresholds saved in localStorage. Strengths page now: (a) persists filter (level + subject) and override values under key 'infinitysheets_sw_prefs_v1'; (b) has a Customize panel with +/- number inputs and 'Reset to defaults' button — verified thresholds persist across reload; (c) Dashboard.jsx replaces hard-coded 0.7 cutoff with the shared hook (shows Adaptive/Custom badge and current thresholds in Strong/Weak topic panels, adds '+N more' link back to the Strengths page), Recommendations.jsx now prioritizes adaptive weaknesses first (with 'Weakness' pills), backfilling with next-lowest topics if fewer than 4 weaknesses exist, and displays the current thresholds in a context banner. Verified end-to-end in browser: custom thresholds set on the Strengths page immediately reflect on both Dashboard and Smart Recommendations, and survive a full page reload."
-    -agent: "main"
-    -message: "Per-subject predicted-grade + subject-scoped adaptive thresholds implemented. New lib /app/frontend/src/lib/predictedGrade.js encapsulates: (i) predictedScore(worksheets) — difficulty-adjusted (Easy 0.85×, Medium 0.92×, Exam level 1.0×, Hard 1.15×) with heavy latest-worksheet bias via 0.5^k rank decay (latest ≈ 50%, previous ≈ 25%, ...); (ii) formatGrade(score, examTrack) — returns X/7 for IB, letter (A*..U) for IGCSE / AS-A Level, and % for CBSE/ICSE/SSLC/SAT/JEE/NEET. Strengths.jsx now calls useStrengthsWeaknesses twice — once with all worksheets and once with the subject-scoped slice — so adaptive strengthMin/weaknessMax adapt to the selected subject's own average; a PredictedGradeBanner shows the per-subject syllabus-appropriate grade at the top of the page whenever a specific subject is selected. ProgressView.jsx now (a) removes the overall Predicted-score card entirely (per requirement: per-subject only), (b) reuses the shared predictedScore + formatGrade for each subject card, (c) adds a per-subject strength / weakness count line (using the shared threshold hook) so the same S/W info is surfaced on the Progress page. Verified in-browser for CBSE (72% for Physics), IB (5/7 for Physics), and IGCSE (B for Physics) with the same seed data by toggling state.user.examTrack."
-    -agent: "main"
-    -message: "Dashboard predicted-grades panel + independent per-subject thresholds. Dashboard.jsx adds a new 'Predicted grades' panel that lists every subject with its syllabus-appropriate predicted grade (uses shared predictedScore + formatGrade + TONE_CLASSES from /app/frontend/src/lib/predictedGrade.js). For IB syllabus specifically it also renders an 'IB total' pill (sum of per-subject IB grades / subjectCount×7). Threshold overrides refactored into two independent stores: (a) globalOverrides — active when 'All subjects' is selected on the Strengths page and used by Dashboard/Recommendations global panels; (b) subjectOverrides[subject] — per-subject and independent (no fallback to global). Strengths.jsx Customize panel now writes to whichever scope is active and the Reset button clears just that scope; the Custom badge shows 'Custom for {Subject}' vs plain 'Custom'. New hook helpers: useSavedSwOverrides() (global-only, back-compat) and useSavedSwOverridesFor(subject) (per-subject, no fallback). ProgressView SubjectPredictedRow uses per-subject overrides so its S/W counts respect the per-subject customization. Legacy prefs shape ({overrides: {...}}) is migrated on read. Verified in browser with IB seed: Dashboard shows correct grades and IB total 13/28, Physics override doesn't affect Mathematics/All views, and everything persists across reload."
-    -agent: "main"
-    -message: "Performance page polish: (1) Renamed 'Progress' → 'Performance' (AppShell nav item label; page title derives from label). (2) Chart lines now clearly labeled: added a legend row explaining solid = 'Worksheet performance', dashed = 'Predicted grade', and each subject line now has an end-of-line label showing predicted grade + subject name. (3) predictedGrade.js exports a new predictedBreakdown(worksheets) returning {score, baseScore, improvementBonus, hasImprovement, latestAdj, count}. Formula extended with an *improvement bonus*: when the latest attempt's adjusted score beats the weighted baseline, add clamp(0..8, 0.4 × gap) to the prediction. Bias is one-way (never dampens), matching the ask. (4) Hover-blur: LineChart accepts hoveredSubject/onHoverSubject props; the containing ProgressView tracks hoveredSubject and both the subject chips and the corresponding subject cards hook mouseenter/leave. Non-hovered subjects dim to opacity 0.15 in the chart and 0.6 in the card list. (5) Subject cards now show a 4-column stat grid: Latest (score + topic), Best (score + topic), Base (weighted score) with the improvement bonus badge in green when applied, and Topics (strong/weak counts with thresholds). Verified in browser with a mixed-trend seed: Physics 72% base → 80% predicted (+8 improvement badge visible); Chemistry/Math/Biology all 'no bonus' (declining/flat)."
+    -message: "Core migration complete and validated at the data layer (auth + RLS + cross-session persistence) and via a browser signup flow. Backend past-papers migrated to service_role but not runnable in this sandbox (frontend-only supervisor). Awaiting user permission before running the frontend testing agent for the full worksheet-completion + cross-browser persistence E2E."
