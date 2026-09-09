@@ -520,6 +520,9 @@ export function AppProvider({ children }) {
     const tempId = `pp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const optimistic = { id: tempId, addedAt: new Date().toISOString(), source: 'past-paper', ...pp };
     setState((s) => ({ ...s, pastPapers: [optimistic, ...(s.pastPapers || [])] }));
+    // Demo / offline admins keep their questions on this device; only a
+    // signed-in admin writes to Supabase (RLS rejects anyone else anyway).
+    if (!canSync()) return optimistic;
     try {
       const saved = await store.createPastPaper(pp);
       setState((s) => ({ ...s, pastPapers: (s.pastPapers || []).map((p) => (p.id === tempId ? saved : p)) }));
@@ -534,6 +537,7 @@ export function AppProvider({ children }) {
   const removePastPaper = useCallback(async (id) => {
     const before = stateRef.current.pastPapers || [];
     setState((s) => ({ ...s, pastPapers: (s.pastPapers || []).filter((p) => p.id !== id) }));
+    if (!canSync()) return;
     try {
       await store.deletePastPaper(id);
     } catch (err) {

@@ -115,7 +115,7 @@ function SubjectPicker({ subjects, questionsBySubject, boards, onPick }) {
                   <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
                 </div>
                 <div className="text-[16.5px] font-semibold text-slate-900">{s}</div>
-                {b && (
+                {b && b.board !== s && (
                   <div className="mt-1 flex items-center gap-1.5">
                     <span className="text-[11px] tracking-[0.1em] uppercase font-semibold text-blue-700">{boardName(b.board)}</span>
                     {b.ibLevel && (
@@ -142,7 +142,7 @@ function SubjectPicker({ subjects, questionsBySubject, boards, onPick }) {
 function BrowseSubject({ subject, chosenSubjects, questionsBySubject, boards, onBack, onSwitchSubject, go }) {
   const [query, setQuery] = useState('');
   const [revealed, setRevealed] = useState({});
-  const list = questionsBySubject[subject] || [];
+  const list = useMemo(() => questionsBySubject[subject] || [], [questionsBySubject, subject]);
 
   const filtered = useMemo(() => {
     if (!query) return list;

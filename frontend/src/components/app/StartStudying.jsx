@@ -143,7 +143,7 @@ export default function StartStudying({ go, subjectParam }) {
             </div>
           </div>
           <div className="relative mt-4 text-[16.5px] font-semibold text-slate-900">{s}</div>
-          {taken && boards[s] && (
+          {taken && boards[s] && boards[s].board !== s && (
             <div className="relative mt-1 flex items-center gap-1.5">
               <span className="text-[11px] tracking-[0.1em] uppercase font-semibold text-blue-700" data-testid={`subject-board-${s}`}>
                 {boardName(boards[s].board)}

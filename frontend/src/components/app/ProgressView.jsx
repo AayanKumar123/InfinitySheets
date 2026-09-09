@@ -21,7 +21,8 @@ function predictedFromList(list) {
 
 export default function ProgressView() {
   const { state } = useApp();
-  const ws = state.worksheets || [];
+  // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
+  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
   const examTrack = state.user?.examTrack || 'CBSE';
   // A subject's grade format follows the board of the course it belongs to
   // (a CBSE + IB student gets a % for one and a 1-7 grade for the other).

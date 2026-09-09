@@ -93,7 +93,11 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const finish = () => {
     const exam = EXAM_TRACKS.find((e) => e.id === examTrack);
     const subjects = picked.map((s) => ({ subject: s, examDate: dates[s], target, level, ...(isIB ? { ibLevel: ibLevels[s] } : {}) }));
-    const name = (courseName || '').trim() || `${exam?.name || examTrack} ${picked.length > 1 ? 'Term' : picked[0]}`;
+    // Default name: "IB Term" for several subjects, "CBSE Physics" for one, and
+    // just "JEE" when the exam is its own single subject.
+    const trackName = exam?.name || examTrack;
+    const autoName = picked.length > 1 ? `${trackName} Term` : (picked[0] === trackName || picked[0] === examTrack ? trackName : `${trackName} ${picked[0]}`);
+    const name = (courseName || '').trim() || autoName;
     const courseId = `c_${Date.now()}`;
     addCourse({ id: courseId, name, exam: examTrack, subjects, status: 'Active', target, level });
     const earliest = subjects.map((x) => x.examDate).sort()[0];

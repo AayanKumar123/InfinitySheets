@@ -106,7 +106,7 @@ export default function WorksheetHistory() {
           <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">
             <div className="min-w-0">
               <div className="text-[15px] font-semibold text-slate-900">{w.topic}</div>
-              <div className="text-[12.5px] text-slate-500 mt-1">{new Date(w.date).toLocaleString()} &middot; {w.difficulty} &middot; {w.length} questions</div>
+              <div className="text-[12.5px] text-slate-500 mt-1">{new Date(w.date).toLocaleString()} &middot; {w.difficulty} &middot; {w.length} {w.length === 1 ? 'question' : 'questions'}</div>
             </div>
             <div className="text-right">
               <div className="text-[18px] font-semibold text-slate-900">{w.score}%</div>

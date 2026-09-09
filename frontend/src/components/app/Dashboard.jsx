@@ -116,7 +116,8 @@ function DaysStat({ days, subLabel }) {
 
 export default function Dashboard({ go }) {
   const { state, clearDraftWorksheet } = useApp();
-  const ws = state.worksheets || [];
+  // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
+  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
   const draft = state.draftWorksheet;
   const resumeDraft = () => {
     try { window.sessionStorage.setItem('resume_ws_draft', '1'); } catch (_) { /* ignore */ }
@@ -384,7 +385,7 @@ export default function Dashboard({ go }) {
                     <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
                   </div>
                   <div className="mt-3 text-[14px] font-semibold text-slate-900 truncate">{s}</div>
-                  {b && (
+                  {b && b.board !== s && (
                     <div className="mt-1 flex items-center gap-1.5">
                       <span className="text-[10.5px] tracking-[0.1em] uppercase font-semibold text-blue-700">
                         {boardName(b.board)}

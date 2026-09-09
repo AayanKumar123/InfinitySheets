@@ -42,7 +42,8 @@ function savePrefs(prefs) {
 
 export default function Strengths() {
   const { state } = useApp();
-  const ws = state.worksheets || [];
+  // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
+  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
 
   // Hydrate persisted UI prefs on mount
   const initial = useMemo(() => loadPrefs() || {}, []);

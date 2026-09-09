@@ -99,11 +99,18 @@ function buildQuestions({ topics, answerType, difficulty, length, pastPapers, ai
     return shaped;
   };
 
+  // Each past-paper question is used at most once. Past-papers-only sheets
+  // are therefore capped at the number of matching questions; when AI is
+  // also ticked the remainder is AI-generated instead of repeats.
   const out = [];
-  for (let i = 0; i < length; i++) {
+  const ppLimit = preferPP ? Math.min(length, ppMatching.length) : 0;
+  const total = preferPP && !preferAI ? ppLimit : length;
+  for (let i = 0; i < total; i++) {
     let picked = null;
     if (preferPP && preferAI) {
-      picked = (i % 2 === 0) ? ppPool(Math.floor(i / 2)) : aiPool();
+      // Alternate while past papers last, then AI fills the rest.
+      const ppIndex = Math.floor(i / 2);
+      picked = (i % 2 === 0 && ppIndex < ppLimit) ? ppPool(ppIndex) : aiPool();
     } else if (preferPP) {
       picked = ppPool(i);
     } else if (preferAI) {
@@ -534,6 +541,7 @@ export default function Worksheets({ go }) {
     }
     const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
     const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool });
+    if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
     draftIdRef.current = `draft_${Date.now()}`;
     setQuestions(qs);
     // For MCQ, -1 means unanswered. For typed/exam, empty string.
@@ -557,6 +565,7 @@ export default function Worksheets({ go }) {
     }
     const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
     const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool });
+    if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
     try {
       downloadWorksheetPDF({
         questions: qs,

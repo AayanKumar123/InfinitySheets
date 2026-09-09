@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, GraduationCap, Pencil, FileText, Library, History, TrendingUp, Dumbbell, Sparkles, AlertTriangle, Settings, Shield } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Pencil, FileText, Library, History, TrendingUp, Dumbbell, Sparkles, AlertTriangle, Settings, Shield , BookOpen } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Dashboard from './Dashboard';
 import StartStudying from './StartStudying';
@@ -40,6 +40,8 @@ const HIDDEN_ROUTES = [
   { key: 'mistakes', label: 'Mistake History', Icon: AlertTriangle },
   { key: 'course-overview', label: 'Course Overview', Icon: GraduationCap },
   { key: 'topic', label: 'Topic overview', Icon: GraduationCap },
+  // Reachable from the landing footer / topic pages even though it left the sidebar.
+  { key: 'resources', label: 'Free Resources', Icon: BookOpen },
 ];
 
 const SIDEBAR_STORAGE_KEY = 'infinitysheets_sidebar_open';

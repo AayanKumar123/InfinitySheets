@@ -64,18 +64,18 @@ export default function AdminPlaceholder() {
 
   return (
     <div className="max-w-[1200px]" data-testid="admin-placeholder">
-      <div className="flex items-center gap-3 mb-5">
-        <span className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <span className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0">
           <Shield className="w-6 h-6" />
         </span>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[200px]">
           <div className="text-[11px] tracking-[0.16em] uppercase font-semibold text-blue-600">Admin</div>
-          <h2 className="text-[24px] font-semibold tracking-tight text-slate-900">Past paper question bank</h2>
+          <h2 className="text-[20px] sm:text-[24px] font-semibold tracking-tight text-slate-900">Past paper question bank</h2>
         </div>
         <button
           onClick={handleSeed}
           data-testid="admin-seed-performance"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13.5px] font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors shadow-sm"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13.5px] font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-colors shadow-sm shrink-0"
         >
           <FlaskConical className="w-5 h-5" />
           Create test performance
