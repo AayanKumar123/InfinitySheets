@@ -103,20 +103,20 @@ export const SEED_PAST_PAPERS = [
   pp('AP', 'Calculus AB', 'Applications of Derivatives', 'At a local maximum of a differentiable function, the first derivative is:', ['Positive', 'Negative', 'Zero', 'Undefined'], 2),
   pp('AP', 'Statistics', 'Sampling & Experiments', 'Random assignment in an experiment is used primarily to:', ['Increase sample size', 'Balance confounding variables', 'Reduce measurement error', 'Guarantee normality'], 1),
 
-  // ---- SAT ----
-  pp('SAT', 'Math', 'Heart of Algebra', 'If 4x + 8 = 32, what is the value of x?', ['4', '6', '8', '10'], 1),
-  pp('SAT', 'Reading', 'Passages', 'A question asking what a passage mainly argues is testing:', ['Detail retrieval', 'Central idea', 'Vocabulary in context', 'Author tone'], 1),
-  pp('SAT', 'Writing', 'Grammar', 'Choose the correct form: “Neither of the answers ___ correct.”', ['are', 'is', 'were', 'be'], 1),
+  // ---- SAT (one combined subject) ----
+  pp('SAT', 'SAT', 'Heart of Algebra', 'If 4x + 8 = 32, what is the value of x?', ['4', '6', '8', '10'], 1),
+  pp('SAT', 'SAT', 'Passages', 'A question asking what a passage mainly argues is testing:', ['Detail retrieval', 'Central idea', 'Vocabulary in context', 'Author tone'], 1),
+  pp('SAT', 'SAT', 'Grammar', 'Choose the correct form: “Neither of the answers ___ correct.”', ['are', 'is', 'were', 'be'], 1),
 
   // ---- JEE ----
   pp('JEE', 'Physics', 'Mechanics', 'A particle moves with constant speed in a circle. Its acceleration is:', ['Zero', 'Directed along the velocity', 'Directed towards the centre', 'Directed outwards'], 2, 'Exam level'),
   pp('JEE', 'Chemistry', 'Physical', 'The pH of a 0.01 M strong acid solution is:', ['1', '2', '10', '12'], 1, 'Exam level'),
   pp('JEE', 'Mathematics', 'Algebra', 'The number of real roots of x² + 4 = 0 is:', ['0', '1', '2', 'Infinite'], 0, 'Exam level'),
 
-  // ---- NEET ----
-  pp('NEET', 'Biology', 'Human Physiology', 'Exchange of gases in the lungs happens across the:', ['Bronchi', 'Trachea', 'Alveoli', 'Pleura'], 2),
-  pp('NEET', 'Biology', 'Plant Physiology', 'The pigment that primarily absorbs light for photosynthesis is:', ['Carotene', 'Chlorophyll a', 'Xanthophyll', 'Phycocyanin'], 1),
-  pp('NEET', 'Chemistry', 'Organic', 'Which compound shows optical isomerism?', ['CH₄', 'CHClBrF', 'CO₂', 'C₂H₆'], 1),
+  // ---- NEET (one combined subject) ----
+  pp('NEET', 'NEET', 'Human Physiology', 'Exchange of gases in the lungs happens across the:', ['Bronchi', 'Trachea', 'Alveoli', 'Pleura'], 2),
+  pp('NEET', 'NEET', 'Plant Physiology', 'The pigment that primarily absorbs light for photosynthesis is:', ['Carotene', 'Chlorophyll a', 'Xanthophyll', 'Phycocyanin'], 1),
+  pp('NEET', 'NEET', 'Organic', 'Which compound shows optical isomerism?', ['CH₄', 'CHClBrF', 'CO₂', 'C₂H₆'], 1),
 
   // ---- LSAT ----
   pp('LSAT', 'Logical Reasoning', 'Assumptions', 'An argument’s necessary assumption is a claim that:', ['Restates the conclusion', 'Must be true for the conclusion to hold', 'Weakens the evidence', 'Introduces new evidence'], 1),

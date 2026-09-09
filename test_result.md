@@ -178,6 +178,69 @@ frontend:
         -agent: "main"
         -comment: "Start Studying now splits subjects into two sections: 'Subjects Taken' (enrolled) and 'Subjects Not Taken' (everything else), both filtered by the search box. Each not-taken card has a '+ Add Subject' button that opens a modal listing the student's courses; picking one appends the subject to that course via updateCourse (idempotent guard against duplicates), after which it moves into 'Subjects Taken'. If no courses exist, the modal prompts to create one. Verified in demo desktop: created a JEE course, added Biology to it via the modal (toast 'Added Biology to JEE Term'), Biology moved to Taken with JEE board tag. Mobile 390px: no horizontal scroll (only decorative SVGs overflow)."
 
+  - task: "Question Bank sources questions from the past-paper library (board-aware), not the curated mock"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/app/QuestionBank.jsx, frontend/src/lib/subjects.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "User bug: a CBSE Mathematics past-paper question did not appear in the Question Bank because QB read from the curated QUESTION_BANK mock. Rewrote QuestionBank to build its questions from state.pastPapers (seeded past papers + admin uploads), grouped by the student's subjects and honouring each subject's course board (subject's board falls back to the exam track). Subject list now comes from the shared enrolledSubjects() = 'My subjects'. Needs testing agent verification."
+
+  - task: "Create-a-Worksheet + Question Bank subject lists exactly match 'My subjects' (shared lib/subjects.js)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/lib/subjects.js, frontend/src/components/app/Worksheets.jsx, frontend/src/components/app/QuestionBank.jsx, frontend/src/components/app/StartStudying.jsx, frontend/src/components/app/Dashboard.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "User bug: taking CBSE Mathematics + IB Mathematics AA HL showed only one 'Mathematics' in Create-a-Worksheet because it intersected course subjects with SUBJECTS[track] (single track), dropping non-track subjects and collapsing duplicates. Extracted the exact 'My subjects' derivation into lib/subjects.js (enrolledSubjects/subjectBoards/boardName) and used it in StartStudying, Dashboard, Worksheets and QuestionBank so all four lists are identical (no track filtering). Worksheets also gains a past-paper topic fallback so non-track subjects still have topics. Needs testing agent verification."
+
+  - task: "SAT & NEET are a single subject each (SAT->['SAT'], NEET->['NEET']) across subjects/topics/past-papers"
+    implemented: true
+    working: false
+    file: "frontend/src/data/mock.js, frontend/src/data/pastPapers.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "SUBJECTS.SAT=['SAT'], SUBJECTS.NEET=['NEET']; added TOPICS.SAT/NEET (union of former sub-subject topics), SUBJECT_INFO.SAT/NEET; retagged SEED_PAST_PAPERS SAT (Math/Reading/Writing)->subject 'SAT' and NEET (Biology/Chemistry)->subject 'NEET'. Creating an SAT or NEET course should now yield exactly one subject. Needs testing."
+        -working: false
+        -agent: "testing"
+        -comment: "CRITICAL BUG: CourseWizard exam selection has a selector issue. When using button:has-text('SAT'), Playwright matches 'LSAT' instead because 'LSAT' contains 'SAT'. The wizard shows 'LR Logical Reasoning' and 'RC Reading Comprehension' (LSAT subjects) instead of the single 'SAT' subject. This is a UI/selector bug in the CourseWizard component. The button text matching needs to be exact, or the buttons need unique data-testids. Additionally, after clicking Finish in the wizard, the modal remains open and blocks navigation (CourseWizard modal intercepts pointer events). Could not complete SAT/NEET single subject testing due to these blocking issues."
+
+  - task: "Add-subject modal: create NEW course on the spot + IB HL/SL on add; Remove on Taken cards; collapsible 'Not Taken'; board label uses real course board only"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/app/StartStudying.jsx, frontend/src/components/app/QuestionBank.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Rewrote StartStudying: Add-subject modal now has 'Existing course' and 'New course' tabs. New course = name + exam board select + (IB only) HL/SL, then Create-course-and-add. Adding to an existing IB course reveals an inline HL/SL choice before Add. Taken cards that belong to a course show a 'Remove' button (window.confirm) that drops the subject from its course(s) (empty course is deleted). 'Subjects Not Taken' is collapsed by default with a Show/Hide toggle (auto-expands during search). Board bug fix: QuestionBank subject cards no longer label every subject 'CBSE' — a board tag shows only when the subject actually belongs to a course. Needs testing."
+
+  - task: "Continue/resume in-progress worksheet from Dashboard & Worksheet History (draft persistence)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/context/AppContext.jsx, frontend/src/components/app/Worksheets.jsx, frontend/src/components/app/Dashboard.jsx, frontend/src/components/app/WorksheetHistory.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Added state.draftWorksheet (local-only, persisted via existing localStorage cache; preserved across Supabase load). Worksheets take-stage auto-saves a draft as the student answers/navigates and on unmount; a new 'Save & exit' button (ws-save-exit) saves and returns to dashboard. Completing a worksheet (recordWorksheet) clears the draft. Dashboard shows a 'Continue worksheet' banner (dashboard-continue-worksheet with dashboard-resume-worksheet / dashboard-discard-worksheet); Worksheet History shows the same (history-continue-worksheet). Resuming sets sessionStorage resume_ws_draft and reopens Worksheets in the take stage restoring subject/topics/questions/answers/current/timeLeft. Also added data-testid exam-<id> to CourseWizard exam buttons to disambiguate SAT vs LSAT. Needs testing agent verification."
+
 metadata:
   created_by: "main_agent"
   version: "2.0"
@@ -186,12 +249,15 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Frontend E2E: sign up -> complete a worksheet -> sign in on a different browser session -> worksheet/streak/mistakes persist"
-    - "Demo mode stays local-only (no Supabase writes)"
+    - "Continue worksheet: leave mid-worksheet -> Dashboard & History show Continue -> resume restores progress"
+    - "SAT/NEET single subject (use exam-SAT / exam-NEET testids)"
+    - "Question Bank sources from past papers with correct board; subject lists == My subjects"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Core migration complete and validated at the data layer (auth + RLS + cross-session persistence) and via a browser signup flow. Backend past-papers migrated to service_role but not runnable in this sandbox (frontend-only supervisor). Awaiting user permission before running the frontend testing agent for the full worksheet-completion + cross-browser persistence E2E."
+    -message: "PRIMARY: verify Continue/resume worksheet. In DEMO mode (Try Demo, admin123/admin123; click Skip if a tutorial overlay shows). STEPS: (1) Open 'Create a New Worksheet' (#worksheets) and click data-testid 'ws-start' to begin the interactive worksheet (take stage). (2) Answer the first question (press keyboard 'a' or click an option), then click 'ws-save-exit' (Save & exit) — you should land on the Dashboard with a toast. (3) Dashboard must show a Continue banner (data-testid 'dashboard-continue-worksheet') with subject/topic and 'X of N answered'. Click 'dashboard-resume-worksheet' — it must reopen the worksheet in the take stage (data-testid 'ws-save-exit' present) at the saved question. (4) Go to Worksheet History (#history) and confirm the Continue banner (data-testid 'history-continue-worksheet') with 'history-resume-worksheet' also resumes. (5) Resume once more and click through to the last question and Submit; after submitting, the draft must be GONE (no Continue banner on Dashboard or History). (6) Start a new worksheet, click ws-save-exit, then on Dashboard click 'dashboard-discard-worksheet' — banner disappears. \nSECONDARY (regression, now unblocked by exam-<id> testids): In My Courses -> Add course, select the SAT exam using data-testid 'exam-SAT' (NOT text match, to avoid LSAT), set a date via an 'In 30 days' button, finish. Start Studying 'Subjects Taken' must show exactly ONE 'SAT' subject. Repeat with 'exam-NEET' -> exactly one 'NEET'. Question Bank subject cards must show correct board tags (not all 'CBSE') and SAT questions should come from the past-paper library. The Create-a-Worksheet subject dropdown (ws-subject) and Question Bank subjects must equal the Start Studying 'Subjects Taken' set. Frontend-only; use Demo mode."
+    -agent: "testing"
+    -message: "CRITICAL BLOCKING BUG FOUND: CourseWizard exam selection buttons do not have unique identifiers. When selecting 'SAT', the text selector matches 'LSAT' instead (because 'LSAT' contains 'SAT'). Screenshot shows wizard displaying 'LR Logical Reasoning' and 'RC Reading Comprehension' (LSAT subjects) instead of single 'SAT' subject. Additionally, after clicking Finish, the CourseWizard modal remains open and blocks all navigation (intercepts pointer events). REQUIRED FIXES: 1) Add unique data-testids to exam track buttons in CourseWizard (e.g., data-testid='exam-SAT', data-testid='exam-LSAT'). 2) Ensure wizard modal closes properly after course creation. 3) Use exact text matching or unique selectors for exam selection. Cannot proceed with SAT/NEET testing until these issues are resolved. Other test cases (Question Bank, Add Subject modal, Remove, Collapse, Consistency) also blocked by inability to create courses."

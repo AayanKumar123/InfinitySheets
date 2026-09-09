@@ -1,13 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle } from 'lucide-react';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
-import { SUBJECTS, SUBJECT_INFO, EXAM_TRACKS } from '../../data/mock';
+import { SUBJECT_INFO } from '../../data/mock';
+import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
-
-const boardName = (id) => EXAM_TRACKS.find((t) => t.id === id)?.name || id;
 
 const SUBJECT_TONE_BADGE = {
   primary: 'bg-blue-100 text-blue-700',
@@ -18,38 +17,6 @@ const SUBJECT_TONE_BADGE = {
   accent: 'bg-red-100 text-red-700',
   success: 'bg-emerald-100 text-emerald-700',
 };
-
-// Enrolled subjects + their board/level — mirrors the derivation in
-// StartStudying so the dashboard lists the exact same subjects.
-function dashEnrolledSubjects(courses, userSubjects, track) {
-  const trackSubs = SUBJECTS[track] || [];
-  const fromCourses = [];
-  (courses || []).forEach((c) => {
-    const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
-    subs.forEach((entry) => {
-      const name = typeof entry === 'string' ? entry : entry?.subject;
-      if (name && !fromCourses.includes(name)) fromCourses.push(name);
-    });
-  });
-  if (fromCourses.length) return fromCourses;
-  const fromUser = userSubjects || [];
-  if (fromUser.length) return fromUser;
-  return trackSubs;
-}
-
-function dashSubjectBoards(courses, fallbackTrack) {
-  const map = {};
-  (courses || []).forEach((c) => {
-    const board = c.exam || fallbackTrack;
-    const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
-    subs.forEach((entry) => {
-      const name = typeof entry === 'string' ? entry : entry?.subject;
-      if (!name) return;
-      if (!map[name]) map[name] = { board, ibLevel: typeof entry === 'object' ? entry?.ibLevel : undefined };
-    });
-  });
-  return map;
-}
 
 // Rotating dashboard greetings. `{name}` is substituted with the student's
 // first name (falling back to "Student"). One is picked per component mount,
@@ -118,8 +85,13 @@ function DaysStat({ days, subLabel }) {
 }
 
 export default function Dashboard({ go }) {
-  const { state } = useApp();
+  const { state, clearDraftWorksheet } = useApp();
   const ws = state.worksheets || [];
+  const draft = state.draftWorksheet;
+  const resumeDraft = () => {
+    try { window.sessionStorage.setItem('resume_ws_draft', '1'); } catch (_) { /* ignore */ }
+    go('worksheets');
+  };
 
   const stats = useMemo(() => {
     const total = ws.reduce((s, w) => s + (w.total || 0), 0);
@@ -147,21 +119,28 @@ export default function Dashboard({ go }) {
   // Per-subject predicted grade + optional IB total.
   // ---------------------------------------------------------------------------
   const examTrack = state.user?.examTrack || 'CBSE';
-  const isIB = (examTrack || '').toUpperCase() === 'IB';
+  // Each subject's board comes from the course it belongs to (falling back to
+  // the student's exam track). Predicted grades are then computed and shown
+  // per board, never mixed across boards.
+  const subjBoards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
+  const boardOf = (s) => subjBoards[s]?.board || examTrack;
   const perSubjectGrades = useMemo(() => {
     const subjects = Array.from(new Set(ws.map((w) => w.subject))).sort();
     return subjects.map((s) => {
       const list = ws.filter((w) => w.subject === s);
       const score = predictedScore(list);
+      const board = subjBoards[s]?.board || examTrack;
       return {
         subject: s,
         score,
+        board,
         count: list.length,
-        grade: formatGrade(score, examTrack),
+        grade: formatGrade(score, board),
         ibGrade: scoreToIBGrade(score), // handy for the IB total
       };
     });
-  }, [ws, examTrack]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, subjBoards, examTrack]);
 
   // Shape the same map the Performance tab's PredictedScoreMini expects,
   // so the tile renders identically in both places.
@@ -213,12 +192,15 @@ export default function Dashboard({ go }) {
 
   // IB total: sum of per-subject IB grades (out of subjectCount × 7).
   // Only shown when the student is on the IB track — CBSE/ICSE stay per-subject.
+  // IB diploma-style total (sum of 1-7 grades) — computed from IB-board
+  // subjects only, so it appears for a mixed CBSE+IB student too.
   const ibTotal = useMemo(() => {
-    if (!isIB || perSubjectGrades.length === 0) return null;
-    const sum = perSubjectGrades.reduce((acc, g) => acc + g.ibGrade, 0);
-    const max = perSubjectGrades.length * 7;
-    return { sum, max, subjects: perSubjectGrades.length };
-  }, [isIB, perSubjectGrades]);
+    const ibSubs = perSubjectGrades.filter((g) => (g.board || '').toUpperCase() === 'IB');
+    if (ibSubs.length === 0) return null;
+    const sum = ibSubs.reduce((acc, g) => acc + g.ibGrade, 0);
+    const max = ibSubs.length * 7;
+    return { sum, max, subjects: ibSubs.length };
+  }, [perSubjectGrades]);
 
   const goalDate = new Date().toDateString();
   const questionsToday = state.goalDate === goalDate ? state.questionsToday : 0;
@@ -258,11 +240,11 @@ export default function Dashboard({ go }) {
   // deep-links into that subject's overview (#study?subject=...).
   const studyTrack = state.user?.examTrack || 'SSLC';
   const mySubjects = useMemo(
-    () => dashEnrolledSubjects(state.courses, state.user?.subjects, studyTrack),
+    () => enrolledSubjects(state.courses, state.user?.subjects, studyTrack),
     [state.courses, state.user, studyTrack],
   );
   const mySubjectBoards = useMemo(
-    () => dashSubjectBoards(state.courses, studyTrack),
+    () => subjectBoards(state.courses, studyTrack),
     [state.courses, studyTrack],
   );
   const openSubject = (s) => { window.location.hash = `#study?subject=${encodeURIComponent(s)}`; };
@@ -273,12 +255,52 @@ export default function Dashboard({ go }) {
         <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">{greeting}</h2>
         <p className="text-[14px] text-slate-500 mt-1">Here is your study overview.</p>
       </div>
+
+      {draft && (draft.questions || []).length > 0 && (
+        <div
+          className="rounded-xl border border-amber-300 bg-amber-50 p-5 flex flex-wrap items-center justify-between gap-4"
+          data-testid="dashboard-continue-worksheet"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <PlayCircle className="w-6 h-6" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-amber-700">Unfinished worksheet</div>
+              <div className="text-[15px] font-semibold text-slate-900 truncate">
+                Continue {draft.subject}{draft.topics && draft.topics.length ? ` · ${draft.topics.join(', ')}` : ''}
+              </div>
+              <div className="text-[12px] text-slate-500 mt-0.5">
+                {draft.answered || 0} of {draft.total || (draft.questions || []).length} answered
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => clearDraftWorksheet()}
+              data-testid="dashboard-discard-worksheet"
+              className="px-3.5 py-2 rounded-lg text-[13px] font-medium border border-[color:var(--color-border)] bg-white hover:bg-slate-100 text-slate-700 transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={resumeDraft}
+              data-testid="dashboard-resume-worksheet"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-amber-600 hover:opacity-95 transition-opacity"
+            >
+              <PlayCircle className="w-5 h-5" /> Continue
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <DaysStat days={examCountdown} subLabel={examLabel} />
         <PredictedScoreMini
           predictedBySubject={predictedBySubject}
           visibleSubjects={visibleSubjects}
           examTrack={examTrack}
+          subjectBoards={subjBoards}
           label="Predicted grade"
           footer={
             overallAccuracy !== null && (

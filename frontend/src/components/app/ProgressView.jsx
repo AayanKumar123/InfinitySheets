@@ -4,6 +4,7 @@ import { SUBJECT_INFO } from '../../data/mock';
 import { TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { predictedScore, predictedBreakdown, formatGrade, TONE_CLASSES, isGradedTrack } from '../../lib/predictedGrade';
+import { subjectBoards } from '../../lib/subjects';
 import { useStrengthsWeaknesses, useSavedSwOverridesFor, useSavedSwPrefs, computeSw, pickOverridesFor } from '../../hooks/useStrengthsWeaknesses';
 import PredictedScoreMini from './PredictedScoreMini';
 

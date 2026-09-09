@@ -40,6 +40,9 @@ const defaultState = {
   },
   questionsToday: 0,
   goalDate: null,
+  // In-progress worksheet the student left mid-way (null when none). Lets them
+  // resume from the Dashboard / Worksheet History.
+  draftWorksheet: null,
 };
 
 const AppContext = createContext(null);
@@ -105,7 +108,7 @@ export function AppProvider({ children }) {
 
     try {
       const loadedState = await store.loadAll(userId, authUser);
-      setState((s) => ({ ...defaultState, theme: s.theme, ...loadedState }));
+      setState((s) => ({ ...defaultState, theme: s.theme, draftWorksheet: s.draftWorksheet, ...loadedState }));
       setSyncStatus('saved');
     } catch (e) {
       logError('loadAll', e);
@@ -370,10 +373,19 @@ export function AppProvider({ children }) {
 
   const recordWorksheet = useCallback((sheet) => {
     const { next, newMistakes } = computeWorksheet(stateRef.current, sheet);
-    setState(next);
+    // Completing a worksheet clears any saved in-progress draft.
+    setState({ ...next, draftWorksheet: null });
     bg(() => store.upsertWorksheet(sheet, uid()), 'recordWorksheet/sheet');
     bg(() => store.upsertMistakes(newMistakes, uid()), 'recordWorksheet/mistakes');
     bg(() => store.upsertSettings(next, uid()), 'recordWorksheet/settings');
+  }, []);
+
+  // Save / update the in-progress worksheet draft (local only — never synced).
+  const saveDraftWorksheet = useCallback((draft) => {
+    setState((s) => ({ ...s, draftWorksheet: draft }));
+  }, []);
+  const clearDraftWorksheet = useCallback(() => {
+    setState((s) => (s.draftWorksheet ? { ...s, draftWorksheet: null } : s));
   }, []);
 
   const removeMistake = useCallback((id) => {
@@ -527,6 +539,7 @@ export function AppProvider({ children }) {
     apiRegister, apiLogin, apiGoogleAuth, apiLogout,
     updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount,
     recordWorksheet, removeMistake,
+    saveDraftWorksheet, clearDraftWorksheet,
     finishTutorial, restartTutorial,
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
@@ -537,6 +550,7 @@ export function AppProvider({ children }) {
     apiRegister, apiLogin, apiGoogleAuth, apiLogout,
     updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount,
     recordWorksheet, removeMistake,
+    saveDraftWorksheet, clearDraftWorksheet,
     finishTutorial, restartTutorial,
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,

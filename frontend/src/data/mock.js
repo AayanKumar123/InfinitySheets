@@ -79,9 +79,9 @@ export const SUBJECTS = {
   ASA: ['Mathematics', 'Further Maths', 'Physics', 'Chemistry', 'Economics', 'Biology', 'Business Studies', 'Computer Science', 'Psychology'],
   IB: ['Mathematics AA', 'Mathematics AI', 'Physics', 'Chemistry', 'Biology', 'Economics', 'English', 'Business Management', 'Psychology', 'Computer Science', 'Environmental Systems', 'History'],
   AP: ['Calculus AB', 'Calculus BC', 'Physics', 'Chemistry', 'Biology', 'Statistics', 'English', 'History', 'Psychology', 'Computer Science', 'Economics'],
-  SAT: ['Math', 'Reading', 'Writing'],
+  SAT: ['SAT'],
   JEE: ['Physics', 'Chemistry', 'Mathematics'],
-  NEET: ['Biology', 'Chemistry', 'Physics'],
+  NEET: ['NEET'],
   LSAT: ['Logical Reasoning', 'Reading Comprehension'],
 };
 
@@ -103,6 +103,8 @@ export const TOPICS = {
   'Mathematics AI': ['Statistics', 'Modelling', 'Geometry'],
   'Further Maths': ['Complex Numbers', 'Matrices', 'Differential Equations'],
   Math: ['Heart of Algebra', 'Problem Solving', 'Advanced Math', 'Geometry'],
+  SAT: ['Heart of Algebra', 'Problem Solving', 'Advanced Math', 'Geometry', 'Passages', 'Vocabulary in Context', 'Grammar', 'Rhetoric'],
+  NEET: ['Cell Biology', 'Genetics', 'Ecology', 'Human Physiology', 'Plant Physiology', 'Organic', 'Inorganic', 'Physical', 'Mechanics', 'Modern Physics'],
   Physics: ['Mechanics', 'Electrostatics', 'Optics', 'Thermodynamics', 'Modern Physics', 'Waves'],
   Chemistry: ['Organic', 'Inorganic', 'Physical', 'Coordination Compounds', 'Equilibrium'],
   Biology: ['Cell Biology', 'Genetics', 'Ecology', 'Human Physiology', 'Plant Physiology'],
@@ -376,6 +378,22 @@ export const STATS_LANDING = [
 
 // Subject overview info: symbol, tagline, description, key topics, study tips
 export const SUBJECT_INFO = {
+  SAT: {
+    emoji: 'SAT',
+    tone: 'primary',
+    tagline: 'Reading, writing & math under time.',
+    description: 'The whole SAT in one place — Reading & Writing plus Math, practised for pacing and accuracy the way the digital test delivers them.',
+    keyTopics: ['Heart of Algebra', 'Problem Solving', 'Advanced Math', 'Reading passages', 'Grammar & rhetoric'],
+    studyTips: ['Answer easy questions first, flag the rest', 'Plug in answer choices on tricky math', 'Read the whole passage before detail questions'],
+  },
+  NEET: {
+    emoji: 'NE',
+    tone: 'success',
+    tagline: 'Biology-heavy recall with physics & chemistry.',
+    description: 'One NEET subject covering Biology, Chemistry and Physics — high-volume recall and accuracy across the full syllabus.',
+    keyTopics: ['Human physiology', 'Plant physiology', 'Genetics', 'Organic chemistry', 'Mechanics'],
+    studyTips: ['Prioritise Biology — it is half the paper', 'Revise NCERT lines almost verbatim', 'Time full mock papers weekly'],
+  },
   'Logical Reasoning': {
     emoji: 'LR',
     tone: 'secondary',

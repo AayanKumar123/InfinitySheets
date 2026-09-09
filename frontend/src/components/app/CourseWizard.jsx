@@ -165,7 +165,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                 {EXAM_TRACKS.map((t) => {
                   const sel = examTrack === t.id;
                   return (
-                    <button key={t.id} onClick={() => { setExamTrack(t.id); setPicked([]); setDates({}); }}
+                    <button key={t.id} data-testid={`exam-${t.id}`} onClick={() => { setExamTrack(t.id); setPicked([]); setDates({}); }}
                       className={`text-left rounded-xl border px-4 py-3 transition-colors ${sel ? 'border-blue-400 bg-blue-50' : 'border-[color:var(--color-border)] bg-white hover:bg-slate-100'}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
