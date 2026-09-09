@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope } from 'lucide-react';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
 import { SUBJECT_INFO } from '../../data/mock';
 import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
+import { diagnosisSnippet } from './ai/DiagnosisPanel';
 
 const SUBJECT_TONE_BADGE = {
   primary: 'bg-blue-100 text-blue-700',
@@ -66,6 +67,35 @@ function Stat({ label, value }) {
       <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">{label}</div>
       <div className="text-[20px] font-semibold mt-1 text-slate-900">{value}</div>
     </div>
+  );
+}
+
+// Latest AI diagnosis — the most recently diagnosed worksheet, linking into
+// Smart Learning where the full text and history live.
+function LatestDiagnosisStat({ sheet, go }) {
+  const d = sheet?.diagnosis;
+  return (
+    <button
+      type="button"
+      onClick={() => go('recommendations')}
+      className="text-left rounded-xl border border-emerald-200/70 p-4 bg-emerald-50/60 hover:border-emerald-400 transition-colors relative overflow-hidden"
+      data-testid="latest-diagnosis"
+      aria-label="Open Smart Learning"
+    >
+      <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-emerald-700 inline-flex items-center gap-1"><Stethoscope className="w-3.5 h-3.5" /> Latest diagnosis</div>
+      {d ? (
+        <>
+          <div className="text-[13.5px] font-semibold text-slate-900 mt-1 truncate">{sheet.subject} · {sheet.topic} <span className="text-slate-500 font-medium tabular-nums">{sheet.score}%</span></div>
+          <div className="text-[12px] text-slate-600 mt-1 leading-snug line-clamp-2">{diagnosisSnippet(d.text)}</div>
+          <div className="text-[11px] text-emerald-700 font-medium mt-1.5">Read in Smart Learning &rarr;</div>
+        </>
+      ) : (
+        <>
+          <div className="text-[20px] font-semibold mt-1 text-slate-400">&mdash;</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Finish a worksheet to get one.</div>
+        </>
+      )}
+    </button>
   );
 }
 
@@ -202,6 +232,12 @@ export default function Dashboard({ go }) {
     return { sum, max, subjects: ibSubs.length };
   }, [perSubjectGrades]);
 
+  const latestDiagnosed = useMemo(() => {
+    const withDiag = ws.filter((w) => w.diagnosis && w.diagnosis.text);
+    if (withDiag.length === 0) return null;
+    return [...withDiag].sort((a, b) => new Date(b.diagnosis.createdAt || b.date || 0) - new Date(a.diagnosis.createdAt || a.date || 0))[0];
+  }, [ws]);
+
   const goalDate = new Date().toDateString();
   const questionsToday = state.goalDate === goalDate ? state.questionsToday : 0;
   const dailyGoal = state.settings?.dailyGoal || 10;
@@ -313,7 +349,7 @@ export default function Dashboard({ go }) {
             )
           }
         />
-        <Stat label="Questions answered" value={stats.total} />
+        <LatestDiagnosisStat sheet={latestDiagnosed} go={go} />
         <Stat label="Worksheets completed" value={stats.sheets} />
       </div>
 

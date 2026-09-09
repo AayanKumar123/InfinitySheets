@@ -381,6 +381,15 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings(next, uid()), 'recordWorksheet/settings');
   }, []);
 
+  // Patch a finished worksheet (e.g. attach its AI diagnosis) and sync it.
+  const updateWorksheet = useCallback((id, patch) => {
+    const cur = (stateRef.current.worksheets || []).find((w) => w.id === id);
+    if (!cur) return;
+    const merged = { ...cur, ...patch };
+    setState((s) => ({ ...s, worksheets: (s.worksheets || []).map((w) => (w.id === id ? merged : w)) }));
+    bg(() => store.upsertWorksheet(merged, uid()), 'updateWorksheet');
+  }, []);
+
   // Save / update the in-progress worksheet draft (local only — never synced).
   const saveDraftWorksheet = useCallback((draft) => {
     setState((s) => ({ ...s, draftWorksheet: draft }));
@@ -540,7 +549,7 @@ export function AppProvider({ children }) {
     apiRegister, apiLogin, apiGoogleAuth, apiLogout,
     updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount,
     recordWorksheet, removeMistake,
-    saveDraftWorksheet, clearDraftWorksheet,
+    saveDraftWorksheet, clearDraftWorksheet, updateWorksheet,
     finishTutorial, restartTutorial,
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
@@ -551,7 +560,7 @@ export function AppProvider({ children }) {
     apiRegister, apiLogin, apiGoogleAuth, apiLogout,
     updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount,
     recordWorksheet, removeMistake,
-    saveDraftWorksheet, clearDraftWorksheet,
+    saveDraftWorksheet, clearDraftWorksheet, updateWorksheet,
     finishTutorial, restartTutorial,
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,

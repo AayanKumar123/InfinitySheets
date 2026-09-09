@@ -198,7 +198,7 @@ function Preferences({ settings, updateSettings }) {
 function AiSection({ settings, updateSettings }) {
   const on = settings.aiEnabled !== false;
   return (
-    <Section title="AI assistants" icon={Bot} subtitle="The topic overviews, doubt-clearing tutor and the study coach in Smart Recommendations.">
+    <Section title="AI assistants" icon={Bot} subtitle="The topic overviews, doubt-clearing tutor and the worksheet diagnoses and study coach in Smart Learning.">
       <Toggle
         checked={on}
         onChange={(v) => { updateSettings({ aiEnabled: v }); toast.success(v ? 'AI assistants enabled' : 'All AI assistants turned off'); }}

@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Sparkles, ArrowRight, TrendingDown } from 'lucide-react';
+import { Sparkles, ArrowRight, TrendingDown, Stethoscope } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { subjectBoards, boardName } from '../../lib/subjects';
 import AiChat from './ai/AiChat';
+import DiagnosisPanel from './ai/DiagnosisPanel';
 
 export default function Recommendations({ go }) {
   const { state } = useApp();
@@ -36,15 +37,43 @@ export default function Recommendations({ go }) {
       `Subjects with attempts: ${subjects.join(', ') || 'none yet'}. Worksheets completed: ${ws.length}.`,
       `Weakest topics: ${weak.join('; ') || 'none identified yet'}.`,
       `Strongest topics: ${strong.join('; ') || 'none identified yet'}.`,
+      ...ws.filter((w) => w.diagnosis).slice(0, 3).map((w) => `Latest diagnosis (${w.subject} · ${w.topic}, ${w.score}%): ${String(w.diagnosis.text).slice(0, 500)}`),
       'Use this to give prioritised, specific advice.',
     ].join('\n');
     return { primer, context: { board: boardList[0], boards: boardList } };
   }, [boards, examTrack, weaknesses, strengths, ws, state.settings?.examDate]);
 
+  // Every finished worksheet, newest first — each carries (or can run) its
+  // AI diagnosis. Diagnosed sheets float to the top so the page reads as a
+  // learning log rather than a history table.
+  const [showAll, setShowAll] = useState(false);
+  const diagnosisSheets = useMemo(() => {
+    const sorted = [...ws].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    return showAll ? sorted : sorted.slice(0, 6);
+  }, [ws, showAll]);
+  const diagnosedCount = ws.filter((w) => w.diagnosis).length;
+
+  const diagnosesPanel = ws.length > 0 && (
+    <div className="flex flex-col gap-3" data-testid="smart-learning-diagnoses">
+      <div className="flex items-center justify-between gap-3 mt-2">
+        <div>
+          <div className="eyebrow-muted flex items-center gap-1.5"><Stethoscope className="w-4 h-4 text-emerald-600" /> Worksheet diagnoses</div>
+          <div className="text-[12px] text-slate-500 mt-0.5">{diagnosedCount} of {ws.length} worksheet{ws.length === 1 ? '' : 's'} diagnosed — what went wrong and what to do about it.</div>
+        </div>
+      </div>
+      {diagnosisSheets.map((w) => <DiagnosisPanel key={w.id} sheet={w} compact testid={`diagnosis-${w.id}`} />)}
+      {ws.length > 6 && (
+        <button onClick={() => setShowAll((v) => !v)} className="text-[12.5px] font-medium text-blue-700 hover:underline w-fit">
+          {showAll ? 'Show fewer' : `Show all ${ws.length} worksheets`}
+        </button>
+      )}
+    </div>
+  );
+
   const coachPanel = (
     <AiChat
       title="AI study coach"
-      subtitle="Knows your weak topics, your boards and your exam date."
+      subtitle="Knows your weak topics, your boards, your exam date and your diagnoses."
       mode="recommend"
       context={coach.context}
       primer={coach.primer}
@@ -142,6 +171,7 @@ export default function Recommendations({ go }) {
         );
       })}
 
+      {diagnosesPanel}
       {coachPanel}
     </div>
   );

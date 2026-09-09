@@ -6,6 +6,7 @@ import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCi
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import CreateWorksheetButton from './CreateWorksheetButton';
+import DiagnosisPanel from './ai/DiagnosisPanel';
 
 const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
@@ -798,6 +799,9 @@ export default function Worksheets({ go }) {
           <div className="mt-3 h-2 rounded-full bg-zinc-100 overflow-hidden">
             <div className="h-full bg-blue-500" style={{ width: `${result.score}%` }} />
           </div>
+        </div>
+        <div className="mb-5">
+          <DiagnosisPanel sheet={result} autoRun testid="worksheet-diagnosis" />
         </div>
         <div className="flex flex-col gap-3">
           {result.questions.map((q, i) => {

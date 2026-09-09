@@ -31,7 +31,7 @@ const BASE_NAV = [
   { key: 'history', label: 'Worksheet History', Icon: History },
   { key: 'progress', label: 'Performance', Icon: TrendingUp },
   { key: 'strengths', label: 'Strengths & Weaknesses', Icon: Dumbbell },
-  { key: 'recommendations', label: 'Smart Recommendations', Icon: Sparkles },
+  { key: 'recommendations', label: 'Smart Learning', Icon: Sparkles },
   { key: 'settings', label: 'Settings', Icon: Settings },
 ];
 const ADMIN_ITEM = { key: 'admin', label: 'Admin', Icon: Shield };

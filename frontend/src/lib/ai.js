@@ -46,3 +46,52 @@ export async function topicOverview(context, { force = false } = {}) {
   try { sessionStorage.setItem(key, text); } catch (e) { /* ignore */ }
   return text;
 }
+
+// Summarise a finished worksheet for the diagnosis prompt: every question,
+// the accepted answer and what the student put. Wrong answers always go in;
+// correct ones are trimmed on very long sheets to keep the request small.
+function describeQuestion(q, given, ok, n) {
+  const type = q.answerType || 'Multiple choice';
+  let expected = '';
+  let student = '';
+  if (type === 'Multiple choice' && Array.isArray(q.options)) {
+    expected = q.options[q.a];
+    student = typeof given === 'number' && given >= 0 ? q.options[given] : '(no answer)';
+  } else if (type === 'Typed response') {
+    expected = q.typedAnswer || (q.options ? q.options[q.a] : '');
+    student = given ? String(given) : '(blank)';
+  } else {
+    expected = q.examAnswer || (q.examKeywords || []).join(', ') || '(marked on key ideas)';
+    student = given ? String(given) : '(blank)';
+  }
+  const clip = (t, n2) => (String(t).length > n2 ? `${String(t).slice(0, n2)}…` : String(t));
+  return `${n}. [${ok ? 'correct' : 'WRONG'}] ${clip(q.q, 260)}\n   Accepted: ${clip(expected, 200)}\n   Student: ${clip(student, 300)}`;
+}
+
+export async function diagnoseWorksheet(sheet, { board, ibLevel } = {}) {
+  const qs = sheet.questions || [];
+  const results = sheet.results || qs.map((q, i) => (sheet.answers || [])[i] === q.a);
+  const lines = [];
+  let keptCorrect = 0;
+  qs.forEach((q, i) => {
+    const ok = !!results[i];
+    if (ok && qs.length > 25 && keptCorrect >= 8) return;
+    if (ok) keptCorrect += 1;
+    lines.push(describeQuestion(q, (sheet.answers || [])[i], ok, i + 1));
+  });
+  const mins = Math.floor((sheet.durationSec || 0) / 60);
+  const secs = (sheet.durationSec || 0) % 60;
+  const content = [
+    `Worksheet just completed by the student.`,
+    `Board: ${board || sheet.board || 'unknown'}${ibLevel ? ` (${ibLevel})` : ''}. Subject: ${sheet.subject}. Topics: ${sheet.topic}.`,
+    `Difficulty: ${sheet.difficulty}. Answer type: ${sheet.answerType}. Score: ${sheet.score}% (${sheet.correct}/${sheet.total}). Time taken: ${mins}m ${secs}s.`,
+    '',
+    'Questions:',
+    ...lines,
+  ].join('\n');
+  return askAi({
+    mode: 'diagnose',
+    context: { board, ibLevel, subject: sheet.subject, topic: sheet.topic },
+    messages: [{ role: 'user', content }],
+  });
+}

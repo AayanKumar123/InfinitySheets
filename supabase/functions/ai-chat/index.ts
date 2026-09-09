@@ -1,6 +1,6 @@
 // InfinitySheets AI — one Gemini-backed endpoint for every assistant in the app.
 //
-//   POST { mode: 'overview' | 'chat' | 'recommend', context, messages }
+//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose', context, messages }
 //   → { text, model }
 //
 // The Gemini key lives ONLY here, as the GEMINI_API_KEY secret on the project
@@ -45,7 +45,10 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
   const base = `You are the InfinitySheets study assistant for a student preparing for ${boardLabel(board)}${level}. You know exactly what this exam's examiners require and you answer like a top tutor who has read the syllabus and mark schemes: specific, exam-focused, never generic. Use plain language, short paragraphs and bullet points. Use Markdown headings (##) and bold sparingly. Never invent past-paper question numbers or statistics. If a question is outside the syllabus, say so and answer briefly.\n\nExam context: ${notes}`;
 
   if (mode === "recommend") {
-    return `${base}\n\nYou are on the Smart Recommendations page. The student's performance data is in the first message. Give practical, prioritised advice about what to practise next and why, tied to their weakest topics and their exam date. Keep answers under 250 words unless asked for a plan.`;
+    return `${base}\n\nYou are on the Smart Learning page. The student's performance data is in the first message. Give practical, prioritised advice about what to practise next and why, tied to their weakest topics and their exam date. Keep answers under 250 words unless asked for a plan.`;
+  }
+  if (mode === "diagnose") {
+    return `${base}\n\nYou are running a post-worksheet diagnosis. The message contains the worksheet the student just finished: every question, the correct answer, and what the student put. Write a diagnosis with exactly these Markdown sections:\n\n## Where you went wrong\nGo through the incorrect questions (reference them by number). For each, name the actual misconception or slip — not just 'you got it wrong' — and give the one-line correct reasoning. If everything was correct, say so and instead identify where the answers were fragile or where the exam would push harder.\n\n## What you could have done better\n3-5 bullets on technique: reading the command word, showing working, units, eliminating options, time management, or the specific phrasing this board's mark scheme wants. Tie each to a real question from this worksheet.\n\n## Next steps\nExactly 3 bullets: the most valuable things to practise next, in priority order, each with why.\n\nBe direct and encouraging, never padded. Under 350 words.`;
   }
   const subj = ctx.subject ? `Subject: ${ctx.subject}. ` : "";
   const topic = ctx.topic ? `Topic: ${ctx.topic}. ` : "";
@@ -57,6 +60,7 @@ function overviewPrompt(ctx: Record<string, unknown>) {
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
+const MODES = new Set(["overview", "chat", "recommend", "diagnose"]);
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -68,7 +72,7 @@ Deno.serve(async (req: Request) => {
 
   let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[] };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
-  const mode = body.mode === "overview" || body.mode === "recommend" ? body.mode : "chat";
+  const mode = MODES.has(String(body.mode)) ? String(body.mode) : "chat";
   const ctx = body.context || {};
 
   let contents: Array<{ role: string; parts: Array<{ text: string }> }>;
@@ -78,7 +82,7 @@ Deno.serve(async (req: Request) => {
     const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-14);
     contents = msgs
       .filter((m) => m && typeof m.content === "string" && m.content.trim())
-      .map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content.slice(0, 6000) }] }));
+      .map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content.slice(0, 12000) }] }));
     if (contents.length === 0) return json({ error: "No message" }, 400);
   }
 
