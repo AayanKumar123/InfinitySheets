@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Shield, Plus, Trash2, FileText, Sparkles, Filter, Upload, Link2, X, Loader2, Check, FlaskConical } from 'lucide-react';
 import { SUBJECTS, TOPICS, EXAM_TRACKS } from '../../data/mock';
+import { FULL_PAPER_TYPE } from '../../data/pastPapers';
 import { toast } from 'sonner';
 
-const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style'];
+const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style', FULL_PAPER_TYPE];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
 
 // --------------------------------------------------------------------------
@@ -159,8 +160,10 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
   }, [scopedPastPapers, filterTopic]);
 
   const validate = () => {
-    if (!form.topic) return 'Pick a topic';
-    if (!form.q.trim()) return 'Enter a question';
+    const isPaper = form.answerType === FULL_PAPER_TYPE;
+    if (!isPaper && !form.topic) return 'Pick a topic';
+    if (!form.q.trim()) return isPaper ? 'Enter the paper title' : 'Enter a question';
+    if (isPaper && !form.link.trim()) return 'A full paper needs a link to the official source';
     if (form.answerType === 'Multiple choice') {
       if (form.options.filter((o) => o.trim()).length < 2) return 'Add at least two options';
       if (!form.options[form.a] || !form.options[form.a].trim()) return 'Pick a correct option that has text';
@@ -174,7 +177,7 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
   const buildPayload = () => {
     const base = {
       subject,
-      topic: form.topic,
+      topic: form.answerType === FULL_PAPER_TYPE ? '' : form.topic,
       year: form.year ? parseInt(form.year, 10) : null,
       board: syllabus,
       difficulty: form.difficulty,
@@ -254,7 +257,7 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
 
           <div className="mt-3">
             <Field label="Question">
-              <textarea className="input-base" rows={3} value={form.q} onChange={(e) => setF({ q: e.target.value })} placeholder="Type the past-paper question exactly as it appeared." data-testid="admin-question" />
+              <textarea className="input-base" rows={3} value={form.q} onChange={(e) => setF({ q: e.target.value })} placeholder={form.answerType === FULL_PAPER_TYPE ? 'Paper title, e.g. CBSE Class XII Physics 2025' : 'Type the past-paper question exactly as it appeared.'} data-testid="admin-question" />
             </Field>
           </div>
 
@@ -360,7 +363,7 @@ function LibraryRow({ p, onRemove }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-            <span className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-700 text-[10.5px] font-semibold">{p.topic}</span>
+            {p.topic && <span className="px-2 py-0.5 rounded-md bg-violet-100 text-violet-700 text-[10.5px] font-semibold">{p.topic}</span>}
             <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10.5px] font-semibold">{p.answerType}</span>
             {p.difficulty && <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10.5px] font-semibold">{p.difficulty}</span>}
             {p.year && <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10.5px] font-semibold">{p.year}</span>}

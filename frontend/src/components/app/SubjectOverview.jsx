@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import SubjectHero from './subject/SubjectHero';
 import TopicsList from './subject/TopicsList';
 import SubjectSidePanels from './subject/SubjectSidePanels';
+import PastPapersPanel from './subject/PastPapersPanel';
 
 const FALLBACK_INFO = {
   emoji: '\u25A0',
@@ -72,7 +73,10 @@ export default function SubjectOverview({ subject, go, onBack }) {
           stats={stats}
           onLaunch={launch}
         />
-        <SubjectSidePanels keyTopics={info.keyTopics} studyTips={info.studyTips} />
+        <div className="flex flex-col gap-4">
+          <SubjectSidePanels keyTopics={info.keyTopics} studyTips={info.studyTips} />
+          <PastPapersPanel pastPapers={state.pastPapers} subject={subject} board={state.user?.examTrack} />
+        </div>
       </div>
     </div>
   );
