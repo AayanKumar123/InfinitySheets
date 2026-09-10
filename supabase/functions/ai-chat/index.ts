@@ -5,7 +5,11 @@
 //
 // The Gemini key lives ONLY here, as the GEMINI_API_KEY secret on the project
 // (Dashboard → Edge Functions → Secrets, or `supabase secrets set`). It is never
-// shipped to the browser. Optional: GEMINI_MODEL (default gemini-2.5-flash).
+// shipped to the browser. Optional: GEMINI_MODEL (default gemini-3.5-flash).
+//
+// Keep the model current: Google retires older ids for new keys — gemini-2.5-flash
+// already returns 404 "no longer available to new users", which reads like a broken
+// key but is not. If every AI call 404s, check the model id first.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const CORS = {
@@ -68,7 +72,7 @@ Deno.serve(async (req: Request) => {
 
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return json({ error: "AI is not configured yet — add the GEMINI_API_KEY secret to the Supabase project." }, 503);
-  const model = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
+  const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.5-flash";
 
   let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[] };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
@@ -100,7 +104,12 @@ Deno.serve(async (req: Request) => {
     const detail = await res.text().catch(() => "");
     const friendly = res.status === 429
       ? "The AI is busy right now (rate limit). Try again in a minute."
-      : `AI request failed (${res.status}).`;
+      : res.status === 404
+        // Google retires model ids for new keys; this is a config problem, not a key problem.
+        ? `The AI model "${model}" is not available to this key. Set the GEMINI_MODEL secret to a current model.`
+        : res.status === 400 || res.status === 403
+          ? "The AI key was rejected. Check the GEMINI_API_KEY secret on the Supabase project."
+          : `AI request failed (${res.status}).`;
     console.error("gemini", res.status, detail.slice(0, 400));
     return json({ error: friendly }, 502);
   }
