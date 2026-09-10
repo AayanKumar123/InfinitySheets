@@ -10,7 +10,8 @@ import DiagnosisPanel from './ai/DiagnosisPanel';
 
 export default function Recommendations({ go }) {
   const { state } = useApp();
-  const ws = state.worksheets || [];
+  // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
+  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
 
   const swOverrides = useSavedSwOverrides();
   const {
@@ -97,9 +98,41 @@ export default function Recommendations({ go }) {
     return [...weakAsc, ...rest];
   }, [weaknesses, byTopic]);
 
+  const actionsPanel = (
+    <div className="flex flex-col gap-2" data-testid="next-best-actions">
+      <div className="eyebrow-muted flex items-center gap-1.5">
+        <TrendingDown className="w-4 h-4 text-rose-500" /> Next best actions
+      </div>
+      <div className="text-[12px] text-slate-500 -mt-1">Your weakest topics first.</div>
+      {recs.map((r, i) => {
+        const isWeakness = r.acc < weaknessMax;
+        return (
+          <div key={r.topic} className="rounded-xl border border-[color:var(--color-border)] bg-white p-4 flex flex-col gap-2" data-testid={`next-action-${i + 1}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[14.5px] font-semibold text-slate-900 leading-snug">Practice {r.topic}</div>
+                <div className="text-[12px] text-slate-500 mt-0.5">{r.acc}% accuracy &middot; {r.subject}</div>
+              </div>
+              {isWeakness && (
+                <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-semibold">Weakness</span>
+              )}
+            </div>
+            <button
+              onClick={() => { window.sessionStorage.setItem('preselect_subject', r.subject); go('worksheets'); }}
+              className="btn-violet inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-semibold w-full"
+            >
+              Start <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   if (recs.length === 0) {
     return (
-      <div className="flex flex-col gap-3 max-w-[820px]">
+      <div className="flex flex-col gap-5 max-w-[900px]">
+      {coachPanel}
       <div className="relative rounded-2xl border border-dashed border-[color:var(--color-border)] bg-white overflow-hidden min-h-[360px]">
         <EmptyStateScene variant="lab" className="absolute inset-0" />
         <div className="relative p-12 text-center">
@@ -108,15 +141,17 @@ export default function Recommendations({ go }) {
           <div className="text-[13px] text-slate-500 mt-1">Complete a worksheet so we can suggest your next best actions.</div>
         </div>
       </div>
-      {coachPanel}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 max-w-[820px]">
-      {/* Standalone creation entry point; the per-recommendation "Start"
-          buttons below stay contextual to their topic. */}
+    <div className="flex flex-col gap-5 max-w-[1180px]">
+      {/* The coach leads the page — it can answer about everything below it. */}
+      {coachPanel}
+
+      <div className="grid lg:grid-cols-[1.6fr_1fr] gap-5 items-start">
+        <div className="flex flex-col gap-3 min-w-0">
       <div className="flex justify-end">
         <CreateWorksheetButton
           onClick={() => go('worksheets')}
@@ -145,34 +180,11 @@ export default function Recommendations({ go }) {
         </span>
       </div>
 
-      {recs.map((r, i) => {
-        const isWeakness = r.acc < weaknessMax;
-        return (
-          <div key={r.topic} className="rounded-xl border border-zinc-200 p-5 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-[11px] tracking-[0.14em] uppercase font-semibold text-blue-600 inline-flex items-center gap-2">
-                Next best action {i + 1}
-                {isWeakness && (
-                  <span className="px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 tracking-normal text-[10px] font-medium normal-case">
-                    Weakness
-                  </span>
-                )}
-              </div>
-              <div className="text-[15.5px] font-semibold text-zinc-900 mt-1">Practice {r.topic}</div>
-              <div className="text-[13px] text-zinc-500 mt-0.5">Current accuracy {r.acc}% · {r.subject}</div>
-            </div>
-            <button
-              onClick={() => { window.sessionStorage.setItem('preselect_subject', r.subject); go('worksheets'); }}
-              className="btn-violet inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13.5px] font-medium"
-            >
-              Start <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        );
-      })}
-
       {diagnosesPanel}
-      {coachPanel}
+        </div>
+
+        <div className="min-w-0 lg:sticky lg:top-4">{actionsPanel}</div>
+      </div>
     </div>
   );
 }

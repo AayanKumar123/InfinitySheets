@@ -31,12 +31,18 @@ export default function ProgressView() {
 
   const allSubjects = useMemo(() => Array.from(new Set(ws.map((w) => w.subject))), [ws]);
   const boardsInPlay = useMemo(() => Array.from(new Set(allSubjects.map(boardOf))), [allSubjects, boardOf]);
-  const [hidden, setHidden] = useState({});
+  // Clicking a subject isolates it: that line alone stays on the chart.
+  // Clicking the same subject again (or "Show all") brings the rest back.
+  const [solo, setSolo] = useState(null);
   const [hoveredSubject, setHoveredSubject] = useState(null);
   const [focusedSubject, setFocusedSubject] = useState(null); // set briefly on click for a flash-highlight
   const cardsSectionRef = useRef(null);
-  const isHidden = (s) => hidden[s] === true;
-  const visibleSubjects = allSubjects.filter((s) => !isHidden(s));
+  const soloed = solo && allSubjects.includes(solo) ? solo : null;
+  const isHidden = (s) => soloed !== null && soloed !== s;
+  const visibleSubjects = useMemo(
+    () => (soloed ? [soloed] : allSubjects),
+    [soloed, allSubjects],
+  );
 
   // Full prefs (both global and per-subject overrides).
   const swPrefs = useSavedSwPrefs();
@@ -44,8 +50,8 @@ export default function ProgressView() {
   // Chronological order (oldest first)
   const chronological = useMemo(() => [...ws].slice().reverse(), [ws]);
   const visibleWS = useMemo(
-    () => chronological.filter((w) => !hidden[w.subject]),
-    [chronological, hidden]
+    () => chronological.filter((w) => visibleSubjects.includes(w.subject)),
+    [chronological, visibleSubjects]
   );
 
   // Per-subject series (each point is a worksheet attempt)
@@ -147,13 +153,17 @@ export default function ProgressView() {
             <div className="eyebrow-muted">Score trend over time</div>
             <div className="text-[12px] text-slate-500 mt-1">
               Solid line = your worksheet performance. Dashed line = predicted grade.
-              Hover a subject to focus on it.
+              Click a subject to see it on its own.
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setHidden({})} className="text-[12px] text-blue-700 hover:text-blue-900 transition-colors">Show all</button>
-            <span className="text-slate-300">/</span>
-            <button onClick={() => { const m = {}; allSubjects.forEach((s) => { m[s] = true; }); setHidden(m); }} className="text-[12px] text-slate-500 hover:text-slate-800 transition-colors">Hide all</button>
+            {soloed ? (
+              <button onClick={() => setSolo(null)} className="text-[12px] font-medium text-blue-700 hover:text-blue-900 transition-colors" data-testid="progress-show-all">
+                Showing {soloed} only &middot; Show all
+              </button>
+            ) : (
+              <span className="text-[12px] text-slate-500">Click a subject to see it on its own</span>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
@@ -167,12 +177,16 @@ export default function ProgressView() {
             return (
               <button
                 key={s}
-                onClick={() => setHidden((a) => ({ ...a, [s]: !a[s] }))}
+                onClick={() => setSolo((cur) => (cur === s ? null : s))}
+                data-testid={`progress-subject-${s}`}
+                aria-pressed={soloed === s}
                 onMouseEnter={() => !off && setHoveredSubject(s)}
                 onMouseLeave={() => setHoveredSubject(null)}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12.5px] font-medium border transition-all ${
                   off
-                    ? 'bg-slate-50 text-slate-400 border-[color:var(--color-border)]'
+                    ? 'bg-slate-50 text-slate-400 border-[color:var(--color-border)] opacity-70'
+                    : soloed === s
+                      ? 'bg-blue-50 text-blue-900 border-blue-400 ring-2 ring-blue-100'
                     : isHovered
                       ? 'bg-white text-slate-900 border-slate-400 ring-2 ring-blue-100'
                       : dimmed
@@ -182,7 +196,7 @@ export default function ProgressView() {
               >
                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: off ? '#cbd5e1' : color }} />
                 <span className="text-[14px] leading-none">{info.emoji}</span>
-                <span className={off ? 'line-through' : ''}>{s}</span>
+                <span>{s}</span>
                 {!off && d.hasEnough && <DeltaPill delta={d.delta} small />}
               </button>
             );

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { SUBJECTS, TOPICS } from '../data/mock';
 import { SEED_PAST_PAPERS } from '../data/pastPapers';
+import { enrolledSubjects } from '../lib/subjects';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as store from '../lib/dataStore';
 
@@ -419,20 +420,40 @@ export function AppProvider({ children }) {
     setState((s) => ({ ...s, courses: [full, ...s.courses] }));
     bg(() => store.upsertCourse(full, uid()), 'addCourse');
   }, []);
+  // Subjects the student still has after a course changes. Keeps
+  // `user.subjects` (the fallback list) from resurrecting deleted subjects.
+  const subjectsStillTaken = (courses, userSubjects) => {
+    const inCourses = new Set();
+    (courses || []).forEach((c) => {
+      const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [c.subject] : []);
+      subs.forEach((e) => { const n = typeof e === 'string' ? e : e?.subject; if (n) inCourses.add(n); });
+    });
+    // No courses left -> nothing to reconcile against; keep what they had.
+    if (inCourses.size === 0) return [];
+    return (userSubjects || []).filter((n) => inCourses.has(n));
+  };
+
   const removeCourse = useCallback((id) => {
-    setState((s) => ({ ...s, courses: s.courses.filter((c) => c.id !== id) }));
+    setState((s) => {
+      const courses = s.courses.filter((c) => c.id !== id);
+      return { ...s, courses, user: s.user ? { ...s.user, subjects: subjectsStillTaken(courses, s.user.subjects) } : s.user };
+    });
     bg(() => store.deleteCourse(id, uid()), 'removeCourse');
   }, []);
   const updateCourse = useCallback((id, patch) => {
     let updated = null;
-    setState((s) => ({
-      ...s,
-      courses: s.courses.map((c) => {
+    setState((s) => {
+      const courses = s.courses.map((c) => {
         if (c.id !== id) return c;
         updated = { ...c, ...patch };
         return updated;
-      }),
-    }));
+      });
+      // Dropping a subject from a course drops it from the fallback list too.
+      const user = s.user && patch && patch.subjects
+        ? { ...s.user, subjects: subjectsStillTaken(courses, s.user.subjects) }
+        : s.user;
+      return { ...s, courses, user };
+    });
     bg(() => updated && store.upsertCourse(updated, uid()), 'updateCourse');
   }, []);
 
@@ -440,9 +461,11 @@ export function AppProvider({ children }) {
   const seedTestPerformance = useCallback(() => {
     const prev = stateRef.current;
     const track = prev.user?.examTrack || 'CBSE';
-    const userSubs = Array.isArray(prev.user?.subjects) && prev.user.subjects.length > 0
-      ? prev.user.subjects : (SUBJECTS[track] || []);
-    const subs = userSubs.length > 0 ? userSubs : ['Mathematics', 'Physics', 'Chemistry'];
+    // Same source of truth as Start Studying / the Dashboard: the student's
+    // courses first, then their onboarding picks. Deleting a subject or course
+    // therefore removes it from seeded performance too.
+    const enrolled = enrolledSubjects(prev.courses, prev.user?.subjects, track);
+    const subs = enrolled.length > 0 ? enrolled : ['Mathematics', 'Physics', 'Chemistry'];
     const DIFFS = ['Easy', 'Medium', 'Exam level', 'Hard'];
     const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
