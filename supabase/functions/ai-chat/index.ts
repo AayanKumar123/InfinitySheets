@@ -10,9 +10,12 @@
 // type any name, and a near-miss otherwise looks exactly like a missing key.
 // Optional: GEMINI_MODEL (default gemini-3.5-flash).
 //
-// Keep the model current: Google retires older ids for new keys — gemini-2.5-flash
-// already returns 404 "no longer available to new users", which reads like a broken
-// key but is not. If every AI call 404s, check the model id first.
+// Two model gotchas, both of which look like a broken key but are not:
+//   * Google retires ids for new keys — gemini-2.5-flash returns 404 "no longer
+//     available to new users". If every call 404s, check the model id.
+//   * The free tier allows only 20 requests per day PER MODEL. When one runs
+//     out it returns 429 RESOURCE_EXHAUSTED, so MODEL_CHAIN below falls through
+//     to the next model rather than failing. GEMINI_MODEL overrides the first.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const CORS = {
@@ -79,6 +82,10 @@ function envLike(canonical: string): string | undefined {
   return undefined;
 }
 
+// Tried in order. The free tier's 20/day is counted per model, so a chain
+// multiplies the daily allowance and degrades instead of dying.
+const MODEL_CHAIN = ["gemini-3.5-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
+
 type Msg = { role: "user" | "assistant"; content: string };
 const MODES = new Set(["overview", "chat", "recommend", "diagnose"]);
 
@@ -88,7 +95,8 @@ Deno.serve(async (req: Request) => {
 
   const key = envLike("GEMINI_API_KEY");
   if (!key) return json({ error: "AI is not configured yet — add the GEMINI_API_KEY secret to the Supabase project." }, 503);
-  const model = envLike("GEMINI_MODEL") || "gemini-3.5-flash";
+  const preferred = envLike("GEMINI_MODEL");
+  const models = preferred ? [preferred, ...MODEL_CHAIN.filter((m) => m !== preferred)] : [...MODEL_CHAIN];
 
   let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[] };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
@@ -112,35 +120,49 @@ Deno.serve(async (req: Request) => {
     generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
   });
 
-  // Google returns a transient 503 ("overloaded") often enough that a single
-  // attempt would surface as a random failure to students. Retry those (and
-  // rate limits) a couple of times with backoff before giving up.
-  let res!: Response;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: payload,
-    });
-    if (res.ok || (res.status !== 503 && res.status !== 429)) break;
-    if (attempt < 2) await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+  // Walk the model chain. A 503 is transient (retry the same model); a 429 means
+  // that model's daily free quota is gone (move to the next one).
+  let res: Response | null = null;
+  let used = "";
+  let lastStatus = 0;
+  let lastDetail = "";
+  let everQuotaExhausted = false;
+
+  outer:
+  for (const candidate of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: payload,
+      });
+      if (r.ok) { res = r; used = candidate; break outer; }
+
+      lastStatus = r.status;
+      lastDetail = await r.text().catch(() => "");
+      console.error("gemini", candidate, r.status, lastDetail.slice(0, 300));
+
+      if (r.status === 429) { everQuotaExhausted = true; continue outer; }  // next model
+      if (r.status === 503 && attempt < 2) { await new Promise((x) => setTimeout(x, 700 * (attempt + 1))); continue; }
+      break;                                                                // 4xx: next model won't help either
+    }
   }
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    const friendly = res.status === 429 || res.status === 503
-      ? "The AI is busy right now. Give it a moment and try again."
-      : res.status === 404
-        // Google retires model ids for new keys; this is a config problem, not a key problem.
-        ? `The AI model "${model}" is not available to this key. Set the GEMINI_MODEL secret to a current model.`
-        : res.status === 400 || res.status === 403
-          ? "The AI key was rejected. Check the GEMINI_API_KEY secret on the Supabase project."
-          : `AI request failed (${res.status}).`;
-    console.error("gemini", res.status, detail.slice(0, 400));
+  if (!res) {
+    const friendly = everQuotaExhausted
+      ? "The daily free AI limit has been reached. It resets at midnight Pacific time — or add billing to the Google AI key to lift it."
+      : lastStatus === 503
+        ? "The AI is busy right now. Give it a moment and try again."
+        : lastStatus === 404
+          ? "No usable AI model was found for this key. Set the GEMINI_MODEL secret to a current model."
+          : lastStatus === 400 || lastStatus === 403
+            ? "The AI key was rejected. Check the GEMINI_API_KEY secret on the Supabase project."
+            : `AI request failed (${lastStatus || "no response"}).`;
     return json({ error: friendly }, 502);
   }
+
   const data = await res.json();
   const text = (data?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("").trim();
   if (!text) return json({ error: "The AI returned an empty answer. Try rephrasing." }, 502);
-  return json({ text, model });
+  return json({ text, model: used });
 });
