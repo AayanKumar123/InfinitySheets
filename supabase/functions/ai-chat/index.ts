@@ -16,6 +16,11 @@
 //   * The free tier allows only 20 requests per day PER MODEL. When one runs
 //     out it returns 429 RESOURCE_EXHAUSTED, so MODEL_CHAIN below falls through
 //     to the next model rather than failing. GEMINI_MODEL overrides the first.
+//
+// Topic overviews are cached in public.topic_overviews and shared by every
+// student, so a given (board, subject, topic, level) costs one Gemini call for
+// all time instead of one per visit. The cache is strictly best-effort: if the
+// database is unreachable the request still gets answered from Gemini.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const CORS = {
@@ -86,6 +91,73 @@ function envLike(canonical: string): string | undefined {
 // multiplies the daily allowance and degrades instead of dying.
 const MODEL_CHAIN = ["gemini-3.5-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
 
+// ---------------------------------------------------------------------------
+// Shared overview cache (service-role, best-effort)
+// ---------------------------------------------------------------------------
+const DB_URL = Deno.env.get("SUPABASE_URL");
+const DB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const CACHE_TIMEOUT_MS = 2500;   // never let a slow database delay an answer
+
+function cacheKey(ctx: Record<string, unknown>) {
+  return [ctx.board, ctx.subject, ctx.topic, ctx.ibLevel || ""]
+    .map((v) => String(v ?? "").trim().toLowerCase())
+    .join("|");
+}
+
+async function cacheGet(id: string): Promise<{ body: string; model: string } | null> {
+  if (!DB_URL || !DB_KEY) return null;
+  try {
+    const r = await fetch(`${DB_URL}/rest/v1/topic_overviews?id=eq.${encodeURIComponent(id)}&select=body,model`, {
+      headers: { apikey: DB_KEY, Authorization: `Bearer ${DB_KEY}` },
+      signal: AbortSignal.timeout(CACHE_TIMEOUT_MS),
+    });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    return row?.body ? { body: row.body, model: row.model || "cache" } : null;
+  } catch (_) {
+    return null;   // cache is an optimisation, never a dependency
+  }
+}
+
+async function cachePut(id: string, ctx: Record<string, unknown>, body: string, model: string) {
+  if (!DB_URL || !DB_KEY) return;
+  try {
+    await fetch(`${DB_URL}/rest/v1/topic_overviews?on_conflict=id`, {
+      method: "POST",
+      headers: {
+        apikey: DB_KEY,
+        Authorization: `Bearer ${DB_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        id,
+        board: String(ctx.board ?? ""),
+        subject: String(ctx.subject ?? ""),
+        topic: String(ctx.topic ?? ""),
+        ib_level: ctx.ibLevel ? String(ctx.ibLevel) : null,
+        body,
+        model,
+        updated_at: new Date().toISOString(),
+      }),
+      signal: AbortSignal.timeout(CACHE_TIMEOUT_MS),
+    });
+  } catch (_) { /* a failed write just means the next visit regenerates */ }
+}
+
+async function cacheBumpHit(id: string) {
+  if (!DB_URL || !DB_KEY) return;
+  try {
+    await fetch(`${DB_URL}/rest/v1/rpc/bump_topic_overview_hit`, {
+      method: "POST",
+      headers: { apikey: DB_KEY, Authorization: `Bearer ${DB_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_id: id }),
+      signal: AbortSignal.timeout(CACHE_TIMEOUT_MS),
+    });
+  } catch (_) { /* stats only */ }
+}
+
 type Msg = { role: "user" | "assistant"; content: string };
 const MODES = new Set(["overview", "chat", "recommend", "diagnose"]);
 
@@ -98,10 +170,21 @@ Deno.serve(async (req: Request) => {
   const preferred = envLike("GEMINI_MODEL");
   const models = preferred ? [preferred, ...MODEL_CHAIN.filter((m) => m !== preferred)] : [...MODEL_CHAIN];
 
-  let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[] };
+  let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[]; force?: boolean };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
   const mode = MODES.has(String(body.mode)) ? String(body.mode) : "chat";
   const ctx = body.context || {};
+
+  // An overview is the same for every student, so check the shared cache first.
+  // `force` (the Regenerate button) skips the read but still refreshes the row.
+  const overviewId = mode === "overview" ? cacheKey(ctx) : "";
+  if (mode === "overview" && !body.force) {
+    const hit = await cacheGet(overviewId);
+    if (hit) {
+      cacheBumpHit(overviewId);   // fire and forget
+      return json({ text: hit.body, model: hit.model, cached: true });
+    }
+  }
 
   let contents: Array<{ role: string; parts: Array<{ text: string }> }>;
   if (mode === "overview") {
@@ -164,5 +247,7 @@ Deno.serve(async (req: Request) => {
   const data = await res.json();
   const text = (data?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("").trim();
   if (!text) return json({ error: "The AI returned an empty answer. Try rephrasing." }, 502);
-  return json({ text, model: used });
+
+  if (mode === "overview") await cachePut(overviewId, ctx, text, used);
+  return json({ text, model: used, cached: false });
 });

@@ -23,12 +23,12 @@ async function readErrorMessage(error) {
  * Ask the assistant. `messages` is [{ role: 'user' | 'assistant', content }].
  * Resolves to the reply text; throws an Error with a readable message.
  */
-export async function askAi({ mode = 'chat', context = {}, messages = [] }) {
+export async function askAi({ mode = 'chat', context = {}, messages = [], force = false }) {
   if (!isSupabaseConfigured) {
     throw new Error('AI needs the Supabase connection (set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY).');
   }
   const { data, error } = await supabase.functions.invoke(AI_FUNCTION, {
-    body: { mode, context, messages: messages.map((m) => ({ role: m.role, content: m.content })) },
+    body: { mode, context, force, messages: messages.map((m) => ({ role: m.role, content: m.content })) },
   });
   if (error) throw new Error(await readErrorMessage(error));
   if (data?.error) throw new Error(data.error);
@@ -38,11 +38,15 @@ export async function askAi({ mode = 'chat', context = {}, messages = [] }) {
 // Topic overviews are deterministic enough to cache for the session — saves
 // free-tier quota when a student flips between topics.
 export async function topicOverview(context, { force = false } = {}) {
+  // Two layers. sessionStorage saves a round-trip while a student clicks
+  // between topics; the server-side cache (public.topic_overviews) is the one
+  // that matters — it is shared by every student, so a topic costs one Gemini
+  // call for all time rather than one per visit. `force` skips both.
   const key = `ai_overview:${context.board}:${context.subject}:${context.topic}:${context.ibLevel || ''}`;
   if (!force) {
     try { const cached = sessionStorage.getItem(key); if (cached) return cached; } catch (e) { /* ignore */ }
   }
-  const text = await askAi({ mode: 'overview', context });
+  const text = await askAi({ mode: 'overview', context, force });
   try { sessionStorage.setItem(key, text); } catch (e) { /* ignore */ }
   return text;
 }
