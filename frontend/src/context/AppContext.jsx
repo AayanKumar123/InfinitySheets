@@ -29,7 +29,7 @@ const defaultState = {
   lastStudyDate: null,
   tutorialDone: false,
   onboardingDone: false,
-  theme: 'light',
+  theme: 'dark',
   settings: {
     dailyGoal: 10,
     weeklyGoal: 50,

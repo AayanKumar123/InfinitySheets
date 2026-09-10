@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { SUBJECT_INFO, TOPICS } from '../../data/mock';
 import { useApp } from '../../context/AppContext';
+import { subjectBoards, boardName } from '../../lib/subjects';
 import SubjectHero from './subject/SubjectHero';
 import TopicsList from './subject/TopicsList';
 import SubjectSidePanels from './subject/SubjectSidePanels';
@@ -33,6 +34,12 @@ function useSubjectStats(worksheets, subject) {
 
 export default function SubjectOverview({ subject, go, onBack }) {
   const { state } = useApp();
+  // This subject's own board, not the account-wide exam track — a student
+  // taking CBSE Maths and IB Economics must see the right one on each page.
+  const examTrack = state.user?.examTrack || 'SSLC';
+  const boards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
+  const board = boards[subject]?.board || examTrack;
+  const ibLevel = boards[subject]?.ibLevel;
   const info = SUBJECT_INFO[subject] || FALLBACK_INFO;
   const topics = TOPICS[subject] || info.keyTopics || [];
   const { stats, subjectAccuracy, totalAnswered, worksheetCount } = useSubjectStats(state.worksheets, subject);
@@ -56,7 +63,8 @@ export default function SubjectOverview({ subject, go, onBack }) {
       <SubjectHero
         subject={subject}
         info={info}
-        examTrack={state.user?.examTrack || 'SSLC'}
+        examTrack={boardName(board)}
+        ibLevel={ibLevel}
         topicCount={topics.length}
         subjectAccuracy={subjectAccuracy}
         worksheetCount={worksheetCount}
@@ -76,7 +84,7 @@ export default function SubjectOverview({ subject, go, onBack }) {
         />
         <div className="flex flex-col gap-4">
           <SubjectSidePanels keyTopics={info.keyTopics} studyTips={info.studyTips} />
-          <PastPapersPanel pastPapers={state.pastPapers} subject={subject} board={state.user?.examTrack} />
+          <PastPapersPanel pastPapers={state.pastPapers} subject={subject} board={board} />
         </div>
       </div>
     </div>

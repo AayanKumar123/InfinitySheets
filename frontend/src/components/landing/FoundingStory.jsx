@@ -36,7 +36,7 @@ export default function FoundingStory() {
         <Reveal delay={0.2}>
           <div className="mt-8 inline-flex items-center gap-3 rounded-2xl liquid-glass px-5 py-3">
             <span className="w-9 h-9 rounded-full bg-blue-600 text-white text-[13px] font-semibold flex items-center justify-center">IS</span>
-            <span className="text-[14px] text-slate-600">Built by Aayan S. Kumar, Angelo Jolwin &amp; Arihaan Srivastava</span>
+            <span className="text-[14px] text-slate-600">Built by Aayan S. Kumar &amp; Angelo Jolwin</span>
           </div>
         </Reveal>
       </div>

@@ -26,7 +26,7 @@ function MiniStat({ label, value }) {
  * Full-bleed hero banner at the top of the subject overview page.
  * Renders subject title, description, primary CTAs, and a small stats grid.
  */
-export default function SubjectHero({ subject, info, examTrack, topicCount, subjectAccuracy, worksheetCount, questionCount, onCreateWorksheet, onViewHistory }) {
+export default function SubjectHero({ subject, info, examTrack, ibLevel, topicCount, subjectAccuracy, worksheetCount, questionCount, onCreateWorksheet, onViewHistory }) {
   return (
     <div className="relative overflow-hidden rounded-2xl text-white" data-testid="subject-hero">
       <div className={`absolute inset-0 ${toneToBg[info.tone] || toneToBg.primary}`} />
@@ -37,7 +37,7 @@ export default function SubjectHero({ subject, info, examTrack, topicCount, subj
           <div className="flex items-center gap-3 mb-4">
             <div className="w-14 h-14 rounded-xl bg-white/15 backdrop-blur border border-white/20 flex items-center justify-center text-[28px] font-semibold">{info.emoji}</div>
             <div>
-              <div className="text-[11px] tracking-[0.18em] uppercase font-semibold text-white/70">{examTrack} · Subject overview</div>
+              <div className="text-[11px] tracking-[0.18em] uppercase font-semibold text-white/70" data-testid="subject-hero-board">{examTrack}{ibLevel ? ` ${ibLevel}` : ''} · Subject overview</div>
               <div className="text-[28px] font-semibold tracking-tight leading-tight">{subject}</div>
             </div>
           </div>

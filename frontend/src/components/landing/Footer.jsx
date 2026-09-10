@@ -46,7 +46,7 @@ export default function Footer() {
       </div>
       <div className="border-t border-zinc-100">
         <p className="max-w-[1280px] mx-auto px-6 pt-5 text-[13px] text-zinc-600 text-center">
-          Made with &#10084;&#65039; by Aayan S. Kumar, Angelo Jolwin, and Arihaan Srivastava.
+          Made with &#10084;&#65039; by Aayan S. Kumar and Angelo Jolwin.
         </p>
         <p className="max-w-[1280px] mx-auto px-6 pt-2 text-[12px] text-zinc-500 text-center">
           &copy; {new Date().getFullYear()} InfinitySheets. All rights reserved.
