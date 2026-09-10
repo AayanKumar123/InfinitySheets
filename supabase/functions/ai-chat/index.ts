@@ -3,9 +3,12 @@
 //   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose', context, messages }
 //   → { text, model }
 //
-// The Gemini key lives ONLY here, as the GEMINI_API_KEY secret on the project
-// (Dashboard → Edge Functions → Secrets, or `supabase secrets set`). It is never
-// shipped to the browser. Optional: GEMINI_MODEL (default gemini-3.5-flash).
+// The Gemini key lives ONLY here, as a project secret (Dashboard → Edge
+// Functions → Secrets, or `supabase secrets set`). It is never shipped to the
+// browser. The canonical name is GEMINI_API_KEY, but the lookup below also
+// accepts spaced/cased variants like "Gemini API Key" — the dashboard lets you
+// type any name, and a near-miss otherwise looks exactly like a missing key.
+// Optional: GEMINI_MODEL (default gemini-3.5-flash).
 //
 // Keep the model current: Google retires older ids for new keys — gemini-2.5-flash
 // already returns 404 "no longer available to new users", which reads like a broken
@@ -46,7 +49,7 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
   const board = String(ctx.board || "");
   const notes = BOARD_NOTES[board.toUpperCase()] || `The ${board} curriculum.`;
   const level = ctx.ibLevel ? ` (${ctx.ibLevel})` : "";
-  const base = `You are the InfinitySheets study assistant for a student preparing for ${boardLabel(board)}${level}. You know exactly what this exam's examiners require and you answer like a top tutor who has read the syllabus and mark schemes: specific, exam-focused, never generic. Use plain language, short paragraphs and bullet points. Use Markdown headings (##) and bold sparingly. Never invent past-paper question numbers or statistics. If a question is outside the syllabus, say so and answer briefly.\n\nExam context: ${notes}`;
+  const base = `You are the InfinitySheets study assistant for a student preparing for ${boardLabel(board)}${level}. You know exactly what this exam's examiners require and you answer like a top tutor who has read the syllabus and mark schemes: specific, exam-focused, never generic. Use plain language, short paragraphs and bullet points. Use Markdown headings (##) and bold sparingly. Write every formula, symbol and unit in plain Unicode text — F = Δp / t, 2 kg, 5 m/s, x², λ, °C, ½. NEVER use LaTeX: no $ delimiters, no \frac, \text, \times or any backslash command. The app renders plain text, so LaTeX shows up as raw symbols to the student. Never invent past-paper question numbers or statistics. If a question is outside the syllabus, say so and answer briefly.\n\nExam context: ${notes}`;
 
   if (mode === "recommend") {
     return `${base}\n\nYou are on the Smart Learning page. The student's performance data is in the first message. Give practical, prioritised advice about what to practise next and why, tied to their weakest topics and their exam date. Keep answers under 250 words unless asked for a plan.`;
@@ -63,6 +66,19 @@ function overviewPrompt(ctx: Record<string, unknown>) {
   return `Write an exam-focused overview of the topic "${ctx.topic}" in ${ctx.subject} for ${boardLabel(String(ctx.board || ""))}${ctx.ibLevel ? ` ${ctx.ibLevel}` : ""}. Use exactly these Markdown sections:\n\n## Overview\n3-5 sentences on what the topic is and why it matters in this exam.\n\n## What the exam wants\nBullet points: the specific things the mark scheme rewards for this topic — required definitions or phrasing, command words to watch, steps or working that earn marks, typical question formats and their mark allocations.\n\n## Common mistakes\n3-5 bullets of errors that lose marks, each with the fix.\n\n## FAQs\n3-4 questions students actually ask about this topic, each with a 1-2 sentence answer.\n\nKeep the whole thing under 380 words.`;
 }
 
+// Read a secret by name, tolerating the spacing/casing people actually type in
+// the dashboard: "GEMINI_API_KEY", "Gemini API Key", "gemini-api-key" all match.
+function envLike(canonical: string): string | undefined {
+  const direct = Deno.env.get(canonical);
+  if (direct && direct.trim()) return direct.trim();
+  const norm = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const want = norm(canonical);
+  for (const [name, value] of Object.entries(Deno.env.toObject())) {
+    if (norm(name) === want && value && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
 type Msg = { role: "user" | "assistant"; content: string };
 const MODES = new Set(["overview", "chat", "recommend", "diagnose"]);
 
@@ -70,9 +86,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
-  const key = Deno.env.get("GEMINI_API_KEY");
+  const key = envLike("GEMINI_API_KEY");
   if (!key) return json({ error: "AI is not configured yet — add the GEMINI_API_KEY secret to the Supabase project." }, 503);
-  const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.5-flash";
+  const model = envLike("GEMINI_MODEL") || "gemini-3.5-flash";
 
   let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[] };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
@@ -90,20 +106,30 @@ Deno.serve(async (req: Request) => {
     if (contents.length === 0) return json({ error: "No message" }, 400);
   }
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt(mode, ctx) }] },
-      contents,
-      generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
-    }),
+  const payload = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt(mode, ctx) }] },
+    contents,
+    generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
   });
+
+  // Google returns a transient 503 ("overloaded") often enough that a single
+  // attempt would surface as a random failure to students. Retry those (and
+  // rate limits) a couple of times with backoff before giving up.
+  let res!: Response;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: payload,
+    });
+    if (res.ok || (res.status !== 503 && res.status !== 429)) break;
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+  }
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    const friendly = res.status === 429
-      ? "The AI is busy right now (rate limit). Try again in a minute."
+    const friendly = res.status === 429 || res.status === 503
+      ? "The AI is busy right now. Give it a moment and try again."
       : res.status === 404
         // Google retires model ids for new keys; this is a config problem, not a key problem.
         ? `The AI model "${model}" is not available to this key. Set the GEMINI_MODEL secret to a current model.`

@@ -8,16 +8,52 @@ import { askAi, isAiEnabled } from '../../../lib/ai';
 // Enough for tutor-style answers without pulling in a library.
 // ---------------------------------------------------------------------------
 function inline(text, key) {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+  // **bold** first, then *italic* and `code`. Models use single-asterisk
+  // emphasis often enough that leaving it unhandled shows raw asterisks.
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`)/g).filter(Boolean);
   return parts.map((p, i) => {
-    if (p.startsWith('**') && p.endsWith('**')) return <strong key={`${key}-${i}`} className="font-semibold text-slate-900">{p.slice(2, -2)}</strong>;
-    if (p.startsWith('`') && p.endsWith('`')) return <code key={`${key}-${i}`} className="px-1 rounded bg-slate-100 text-[0.92em]">{p.slice(1, -1)}</code>;
+    if (p.startsWith('**') && p.endsWith('**') && p.length > 4) {
+      return <strong key={`${key}-${i}`} className="font-semibold text-slate-900">{p.slice(2, -2)}</strong>;
+    }
+    if (p.startsWith('*') && p.endsWith('*') && p.length > 2) {
+      return <em key={`${key}-${i}`} className="italic">{p.slice(1, -1)}</em>;
+    }
+    if (p.startsWith('`') && p.endsWith('`') && p.length > 2) {
+      return <code key={`${key}-${i}`} className="px-1 rounded bg-slate-100 text-[0.92em]">{p.slice(1, -1)}</code>;
+    }
     return <React.Fragment key={`${key}-${i}`}>{p}</React.Fragment>;
   });
 }
 
+// Models slip into LaTeX for maths and science even when told not to. This view
+// renders plain text, so unwrap the common constructs rather than showing a
+// student a raw "$F = \frac{\Delta p}{t}$".
+const GREEK = {
+  Delta: '\u0394', delta: '\u03b4', alpha: '\u03b1', beta: '\u03b2', gamma: '\u03b3',
+  theta: '\u03b8', lambda: '\u03bb', mu: '\u03bc', pi: '\u03c0', rho: '\u03c1',
+  sigma: '\u03c3', omega: '\u03c9', Omega: '\u03a9',
+};
+const SYMBOLS = {
+  times: '\u00d7', cdot: '\u00b7', div: '\u00f7', pm: '\u00b1', leq: '\u2264',
+  geq: '\u2265', neq: '\u2260', approx: '\u2248', rightarrow: '\u2192',
+  to: '\u2192', infty: '\u221e', degree: '\u00b0', circ: '\u00b0',
+};
+
+export function deLatex(input) {
+  let t = String(input || '');
+  if (!/[$\\]/.test(t)) return t;                                  // fast path: nothing to do
+  t = t.replace(/\$\$([\s\S]*?)\$\$/g, '$1');                      // display math
+  t = t.replace(/\$([^$\n]{1,200}?)\$/g, '$1');                    // inline math
+  t = t.replace(/\\(?:text|mathrm|mathbf|textbf|mbox)\{([^{}]*)\}/g, '$1');
+  t = t.replace(/\\[dt]?frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+  t = t.replace(/\\sqrt\{([^{}]*)\}/g, '\u221a($1)');
+  t = t.replace(/\\([A-Za-z]+)/g, (m, w) => SYMBOLS[w] ?? GREEK[w] ?? '');
+  t = t.replace(/[{}]/g, '');
+  return t;
+}
+
 export function MarkdownLite({ text, className = '' }) {
-  const lines = String(text || '').replace(/\r/g, '').split('\n');
+  const lines = deLatex(text).replace(/\r/g, '').split('\n');
   const out = [];
   let list = null; // { type: 'ul' | 'ol', items: [] }
   const flush = () => {
