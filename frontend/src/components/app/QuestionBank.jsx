@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SUBJECT_INFO } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, questionsForSubject } from '../../lib/subjects';
 import { BookOpen, Eye, EyeOff, Sparkles, Library, ChevronRight, Search, ArrowLeft, ArrowRight } from 'lucide-react';
 import StudyDecor from '../decor/StudyDecor';
 import CreateWorksheetButton from './CreateWorksheetButton';
@@ -22,27 +22,24 @@ export default function QuestionBank({ go, subjectParam }) {
   );
   const boards = useMemo(() => subjectBoards(state.courses, track), [state.courses, track]);
 
-  // Past-paper questions grouped by subject. For each subject we only keep
-  // papers whose board matches the subject's course board (board-less uploads
-  // are always included), so subjects don't pull in other boards' questions.
+  // Past-paper questions grouped by subject, using the same selector as the
+  // worksheet builder so the two lists can never drift apart.
   const questionsBySubject = useMemo(() => {
     const out = {};
-    (state.pastPapers || []).forEach((p) => {
-      if (!p.subject || !p.q) return;
-      const wanted = boards[p.subject]?.board || track;
-      if (p.board && wanted && p.board !== wanted) return;
-      (out[p.subject] = out[p.subject] || []).push({
+    chosenSubjects.forEach((subject) => {
+      out[subject] = questionsForSubject(state.pastPapers, subject, state.courses, track).map((p) => ({
         id: p.id,
         q: p.q,
         options: Array.isArray(p.options) ? p.options : [],
         a: p.a,
         topic: p.topic || 'General',
         difficulty: p.difficulty,
+        answerType: p.answerType,
         board: p.board,
-      });
+      }));
     });
     return out;
-  }, [state.pastPapers, boards, track]);
+  }, [state.pastPapers, state.courses, chosenSubjects, track]);
 
   const decodedParam = subjectParam ? decodeURIComponent(subjectParam) : null;
   const startInBrowse = decodedParam && chosenSubjects.includes(decodedParam);

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
-import { enrolledSubjects } from '../../lib/subjects';
+import { enrolledSubjects, questionsForSubject } from '../../lib/subjects';
 import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -360,12 +360,6 @@ export default function Worksheets({ go }) {
   const track = state.user?.examTrack || 'SSLC';
   const examMinutes = EXAM_DURATIONS[track] || 60;
 
-  // Only past-paper questions from the learner's own exam-track. Uploads
-  // without a board attached remain visible to everyone.
-  const pastPaperPool = useMemo(() => {
-    return (state.pastPapers || []).filter((p) => !p.board || p.board === track);
-  }, [state.pastPapers, track]);
-
   const customSubjectTopics = useMemo(() => {
     // Map<subject, topics[]> for custom courses.
     const m = {};
@@ -419,6 +413,14 @@ export default function Worksheets({ go }) {
   });
 
   const [answerType, setAnswerType] = useState('Multiple choice');
+
+  // The same questions the Question Bank lists for this subject — one shared
+  // selector, so the two can never disagree. Topic / answer-type narrowing is
+  // layered on top in buildQuestions and ppAvailable.
+  const pastPaperPool = useMemo(
+    () => questionsForSubject(state.pastPapers, subject, state.courses, track),
+    [state.pastPapers, subject, state.courses, track],
+  );
   const [difficulty, setDifficulty] = useState('Medium');
   const [duration, setDuration] = useState(examMinutes);
   const [pastPapers, setPastPapers] = useState(false);

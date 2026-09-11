@@ -46,3 +46,21 @@ export function subjectBoards(courses, fallbackTrack) {
   });
   return map;
 }
+
+// ---------------------------------------------------------------------------
+// The ONE definition of "the past-paper questions for this subject".
+//
+// The Question Bank and the worksheet builder must show the same questions, so
+// both call this instead of filtering `state.pastPapers` themselves. A row
+// qualifies when it is a real question (not a full-paper link), belongs to the
+// subject, and either carries no board or matches the board of the course this
+// subject belongs to. The builder then narrows by topic / answer type on top.
+// ---------------------------------------------------------------------------
+export function questionsForSubject(pastPapers, subject, courses, fallbackTrack) {
+  if (!subject) return [];
+  const board = subjectBoards(courses, fallbackTrack)[subject]?.board || fallbackTrack;
+  return (pastPapers || []).filter((p) =>
+    p && p.q && p.subject === subject
+    && p.answerType !== 'Full paper'
+    && (!p.board || p.board === board));
+}
