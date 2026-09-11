@@ -64,3 +64,18 @@ export function questionsForSubject(pastPapers, subject, courses, fallbackTrack)
     && p.answerType !== 'Full paper'
     && (!p.board || p.board === board));
 }
+
+// Which curricula actually teach a subject, in EXAM_TRACKS order. This is what
+// keeps a subject filed under the right board: an IB-only subject can only be
+// added to an IB course, and its card says "IB", never the account's default.
+export function tracksOffering(subject) {
+  return EXAM_TRACKS.map((t) => t.id).filter((id) => (SUBJECTS[id] || []).includes(subject));
+}
+
+// The board a subject should default to when the student adds it: their own
+// track if that track teaches it, otherwise the first curriculum that does.
+export function defaultBoardFor(subject, preferredTrack) {
+  const offering = tracksOffering(subject);
+  if (offering.length === 0) return preferredTrack;
+  return offering.includes(preferredTrack) ? preferredTrack : offering[0];
+}

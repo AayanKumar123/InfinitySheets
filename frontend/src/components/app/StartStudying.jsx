@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SUBJECTS, SUBJECT_INFO, EXAM_TRACKS } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, tracksOffering, defaultBoardFor } from '../../lib/subjects';
 
 import { BookOpen, ArrowRight, Search, Plus, X, Trash2, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
@@ -97,7 +97,7 @@ export default function StartStudying({ go, subjectParam }) {
   // Create a brand-new course on the spot containing this subject.
   const createCourseWithSubject = ({ name, board, ibLevel }) => {
     if (!addTarget) return;
-    const exam = board || track;
+    const exam = board || defaultBoardFor(addTarget, track);
     const entry = { subject: addTarget, ...(exam === 'IB' && ibLevel ? { ibLevel } : {}) };
     const courseName = (name || '').trim() || `${boardName(exam)} \u00b7 ${addTarget}`;
     addCourse({ name: courseName, exam, subjects: [entry], status: 'Active' });
@@ -143,6 +143,17 @@ export default function StartStudying({ go, subjectParam }) {
             </div>
           </div>
           <div className="relative mt-4 text-[16.5px] font-semibold text-slate-900">{s}</div>
+          {!taken && (() => {
+            const offered = tracksOffering(s).filter((id) => id !== s);
+            if (offered.length === 0) return null;
+            const shown = offered.slice(0, 3).map(boardName).join(' \u00b7 ');
+            const extra = offered.length - 3;
+            return (
+              <div className="relative mt-1 text-[11px] tracking-[0.08em] uppercase font-semibold text-slate-500" data-testid={`subject-offered-${s}`}>
+                {shown}{extra > 0 ? ` +${extra}` : ''}
+              </div>
+            );
+          })()}
           {taken && boards[s] && boards[s].board !== s && (
             <div className="relative mt-1 flex items-center gap-1.5">
               <span className="text-[11px] tracking-[0.1em] uppercase font-semibold text-blue-700" data-testid={`subject-board-${s}`}>
@@ -318,7 +329,10 @@ function AddSubjectModal({ subject, courses, track, examTracks, onAddToCourse, o
 
   // New-course form.
   const [newName, setNewName] = useState('');
-  const [newBoard, setNewBoard] = useState(track || 'CBSE');
+  // Only curricula that actually teach this subject are valid homes for it.
+  const offering = tracksOffering(subject);
+  const allowedTracks = (examTracks || []).filter((t) => offering.length === 0 || offering.includes(t.id));
+  const [newBoard, setNewBoard] = useState(defaultBoardFor(subject, track));
   const [newLevel, setNewLevel] = useState('HL');
 
   const boardOfCourse = (c) => c.exam || track;
@@ -397,19 +411,22 @@ function AddSubjectModal({ subject, courses, track, examTracks, onAddToCourse, o
                   const subCount = Array.isArray(c.subjects) ? c.subjects.length : (c.subject ? 1 : 0);
                   const isIB = boardOfCourse(c) === 'IB';
                   const open = pendingId === c.id;
+                  const teaches = offering.length === 0 || offering.includes(boardOfCourse(c));
                   return (
-                    <div key={c.id} className="rounded-xl border border-[color:var(--color-border)] bg-white">
+                    <div key={c.id} className={`rounded-xl border border-[color:var(--color-border)] bg-white ${teaches ? '' : 'opacity-60'}`}>
                       <button
-                        onClick={() => clickExisting(c)}
+                        onClick={() => teaches && clickExisting(c)}
+                        disabled={!teaches}
+                        title={teaches ? undefined : `${boardName(boardOfCourse(c))} does not offer ${subject}`}
                         data-testid={isIB ? `pick-course-${c.id}` : `add-to-course-${c.id}`}
-                        className="w-full text-left hover:bg-blue-50 px-4 py-3 transition-colors flex items-center justify-between gap-3 rounded-xl"
+                        className={`w-full text-left px-4 py-3 transition-colors flex items-center justify-between gap-3 rounded-xl ${teaches ? 'hover:bg-blue-50' : 'cursor-not-allowed'}`}
                       >
                         <div className="min-w-0">
                           <div className="text-[14px] font-semibold text-slate-900 truncate">{c.name}</div>
-                          <div className="text-[11.5px] text-slate-500">{boardName(boardOfCourse(c))} · {subCount} {subCount === 1 ? 'subject' : 'subjects'}</div>
+                          <div className="text-[11.5px] text-slate-500">{boardName(boardOfCourse(c))} · {subCount} {subCount === 1 ? 'subject' : 'subjects'}{teaches ? '' : ` · does not offer ${subject}`}</div>
                         </div>
-                        <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-blue-700 shrink-0">
-                          {isIB ? (open ? 'Choose level' : 'Select') : <><Plus className="w-4 h-4" /> Add</>}
+                        <span className={`inline-flex items-center gap-1 text-[12.5px] font-semibold shrink-0 ${teaches ? 'text-blue-700' : 'text-slate-400'}`}>
+                          {!teaches ? 'Not available' : isIB ? (open ? 'Choose level' : 'Select') : <><Plus className="w-4 h-4" /> Add</>}
                         </span>
                       </button>
                       {isIB && open && (
@@ -454,7 +471,7 @@ function AddSubjectModal({ subject, courses, track, examTracks, onAddToCourse, o
                   onChange={(e) => setNewBoard(e.target.value)}
                   data-testid="new-course-board"
                 >
-                  {(examTracks || []).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {allowedTracks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </label>
               {newBoard === 'IB' && (
