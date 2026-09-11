@@ -8,7 +8,7 @@
 // browser. The canonical name is GEMINI_API_KEY, but the lookup below also
 // accepts spaced/cased variants like "Gemini API Key" — the dashboard lets you
 // type any name, and a near-miss otherwise looks exactly like a missing key.
-// Optional: GEMINI_MODEL (default gemini-3.5-flash).
+// Optional: GEMINI_MODEL puts a specific model at the head of MODEL_CHAIN.
 //
 // Two model gotchas, both of which look like a broken key but are not:
 //   * Google retires ids for new keys — gemini-2.5-flash returns 404 "no longer
@@ -89,14 +89,20 @@ function envLike(canonical: string): string | undefined {
 
 // Tried in order. The free tier's 20/day is counted per model, so a chain
 // multiplies the daily allowance and degrades instead of dying.
-const MODEL_CHAIN = ["gemini-3.5-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
+//
+// Order is by speed, not by headline capability: gemini-3.5-flash is a
+// "thinking" model that reasons before every reply and cannot have that
+// switched off (thinkingBudget: 0 is ignored) — 9-14s for a one-word answer,
+// where flash-lite takes ~1s. Measured quality on exam questions is
+// equivalent, so the lite models go first and 3.5-flash is the last resort.
+const MODEL_CHAIN = ["gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-3.5-flash"];
 
 // ---------------------------------------------------------------------------
 // Shared overview cache (service-role, best-effort)
 // ---------------------------------------------------------------------------
 const DB_URL = Deno.env.get("SUPABASE_URL");
 const DB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const CACHE_TIMEOUT_MS = 2500;   // never let a slow database delay an answer
+const CACHE_TIMEOUT_MS = 1500;   // never let a slow database delay an answer
 
 function cacheKey(ctx: Record<string, unknown>) {
   return [ctx.board, ctx.subject, ctx.topic, ctx.ibLevel || ""]
@@ -248,6 +254,7 @@ Deno.serve(async (req: Request) => {
   const text = (data?.candidates?.[0]?.content?.parts || []).map((p: { text?: string }) => p.text || "").join("").trim();
   if (!text) return json({ error: "The AI returned an empty answer. Try rephrasing." }, 502);
 
-  if (mode === "overview") await cachePut(overviewId, ctx, text, used);
+  // Don't make the student wait for the cache write — it is bookkeeping.
+  if (mode === "overview") cachePut(overviewId, ctx, text, used);
   return json({ text, model: used, cached: false });
 });

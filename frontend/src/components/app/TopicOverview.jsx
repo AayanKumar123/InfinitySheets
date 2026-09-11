@@ -199,7 +199,7 @@ function Overview({ context }) {
       {!enabled ? (
         <p className="text-[13px] text-slate-600">AI overviews are off. <a href="#settings" className="text-blue-700 font-medium hover:underline inline-flex items-center gap-1"><SettingsIcon className="w-3.5 h-3.5" />Turn on in Settings</a></p>
       ) : busy && !text ? (
-        <div className="inline-flex items-center gap-2 text-[13px] text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /> Reading the syllabus for {context.topic}…</div>
+        <div className="text-[13px] text-slate-500"><span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Reading the syllabus for {context.topic}…</span><span className="block mt-1 text-[12px] text-slate-400">Takes a few seconds the first time; it is saved for everyone after that.</span></div>
       ) : error ? (
         <div className="text-[13px] text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2" role="alert">{error}</div>
       ) : (
