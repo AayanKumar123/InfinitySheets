@@ -2,13 +2,23 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
 import { enrolledSubjects, questionsForSubject } from '../../lib/subjects';
-import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download } from 'lucide-react';
+import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import DiagnosisPanel from './ai/DiagnosisPanel';
 import WorksheetAnalysis from './WorksheetAnalysis';
 import { emptyTelemetry, computeAnalytics, UNANSWERED } from '../../lib/worksheetAnalytics';
+import { dueReviews, reviewToQuestion } from '../../lib/spacedRepetition';
+import { markAgainstScheme, markSchemeText, isAiEnabled } from '../../lib/ai';
+import { subjectBoards } from '../../lib/subjects';
+import WorkingCapture from './WorkingCapture';
+
+// Full-size photos are only needed for transcription; the stored sheet keeps
+// the thumbnail + transcript so localStorage stays small.
+function stripFullImages(working) {
+  return (working || []).map((w) => (w ? { ...w, images: (w.images || []).map(({ thumb }) => ({ thumb })) } : w));
+}
 
 const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
@@ -78,10 +88,12 @@ function toAnswerType(base, answerType) {
   };
 }
 
-function buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool }) {
+function buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions = [] }) {
   const list = (topics && topics.length) ? topics : [];
-  // Past-paper questions matching selected topics + answer type.
-  const ppMatching = (pastPaperPool || []).filter((p) => list.includes(p.topic) && p.answerType === answerType);
+  // Past-paper questions matching selected topics + answer type. Drawing
+  // questions are format-agnostic (the photo is the answer) so they ride
+  // along with any answer type.
+  const ppMatching = (pastPaperPool || []).filter((p) => list.includes(p.topic) && (p.answerType === answerType || p.answerType === 'Drawing'));
   // Filter by difficulty if it matches; otherwise still include.
   const preferPP = pastPapers && ppMatching.length > 0;
   const preferAI = !!aiGenerated;
@@ -104,9 +116,13 @@ function buildQuestions({ topics, answerType, difficulty, length, pastPapers, ai
   // Each past-paper question is used at most once. Past-papers-only sheets
   // are therefore capped at the number of matching questions; when AI is
   // also ticked the remainder is AI-generated instead of repeats.
+  // Spaced-repetition reviews go first (at most half the sheet) so they are
+  // seen even if the student runs out of time.
   const out = [];
+  const reviews = (reviewQuestions || []).slice(0, Math.max(1, Math.floor(length / 2)));
+  reviews.forEach((r) => out.push(r));
   const ppLimit = preferPP ? Math.min(length, ppMatching.length) : 0;
-  const total = preferPP && !preferAI ? ppLimit : length;
+  const total = Math.max(0, (preferPP && !preferAI ? ppLimit : length) - reviews.length);
   for (let i = 0; i < total; i++) {
     let picked = null;
     if (preferPP && preferAI) {
@@ -358,7 +374,7 @@ function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerTy
 /* ================== Main component ================== */
 
 export default function Worksheets({ go }) {
-  const { state, recordWorksheet, saveDraftWorksheet, clearDraftWorksheet } = useApp();
+  const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet } = useApp();
   const track = state.user?.examTrack || 'SSLC';
   const examMinutes = EXAM_DURATIONS[track] || 60;
 
@@ -431,7 +447,19 @@ export default function Worksheets({ go }) {
   const [stage, setStage] = useState('build');
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState([]); // holds number (MCQ index) or string (typed/exam)
+  const [working, setWorking] = useState([]); // per-question { images, transcript } (photo of working)
+  const [flags, setFlags] = useState([]);     // per-question "come back to this"
   const [current, setCurrent] = useState(0);
+  // Sheet-level modes chosen on the build screen.
+  const [examMode, setExamMode] = useState(false);     // fullscreen, locked
+  const [paceCoach, setPaceCoach] = useState(false);   // per-question time budget
+  const [includeReviews, setIncludeReviews] = useState(true);
+  const [examExits, setExamExits] = useState(0);       // times fullscreen was left
+  const [examLocked, setExamLocked] = useState(false); // lock screen showing
+  const [reviewOpen, setReviewOpen] = useState(false); // pre-submit check
+  const aiOn = isAiEnabled(state);
+  const boardForSubject = useMemo(() => subjectBoards(state.courses, track)[subject]?.board || track, [state.courses, track, subject]);
+  const reviewsDue = useMemo(() => dueReviews(state.worksheets || [], { subject }), [state.worksheets, subject]);
   const [startTime, setStartTime] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [result, setResult] = useState(null);
@@ -441,7 +469,7 @@ export default function Worksheets({ go }) {
   const skipTopicResetRef = useRef(false);
   // Always-fresh snapshot of the take-stage state for saving on navigate-away.
   const liveRef = useRef({});
-  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime };
+  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime, working, flags, examMode, paceCoach, examExits };
 
   // Per-question telemetry for the worksheet analysis: how long each question
   // had the student's attention (tab visible), how many times it was visited,
@@ -485,6 +513,11 @@ export default function Worksheets({ go }) {
     total: (d.questions || []).length,
     answered: countAnswered(d.answers),
     telemetry: telemetryRef.current.data,
+    working: stripFullImages(d.working),
+    flags: d.flags,
+    examMode: d.examMode,
+    paceCoach: d.paceCoach,
+    examExits: d.examExits,
     savedAt: new Date().toISOString(),
   });
 
@@ -517,6 +550,11 @@ export default function Worksheets({ go }) {
       setAiGenerated(d.aiGenerated !== false);
       setQuestions(d.questions || []);
       setAnswers(d.answers || []);
+      setWorking(d.working || []);
+      setFlags(d.flags || []);
+      setExamMode(!!d.examMode);
+      setPaceCoach(!!d.paceCoach);
+      setExamExits(d.examExits || 0);
       setCurrent(d.current || 0);
       const n = (d.questions || []).length;
       const base = emptyTelemetry(n);
@@ -592,7 +630,7 @@ export default function Worksheets({ go }) {
 
   // Count of admin-uploaded past-paper questions matching current filters.
   const ppAvailable = useMemo(() => {
-    return (pastPaperPool || []).filter((p) => topics.includes(p.topic) && p.answerType === answerType).length;
+    return (pastPaperPool || []).filter((p) => topics.includes(p.topic) && (p.answerType === answerType || p.answerType === 'Drawing')).length;
   }, [pastPaperPool, topics, answerType]);
 
   const start = () => {
@@ -604,14 +642,21 @@ export default function Worksheets({ go }) {
       return;
     }
     const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
-    const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool });
+    const reviewQuestions = includeReviews ? reviewsDue.filter((r) => topics.includes(r.topic) || !r.topic).map(reviewToQuestion) : [];
+    const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions });
     if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
     draftIdRef.current = `draft_${Date.now()}`;
     setQuestions(qs);
     // For MCQ, -1 means unanswered. For typed/exam, empty string.
-    setAnswers(new Array(qs.length).fill(answerType === 'Multiple choice' ? -1 : ''));
+    setAnswers(qs.map((q) => (q.answerType === 'Multiple choice' ? -1 : '')));
+    setWorking(new Array(qs.length).fill(undefined));
+    setFlags(new Array(qs.length).fill(false));
+    setExamExits(0);
+    setExamLocked(false);
+    paceWarnedRef.current = new Set();
     setCurrent(0);
     telemetryRef.current = { data: emptyTelemetry(qs.length), enteredAt: null, hiddenAt: null };
+    if (examMode) enterFullscreen();
     setStartTime(Date.now());
     setTimeLeft(duration * 60);
     setStage('take');
@@ -650,6 +695,9 @@ export default function Worksheets({ go }) {
   };
 
   const gradeOne = (q, given) => {
+    // A drawing is "answered" when a photo is attached; marks come from the
+    // AI marker against the scheme, not from auto-grading.
+    if (q.answerType === 'Drawing') return !!given;
     if (q.answerType === 'Multiple choice') {
       return given === q.a;
     }
@@ -669,6 +717,11 @@ export default function Worksheets({ go }) {
     const correct = results.filter(Boolean).length;
     const durationSec = Math.round((Date.now() - startTime) / 1000);
     const analytics = computeAnalytics({ questions, answers, results, telemetry: telemetryRef.current.data, gradeOne, durationMin: duration });
+    analytics.examMode = examMode ? { exits: examExits } : null;
+    analytics.paceCoach = paceCoach;
+    analytics.flagged = flags.map((f, i) => (f ? i : -1)).filter((i) => i >= 0);
+    if (examMode) exitFullscreen();
+    setReviewOpen(false);
     const sheet = {
       id: `ws_${Date.now()}`,
       subject,
@@ -682,6 +735,9 @@ export default function Worksheets({ go }) {
       aiGenerated,
       questions,
       answers,
+      working: stripFullImages(working),
+      flags,
+      examMode,
       results,
       total: questions.length,
       correct,
@@ -721,6 +777,95 @@ export default function Worksheets({ go }) {
     });
   };
 
+  const setWorkingAt = (idx, value) => {
+    setWorking((prev) => { const c = [...prev]; c[idx] = value; return c; });
+    // For drawing questions the photo is the answer.
+    const q = questions[idx];
+    if (q && q.answerType === 'Drawing') setAnswerAt(idx, (value?.images || []).length ? '[photo]' : '');
+  };
+  const toggleFlag = (idx) => setFlags((prev) => { const c = [...prev]; c[idx] = !c[idx]; return c; });
+
+  // ---- Exam mode: fullscreen + lock ---------------------------------------
+  const enterFullscreen = () => {
+    const el = document.documentElement;
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    const denied = () => toast('Your browser blocked fullscreen. Exam mode still locks the sheet until you submit.', { icon: '🔒' });
+    if (!fn) { denied(); return; }
+    try { const r = fn.call(el); if (r && r.catch) r.catch(denied); } catch (_) { denied(); }
+  };
+  const exitFullscreen = () => {
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  };
+  useEffect(() => {
+    if (stage !== 'take' || !examMode) return;
+    const onFs = () => {
+      if (!document.fullscreenElement) { setExamLocked(true); setExamExits((n) => n + 1); }
+      else setExamLocked(false);
+    };
+    const onUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
+    // Route changes are refused by the Router (App.js) while this lock is set;
+    // each attempt counts as a violation.
+    window.__examLock = { hash: '#worksheets', onBlocked: () => { setExamExits((n) => n + 1); toast.error('Exam mode: finish and submit the sheet first.'); } };
+    const onKey = (e) => {
+      // Block the shortcuts that would leave the sheet. Esc itself cannot be
+      // intercepted in fullscreen; the lock screen handles that case.
+      if ((e.ctrlKey || e.metaKey) && ['w', 't', 'n', 'r', 'l', 'p'].includes((e.key || '').toLowerCase())) e.preventDefault();
+      if (e.key === 'F5' || e.key === 'F11') e.preventDefault();
+    };
+    const onCtx = (e) => e.preventDefault();
+    document.addEventListener('fullscreenchange', onFs);
+    window.addEventListener('beforeunload', onUnload);
+    window.addEventListener('keydown', onKey, true);
+    document.addEventListener('contextmenu', onCtx);
+    return () => {
+      window.__examLock = null;
+      document.removeEventListener('fullscreenchange', onFs);
+      window.removeEventListener('beforeunload', onUnload);
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('contextmenu', onCtx);
+    };
+  }, [stage, examMode]);
+
+  // ---- Pace coach: per-question time budget ------------------------------
+  const totalMarks = useMemo(() => questions.reduce((s, q) => s + (Number(q.marks) || 0), 0), [questions]);
+  const budgetMsFor = (idx) => {
+    const q = questions[idx];
+    const allotted = duration * 60 * 1000;
+    if (!q || !questions.length) return 0;
+    // Marks-weighted when the sheet has marks, otherwise an equal split.
+    if (totalMarks > 0 && Number(q.marks) > 0) return allotted * (Number(q.marks) / totalMarks);
+    return allotted / questions.length;
+  };
+  const [paceTick, setPaceTick] = useState(0);
+  useEffect(() => {
+    if (stage !== 'take' || !paceCoach) return;
+    const id = setInterval(() => setPaceTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [stage, paceCoach]);
+  const paceWarnedRef = useRef(new Set());
+  const spentOnCurrentMs = () => {
+    const t = telemetryRef.current;
+    const stored = t.data.timeMs?.[current] || 0;
+    const live = t.enteredAt ? Date.now() - t.enteredAt : 0;
+    return stored + live;
+  };
+  useEffect(() => {
+    if (stage !== 'take' || !paceCoach) return;
+    const budget = budgetMsFor(current);
+    if (budget > 0 && spentOnCurrentMs() > budget && !paceWarnedRef.current.has(current)) {
+      paceWarnedRef.current.add(current);
+      toast(`Over pace on Q${current + 1} — flag it and move on, come back if there is time.`, { icon: '⏱️' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paceTick, current, stage, paceCoach]);
+
+  const unansweredIdx = questions.map((q, i) => (UNANSWERED(answers[i]) ? i : -1)).filter((i) => i >= 0);
+  const flaggedIdx = flags.map((f, i) => (f ? i : -1)).filter((i) => i >= 0);
+  const requestSubmit = () => {
+    if (unansweredIdx.length || flaggedIdx.length) setReviewOpen(true);
+    else finalize();
+  };
+
   // Keyboard shortcuts while taking a worksheet:
   //   A / B / C / D → pick that MCQ option
   //   1 / 2 / 3 / 4 → same, using numbers
@@ -752,10 +897,11 @@ export default function Worksheets({ go }) {
           return;
         }
       }
+      if ((e.key || '').toLowerCase() === 'f') { e.preventDefault(); toggleFlag(current); return; }
       if (e.key === 'ArrowRight' || e.key === 'Enter') {
         e.preventDefault();
         if (current < questions.length - 1) setCurrent((c) => c + 1);
-        else finalize();
+        else requestSubmit();
       } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
         if (current > 0) { e.preventDefault(); setCurrent((c) => c - 1); }
       }
@@ -771,24 +917,70 @@ export default function Worksheets({ go }) {
     const isMCQ = q.answerType === 'Multiple choice';
     const isTyped = q.answerType === 'Typed response';
     const isExam = q.answerType === 'Exam style';
-    return (
-      <div className="max-w-[820px]">
-        <div className="flex items-center justify-between mb-5">
-          <div className="text-[13px] text-zinc-500">{subject} · {topics.join(' · ')}</div>
+    const isDrawing = q.answerType === 'Drawing';
+    const budget = paceCoach ? budgetMsFor(current) : 0;
+    const spent = paceCoach ? spentOnCurrentMs() : 0;
+    const overPace = budget > 0 && spent > budget;
+    const paceLeft = Math.max(0, Math.round((budget - spent) / 1000));
+    const jumpTo = (i) => { setReviewOpen(false); setCurrent(i); };
+    const body = (
+      <div className={examMode ? 'max-w-[900px] mx-auto w-full px-4 sm:px-8 py-6' : 'max-w-[820px]'}>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="text-[13px] text-zinc-500 inline-flex items-center gap-2">
+            {examMode && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[11px] font-semibold"><Lock className="w-3.5 h-3.5" /> Exam mode</span>}
+            {subject} · {topics.join(' · ')}
+          </div>
           <div className="flex items-center gap-2">
+            {paceCoach && budget > 0 && (
+              <div className={`inline-flex items-center gap-1.5 text-[12.5px] px-2.5 py-1.5 rounded-md ${overPace ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}`} title="Time budget for this question" data-testid="ws-pace">
+                <Gauge className="w-4 h-4" /> {overPace ? `${fmtTime(Math.round((spent - budget) / 1000))} over` : `${fmtTime(paceLeft)} for Q${current + 1}`}
+              </div>
+            )}
             <div className="inline-flex items-center gap-2 text-[13px] text-zinc-700 bg-blue-50 px-3 py-1.5 rounded-md">
               <Clock className="w-4 h-4" /> {fmtTime(timeLeft)}
             </div>
             <button
-              onClick={() => { saveDraftWorksheet(makeDraft(liveRef.current)); toast.success('Progress saved — resume it anytime'); go('dashboard'); }}
-              data-testid="ws-save-exit"
-              className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium"
+              onClick={() => toggleFlag(current)}
+              data-testid="ws-flag"
+              title="Flag to review before submitting (F)"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium border transition-colors ${flags[current] ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-zinc-200 text-slate-700 hover:bg-slate-50'}`}
             >
-              <X className="w-4 h-4" /> Save &amp; exit
+              <Flag className={`w-4 h-4 ${flags[current] ? 'fill-amber-400' : ''}`} /> {flags[current] ? 'Flagged' : 'Flag'}
             </button>
+            {!examMode && (
+              <button
+                onClick={() => { saveDraftWorksheet(makeDraft(liveRef.current)); toast.success('Progress saved — resume it anytime'); go('dashboard'); }}
+                data-testid="ws-save-exit"
+                className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium"
+              >
+                <X className="w-4 h-4" /> Save &amp; exit
+              </button>
+            )}
           </div>
         </div>
-        <div className="rounded-2xl border border-zinc-200 p-6">
+
+        {/* Question strip: answered / flagged / current at a glance */}
+        <div className="flex flex-wrap gap-1.5 mb-4" data-testid="ws-strip">
+          {questions.map((_, i) => {
+            const done = !UNANSWERED(answers[i]);
+            const fl = flags[i];
+            const cur = i === current;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => jumpTo(i)}
+                title={`Q${i + 1}${fl ? ' · flagged' : ''}${done ? '' : ' · unanswered'}`}
+                className={`w-8 h-8 rounded-md text-[12px] font-semibold border transition-colors relative ${cur ? 'border-blue-600 bg-blue-600 text-white' : done ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-zinc-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+              >
+                {i + 1}
+                {fl && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border border-white" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 p-6 bg-white">
           <div className="text-[12px] text-zinc-500 mb-2 flex items-center gap-2">
             <span>Question {current + 1} of {questions.length}{q._topic ? ` · ${q._topic}` : ''}</span>
             {q.source === 'past-paper' && (
@@ -801,6 +993,12 @@ export default function Worksheets({ go }) {
                 <Sparkles className="w-4 h-4" /> AI generated
               </span>
             )}
+            {q.source === 'review' && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-800 text-[10px] font-semibold" title="You missed this before — spaced review">
+                <RotateCcw className="w-3.5 h-3.5" /> Review
+              </span>
+            )}
+            {q.marks ? <span className="ml-auto text-[11px] font-semibold text-slate-500">[{q.marks} mark{q.marks === 1 ? '' : 's'}]</span> : null}
           </div>
           <div className="h-1.5 rounded-full bg-zinc-100 overflow-hidden mb-5">
             <div className="h-full bg-blue-500 transition-all" style={{ width: `${((current + 1) / questions.length) * 100}%` }} />
@@ -859,19 +1057,83 @@ export default function Worksheets({ go }) {
             </div>
           )}
 
+          {/* Photo of working — the answer itself for drawing questions,
+              optional supporting evidence for everything else. */}
+          <div className="mt-4">
+            <WorkingCapture
+              value={working[current]}
+              onChange={(v) => setWorkingAt(current, v)}
+              question={q}
+              subject={subject}
+              board={boardForSubject}
+              required={isDrawing}
+              testid={`working-${current}`}
+            />
+          </div>
+
           <div className="flex items-center justify-between mt-6">
             <button onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0} className="btn-outline-dark inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13.5px] disabled:opacity-40">
               <ChevronLeft className="w-5 h-5" /> Previous
             </button>
-            {current < questions.length - 1 ? (
-              <button onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))} className="btn-violet inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13.5px] font-medium">
-                Next <ChevronRight className="w-5 h-5" />
-              </button>
-            ) : (
-              <button onClick={finalize} className="btn-violet inline-flex items-center px-5 py-2 rounded-lg text-[13.5px] font-medium">Submit worksheet</button>
-            )}
+            <div className="flex items-center gap-2">
+              {current < questions.length - 1 && (
+                <button onClick={requestSubmit} className="btn-outline-dark inline-flex items-center px-4 py-2 rounded-lg text-[13.5px] font-medium" data-testid="ws-submit-early">Submit</button>
+              )}
+              {current < questions.length - 1 ? (
+                <button onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))} className="btn-violet inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13.5px] font-medium">
+                  Next <ChevronRight className="w-5 h-5" />
+                </button>
+              ) : (
+                <button onClick={requestSubmit} className="btn-violet inline-flex items-center px-5 py-2 rounded-lg text-[13.5px] font-medium" data-testid="ws-submit">Submit worksheet</button>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Pre-submit review: flagged + unanswered */}
+        {reviewOpen && (
+          <div className="fixed inset-0 z-[150] bg-black/50 flex items-center justify-center p-4" onClick={() => setReviewOpen(false)}>
+            <div className="w-full max-w-[520px] rounded-2xl bg-white border border-[color:var(--color-border)] p-6 shadow-2xl" onClick={(e) => e.stopPropagation()} data-testid="ws-review-modal">
+              <div className="text-[17px] font-semibold text-slate-900 mb-1">Before you submit</div>
+              <div className="text-[13px] text-slate-600 mb-4">You have {unansweredIdx.length} unanswered and {flaggedIdx.length} flagged question{flaggedIdx.length === 1 ? '' : 's'}. Jump to any of them or submit as is.</div>
+              {unansweredIdx.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500 mb-1.5">Unanswered</div>
+                  <div className="flex flex-wrap gap-1.5">{unansweredIdx.map((i) => <button key={i} onClick={() => jumpTo(i)} className="px-2.5 py-1 rounded-md border border-rose-200 bg-rose-50 text-rose-800 text-[12.5px] font-semibold">Q{i + 1}</button>)}</div>
+                </div>
+              )}
+              {flaggedIdx.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500 mb-1.5">Flagged</div>
+                  <div className="flex flex-wrap gap-1.5">{flaggedIdx.map((i) => <button key={i} onClick={() => jumpTo(i)} className="px-2.5 py-1 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-[12.5px] font-semibold inline-flex items-center gap-1"><Flag className="w-3 h-3" /> Q{i + 1}</button>)}</div>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 mt-5">
+                <button onClick={() => setReviewOpen(false)} className="btn-outline-dark px-4 py-2 rounded-lg text-[13.5px] font-medium">Keep working</button>
+                <button onClick={finalize} className="btn-violet px-4 py-2 rounded-lg text-[13.5px] font-medium" data-testid="ws-submit-anyway">Submit anyway</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+
+    if (!examMode) return body;
+    // Exam mode: the sheet owns the whole screen; nothing else is reachable.
+    return (
+      <div className="fixed inset-0 z-[120] overflow-auto section-bg" data-testid="ws-exam-shell">
+        {body}
+        {examLocked && (
+          <div className="fixed inset-0 z-[160] bg-slate-950/95 text-white flex items-center justify-center p-6" data-testid="ws-exam-lock">
+            <div className="max-w-[440px] text-center">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-600/20 text-rose-300 flex items-center justify-center mb-4"><Lock className="w-7 h-7" /></div>
+              <div className="text-[22px] font-semibold mb-2">Exam paused</div>
+              <div className="text-[14px] text-slate-300 mb-1">You left fullscreen. The timer is still running and this counts as an exam-room violation ({examExits} so far).</div>
+              <div className="text-[13px] text-slate-400 mb-6">Return to fullscreen to continue. The sheet cannot be left until it is submitted.</div>
+              <button onClick={enterFullscreen} className="btn-violet inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[14px] font-semibold" data-testid="ws-exam-resume"><Maximize2 className="w-5 h-5" /> Return to exam</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -896,13 +1158,20 @@ export default function Worksheets({ go }) {
         <div className="mb-5">
           <WorksheetAnalysis sheet={result} testid="worksheet-analysis" />
         </div>
+        {result.analytics?.examMode && (
+          <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-[13px] text-slate-700 inline-flex items-center gap-2">
+            <Lock className="w-4 h-4 text-rose-600" /> Taken in exam mode · {result.analytics.examMode.exits === 0 ? 'no violations' : `${result.analytics.examMode.exits} fullscreen exit${result.analytics.examMode.exits === 1 ? '' : 's'}`}
+          </div>
+        )}
         <div className="flex flex-col gap-3">
           {result.questions.map((q, i) => {
             const ok = result.results ? result.results[i] : (result.answers[i] === q.a);
             const isMCQ = q.answerType === 'Multiple choice';
             const isTyped = q.answerType === 'Typed response';
             const isExam = q.answerType === 'Exam style';
+            const isDrawing = q.answerType === 'Drawing';
             const given = result.answers[i];
+            const w = (result.working || [])[i];
             return (
               <div key={`${q.q}-${i}`} className={`rounded-xl border p-4 ${ok ? 'border-zinc-200' : 'border-rose-200 bg-rose-50/40'}`}>
                 <div className="flex items-start gap-3">
@@ -935,6 +1204,23 @@ export default function Worksheets({ go }) {
                         )}
                         <div className={`text-[13px] mt-0.5 whitespace-pre-wrap ${ok ? 'text-slate-600' : 'text-rose-600'}`}>Your answer: {given || <span className="italic text-slate-400">(blank)</span>}</div>
                       </>
+                    )}
+                    {isDrawing && (
+                      <div className="text-[13px] text-zinc-600 mt-1">{q.examAnswer ? <>Expected: <span className="font-medium text-slate-800">{q.examAnswer}</span></> : 'Drawn answer — marked against the scheme.'}</div>
+                    )}
+                    {Array.isArray(q.markScheme) && q.markScheme.length > 0 && (
+                      <div className="text-[12.5px] text-slate-600 mt-1.5 rounded-lg bg-slate-50 border border-[color:var(--color-border)] px-3 py-2">
+                        <div className="text-[10.5px] uppercase tracking-wide text-slate-500 mb-1 inline-flex items-center gap-1"><ClipboardCheck className="w-3.5 h-3.5" /> Marking scheme</div>
+                        <ul className="list-disc pl-4 space-y-0.5">{q.markScheme.map((pt, k) => <li key={k}><span className="font-semibold">{pt.marks || 1}</span> — {pt.point}</li>)}</ul>
+                      </div>
+                    )}
+                    {(w?.images?.length || w?.transcript) && (
+                      <div className="mt-2">
+                        <WorkingCapture value={w} onChange={() => {}} question={q} readOnly required={isDrawing} testid={`result-working-${i}`} />
+                      </div>
+                    )}
+                    {!isMCQ && Array.isArray(q.markScheme) && q.markScheme.length > 0 && (
+                      <AiMarkRow sheet={result} idx={i} q={q} given={given} working={w} board={boardForSubject} subject={subject} enabled={aiOn} onMarked={(m) => { const live = (state.worksheets || []).find((x) => x.id === result.id) || result; updateWorksheet(result.id, { marking: { ...(live.marking || {}), [i]: m } }); }} />
                     )}
                   </div>
                 </div>
@@ -1049,6 +1335,36 @@ export default function Worksheets({ go }) {
           {!pastPapers && !aiGenerated && (
             <div className="text-[11.5px] text-rose-600 mt-2">Pick at least one question source.</div>
           )}
+          {reviewsDue.length > 0 && (
+            <label className="mt-3 flex items-start gap-2.5 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2.5 cursor-pointer" data-testid="ws-include-reviews">
+              <input type="checkbox" className="mt-0.5" checked={includeReviews} onChange={(e) => setIncludeReviews(e.target.checked)} />
+              <span className="text-[12.5px] text-slate-700">
+                <span className="font-semibold text-violet-800 inline-flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5" /> {reviewsDue.length} question{reviewsDue.length === 1 ? '' : 's'} due for review</span>
+                <span className="block text-slate-500">Questions you missed before come back after 1, 3, 7 and 14 days until you get them right each time. They take up to half the sheet.</span>
+              </span>
+            </label>
+          )}
+        </div>
+
+        <div>
+          <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-zinc-500 mb-2">Mode</div>
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <CheckboxCard
+              label={<span>Exam mode <span className="text-slate-500 font-normal">— fullscreen, locked until submitted</span></span>}
+              icon={<Lock className="w-5 h-5 text-rose-600" />}
+              checked={examMode}
+              onChange={setExamMode}
+              testid="ws-exam-mode"
+            />
+            <CheckboxCard
+              label={<span>Pace coach <span className="text-slate-500 font-normal">— a time budget per question</span></span>}
+              icon={<Gauge className="w-5 h-5 text-amber-600" />}
+              checked={paceCoach}
+              onChange={setPaceCoach}
+              testid="ws-pace-coach"
+            />
+          </div>
+          {examMode && <div className="text-[11.5px] text-slate-500 mt-2">The sheet takes over the whole screen, Save &amp; exit is disabled and leaving fullscreen is logged as a violation. Just like the real thing.</div>}
         </div>
       </div>
 
@@ -1062,6 +1378,40 @@ export default function Worksheets({ go }) {
           <Download className="w-5 h-5" /> Download as PDF
         </button>
       </div>
+    </div>
+  );
+}
+
+// "Mark against scheme" — asks the AI examiner for marks + feedback on one
+// answer and saves it onto the worksheet.
+function AiMarkRow({ sheet, idx, q, given, working, board, subject, enabled, onMarked }) {
+  const { state } = useApp();
+  const live = (state.worksheets || []).find((w) => w.id === sheet.id) || sheet;
+  const saved = live.marking?.[idx];
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const m = await markAgainstScheme({ q, given, working, board, subject });
+      onMarked({ ...m, at: new Date().toISOString() });
+    } catch (e) {
+      toast.error(e.message || 'Could not mark this answer');
+    } finally { setBusy(false); }
+  };
+  if (!enabled) return null;
+  return (
+    <div className="mt-2">
+      {saved ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-[12.5px] text-slate-700">
+          <div className="font-semibold text-emerald-800">{saved.marks} / {saved.max} marks <span className="font-normal text-slate-500">· AI examiner</span></div>
+          <div className="mt-0.5">{saved.feedback}</div>
+          <button onClick={run} disabled={busy} className="mt-1 text-[11.5px] text-slate-500 hover:text-slate-800">Re-mark</button>
+        </div>
+      ) : (
+        <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 hover:text-violet-900 disabled:opacity-60" data-testid={`mark-${idx}`}>
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />} Mark against the scheme{markSchemeText(q.markScheme) ? '' : ' (model answer)'}
+        </button>
+      )}
     </div>
   );
 }

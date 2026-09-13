@@ -1,6 +1,6 @@
 // InfinitySheets AI — one Gemini-backed endpoint for every assistant in the app.
 //
-//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose', context, messages }
+//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark', context, messages, images? }
 //   → { text, model }
 //
 // The Gemini key lives ONLY here, as a project secret (Dashboard → Edge
@@ -61,6 +61,12 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
 
   if (mode === "recommend") {
     return `${base}\n\nYou are on the Smart Learning page. The student's performance data is in the first message. Give practical, prioritised advice about what to practise next and why, tied to their weakest topics and their exam date. Keep answers under 250 words unless asked for a plan.`;
+  }
+  if (mode === "transcribe") {
+    return `You transcribe photographs of a student's handwritten working for ${boardLabel(board)} ${ctx.subject || ""}. Write out EXACTLY what is on the page as plain text, line by line, in the order written: every equation, number, unit, diagram label and crossed-out attempt (mark crossed-out work with [crossed out]). Use plain Unicode for maths (x², √, ½, →, °), never LaTeX. Do not solve, correct, comment on or improve the work. If something is unreadable write [unclear]. If the photo has a diagram, describe it briefly in square brackets, e.g. [diagram: right-angled triangle, hypotenuse labelled 13 cm]. Output only the transcription.`;
+  }
+  if (mode === "mark") {
+    return `You are an examiner marking one answer for ${boardLabel(board)}${level} strictly against the marking scheme supplied. Award marks only for points that are actually present in the student's typed answer or transcribed working; follow-through marks only where the scheme allows. Reply with a single JSON object and nothing else.`;
   }
   if (mode === "diagnose") {
     return `${base}\n\nYou are running a post-worksheet diagnosis. The message contains the worksheet the student just finished: every question, the correct answer, and what the student put. Write a diagnosis with exactly these Markdown sections:\n\n## Where you went wrong\nGo through the incorrect questions (reference them by number). For each, name the actual misconception or slip — not just 'you got it wrong' — and give the one-line correct reasoning. If everything was correct, say so and instead identify where the answers were fragile or where the exam would push harder.\n\n## What you could have done better\n3-5 bullets on technique: reading the command word, showing working, units, eliminating options, time management, or the specific phrasing this board's mark scheme wants. Tie each to a real question from this worksheet.\n\n## Next steps\nExactly 3 bullets: the most valuable things to practise next, in priority order, each with why.\n\nBe direct and encouraging, never padded. Under 350 words.`;
@@ -165,7 +171,7 @@ async function cacheBumpHit(id: string) {
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
-const MODES = new Set(["overview", "chat", "recommend", "diagnose"]);
+const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark"]);
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -176,7 +182,7 @@ Deno.serve(async (req: Request) => {
   const preferred = envLike("GEMINI_MODEL");
   const models = preferred ? [preferred, ...MODEL_CHAIN.filter((m) => m !== preferred)] : [...MODEL_CHAIN];
 
-  let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[]; force?: boolean };
+  let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[]; force?: boolean; images?: Array<{ mimeType: string; data: string }> };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
   const mode = MODES.has(String(body.mode)) ? String(body.mode) : "chat";
   const ctx = body.context || {};
@@ -192,9 +198,19 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  let contents: Array<{ role: string; parts: Array<{ text: string }> }>;
+  type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
+  let contents: Array<{ role: string; parts: Part[] }>;
   if (mode === "overview") {
     contents = [{ role: "user", parts: [{ text: overviewPrompt(ctx) }] }];
+  } else if (mode === "transcribe") {
+    const images = (Array.isArray(body.images) ? body.images : []).slice(0, 4)
+      .filter((i) => i && /^image\//.test(String(i.mimeType)) && typeof i.data === "string" && i.data.length < 6_000_000);
+    if (!images.length) return json({ error: "No image to transcribe" }, 400);
+    const note = (Array.isArray(body.messages) ? body.messages : []).map((m) => m?.content || "").join("\n").slice(0, 2000);
+    contents = [{ role: "user", parts: [
+      ...images.map((i) => ({ inline_data: { mime_type: i.mimeType, data: i.data } })),
+      { text: `${note}\n\nTranscribe the handwritten working in the photo(s).` },
+    ] }];
   } else {
     const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-14);
     contents = msgs
@@ -206,7 +222,7 @@ Deno.serve(async (req: Request) => {
   const payload = JSON.stringify({
     system_instruction: { parts: [{ text: systemPrompt(mode, ctx) }] },
     contents,
-    generationConfig: { temperature: 0.4, maxOutputTokens: 1500 },
+    generationConfig: { temperature: mode === "transcribe" || mode === "mark" ? 0.1 : 0.4, maxOutputTokens: mode === "transcribe" ? 2500 : 1500 },
   });
 
   // Walk the model chain. A 503 is transient (retry the same model); a 429 means

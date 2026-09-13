@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Shield, Plus, Trash2, FileText, Sparkles, Filter, Upload, Link2, X, Loader2, Check, FlaskConical } from 'lucide-react';
+import { Shield, Plus, Trash2, FileText, Sparkles, Filter, Upload, Link2, X, Loader2, Check, FlaskConical, ClipboardCheck, PenTool } from 'lucide-react';
 import { SUBJECTS, TOPICS, EXAM_TRACKS } from '../../data/mock';
 import { FULL_PAPER_TYPE } from '../../data/pastPapers';
 import { toast } from 'sonner';
 
-const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style', FULL_PAPER_TYPE];
+const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style', 'Drawing', FULL_PAPER_TYPE];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
 
 // --------------------------------------------------------------------------
@@ -30,8 +30,19 @@ function emptyForm({ syllabus, subject }) {
     examAnswer: '',
     examKeywords: '',
     marks: '',
+    markScheme: [],   // [{ point, marks }] — the examiner's scheme, any answer type
   };
 }
+
+// Sum of the scheme's marks; falls back to the question's marks field.
+export function schemeTotal(scheme, fallback) {
+  const t = (Array.isArray(scheme) ? scheme : []).reduce((s, p) => s + (Number(p.marks) || 0), 0);
+  return t || (fallback ? Number(fallback) : 0) || 0;
+}
+
+const cleanScheme = (scheme) => (Array.isArray(scheme) ? scheme : [])
+  .map((p) => ({ point: (p.point || '').trim(), marks: Math.max(1, parseInt(p.marks, 10) || 1) }))
+  .filter((p) => p.point);
 
 const API_BASE = (typeof window !== 'undefined' && window.location && window.location.origin)
   ? window.location.origin
@@ -170,6 +181,7 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
     }
     if (form.answerType === 'Typed response' && !form.typedAnswer.trim()) return 'Enter the expected typed answer';
     if (form.answerType === 'Exam style' && !form.examAnswer.trim()) return 'Enter the model exam-style answer';
+    if (form.answerType === 'Drawing' && !cleanScheme(form.markScheme).length && !form.examAnswer.trim()) return 'A drawing question needs a marking scheme or a description of the expected drawing';
     if (form.link && !/^https?:\/\//i.test(form.link.trim())) return 'Link must start with http:// or https://';
     return null;
   };
@@ -197,6 +209,13 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
     } else if (form.answerType === 'Exam style') {
       base.examAnswer = form.examAnswer.trim();
       base.examKeywords = form.examKeywords.split(',').map((s) => s.trim()).filter(Boolean);
+    } else if (form.answerType === 'Drawing') {
+      base.examAnswer = form.examAnswer.trim();
+    }
+    const scheme = cleanScheme(form.markScheme);
+    if (scheme.length) {
+      base.markScheme = scheme;
+      if (!base.marks) base.marks = schemeTotal(scheme);
     }
     return base;
   };
@@ -307,6 +326,21 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
             </div>
           )}
 
+          {form.answerType === 'Drawing' && (
+            <div className="mt-3">
+              <Field label="What the drawing must show">
+                <textarea className="input-base" rows={2} value={form.examAnswer} onChange={(e) => setF({ examAnswer: e.target.value })} placeholder="e.g. Labelled ray diagram for a convex lens with the object beyond 2F: two rays, image position, arrows on rays." />
+              </Field>
+              <div className="text-[11.5px] text-slate-500 mt-1 inline-flex items-center gap-1"><PenTool className="w-3.5 h-3.5" /> Students can only answer this with a photo of their drawing — no typed answer.</div>
+            </div>
+          )}
+
+          {form.answerType !== FULL_PAPER_TYPE && (
+            <div className="mt-4">
+              <MarkSchemeEditor value={form.markScheme} onChange={(v) => setF({ markScheme: v })} marks={form.marks} />
+            </div>
+          )}
+
           <button
             onClick={submit}
             disabled={busy}
@@ -380,6 +414,18 @@ function LibraryRow({ p, onRemove }) {
             <div className="text-[12.5px] text-slate-600 mt-1 flex items-start gap-1.5">
               <Sparkles className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
               <span>Keywords: <span className="font-medium text-slate-800">{(p.examKeywords || []).join(', ') || '\u2014'}</span></span>
+            </div>
+          )}
+          {p.answerType === 'Drawing' && (
+            <div className="text-[12.5px] text-slate-600 mt-1 flex items-start gap-1.5">
+              <PenTool className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+              <span>Photo answer only{p.examAnswer ? <> · <span className="font-medium text-slate-800">{p.examAnswer}</span></> : null}</span>
+            </div>
+          )}
+          {Array.isArray(p.markScheme) && p.markScheme.length > 0 && (
+            <div className="text-[12px] text-slate-600 mt-1.5 rounded-md bg-slate-50 border border-[color:var(--color-border)] px-2.5 py-1.5">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-0.5 inline-flex items-center gap-1"><ClipboardCheck className="w-3.5 h-3.5" /> Marking scheme · {schemeTotal(p.markScheme, p.marks)} marks</div>
+              <ul className="list-disc pl-4 space-y-0.5">{p.markScheme.map((pt, k) => <li key={k}><span className="font-semibold">{pt.marks}</span> — {pt.point}</li>)}</ul>
             </div>
           )}
           {p.link && (
@@ -636,6 +682,12 @@ function DraftRow({ draft, onChange, onRemove, subject }) {
           />
         </div>
       )}
+      {draft.answerType === 'Drawing' && (
+        <textarea rows={2} className="input-base w-full text-[12.5px]" value={draft.examAnswer || ''} onChange={(e) => onChange({ examAnswer: e.target.value })} placeholder="What the drawing must show" />
+      )}
+      <div className="mt-2">
+        <MarkSchemeEditor value={draft.markScheme || []} onChange={(v) => onChange({ markScheme: v })} marks={draft.marks} compact />
+      </div>
     </div>
   );
 }
@@ -650,5 +702,42 @@ function Field({ label, children }) {
       <span className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">{label}</span>
       {children}
     </label>
+  );
+}
+
+
+// Examiner-style marking scheme: one line per mark point with its marks.
+// Used by the single-question form and the bulk-import drafts.
+export function MarkSchemeEditor({ value = [], onChange, marks, compact = false }) {
+  const rows = Array.isArray(value) ? value : [];
+  const total = schemeTotal(rows, 0);
+  const set = (i, patch) => onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  const add = () => onChange([...rows, { point: '', marks: 1 }]);
+  const remove = (i) => onChange(rows.filter((_, k) => k !== i));
+  return (
+    <div className={`rounded-lg border border-[color:var(--color-border)] ${compact ? 'bg-white p-2.5' : 'bg-slate-50/60 p-3'}`} data-testid="mark-scheme-editor">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="text-[11px] tracking-[0.14em] uppercase font-semibold text-slate-600 inline-flex items-center gap-1.5">
+          <ClipboardCheck className="w-4 h-4 text-blue-600" /> Marking scheme
+          <span className="font-normal normal-case tracking-normal text-slate-500">· {total} mark{total === 1 ? '' : 's'}{marks && Number(marks) !== total && total > 0 ? ` (question says ${marks})` : ''}</span>
+        </div>
+        <button type="button" onClick={add} className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-700 hover:text-blue-900" data-testid="mark-scheme-add">
+          <Plus className="w-4 h-4" /> Add mark point
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-[12px] text-slate-500">Optional but recommended: list what earns each mark (e.g. "1 — correct formula", "2 — substitution and answer with units"). The AI examiner marks student answers against these points.</div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {rows.map((r, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <input type="number" min="1" max="20" value={r.marks ?? 1} onChange={(e) => set(i, { marks: e.target.value })} className="input-base w-16 text-[12.5px] text-center" aria-label="Marks" />
+              <input value={r.point || ''} onChange={(e) => set(i, { point: e.target.value })} placeholder={`Mark point ${i + 1} — what the student must show`} className="input-base flex-1 text-[12.5px]" />
+              <button type="button" onClick={() => remove(i)} className="w-7 h-7 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" aria-label="Remove mark point"><X className="w-4 h-4" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

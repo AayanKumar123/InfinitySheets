@@ -7,6 +7,7 @@ import { predictedScore, predictedBreakdown, formatGrade, TONE_CLASSES, isGraded
 import { subjectBoards } from '../../lib/subjects';
 import { useStrengthsWeaknesses, useSavedSwOverridesFor, useSavedSwPrefs, computeSw, pickOverridesFor } from '../../hooks/useStrengthsWeaknesses';
 import PredictedScoreMini from './PredictedScoreMini';
+import { TimingTrendsCard } from './StudyInsights';
 
 const SUBJECT_COLORS = [
   '#2563eb', '#7c3aed', '#dc2626', '#10b981',
@@ -232,6 +233,8 @@ export default function ProgressView() {
           examTrack={examTrack}
         />
       </div>
+
+      <TimingTrendsCard worksheets={ws} subject={soloed || undefined} />
 
       <div ref={cardsSectionRef} className="rounded-2xl border border-[color:var(--color-border)] p-5 bg-white">
         <div className="flex items-center justify-between gap-3 mb-3">

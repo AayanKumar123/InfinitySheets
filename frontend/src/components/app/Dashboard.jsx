@@ -8,6 +8,7 @@ import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
+import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile } from './StudyInsights';
 
 const SUBJECT_TONE_BADGE = {
   primary: 'bg-blue-100 text-blue-700',
@@ -403,6 +404,13 @@ export default function Dashboard({ go }) {
           </div>
         </div>
       )}
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2"><WeeklySummaryCard worksheets={ws} /></div>
+        <ReviewDueTile worksheets={ws} onStart={() => go('worksheets')} />
+      </div>
+
+      <StreakHeatmap worksheets={ws} streak={state.streak} />
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white">

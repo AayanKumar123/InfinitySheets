@@ -12,7 +12,17 @@ function Router() {
   const [hash, setHash] = useState(window.location.hash || '');
 
   useEffect(() => {
-    const onHash = () => setHash(window.location.hash || '');
+    const onHash = () => {
+      // A worksheet in exam mode owns the screen: ignore route changes until
+      // it is submitted (Worksheets.jsx sets/clears the lock).
+      const lock = window.__examLock;
+      if (lock && window.location.hash !== lock.hash) {
+        lock.onBlocked?.();
+        window.location.hash = lock.hash;
+        return;
+      }
+      setHash(window.location.hash || '');
+    };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
