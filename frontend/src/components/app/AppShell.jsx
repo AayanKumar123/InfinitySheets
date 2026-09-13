@@ -27,7 +27,7 @@ const BASE_NAV = [
   { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { key: 'courses', label: 'My Courses', Icon: GraduationCap },
   { key: 'study', label: 'Start Studying', Icon: Pencil },
-  { key: 'qbank', label: 'Question Bank', Icon: Library },
+  { key: 'qbank', label: 'Syllabus Bank', Icon: Library },
   { key: 'history', label: 'Worksheet History', Icon: History },
   { key: 'progress', label: 'Performance', Icon: TrendingUp },
   { key: 'strengths', label: 'Strengths & Weaknesses', Icon: Dumbbell },

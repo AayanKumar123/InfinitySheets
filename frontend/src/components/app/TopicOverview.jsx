@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ExternalLink, Sparkles, RefreshCw, Loader2, FileText, Link2, Settings as SettingsIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { syllabusLink } from '../../data/syllabus';
 import { subjectBoards, boardName } from '../../lib/subjects';
 import { topicOverview, isAiEnabled } from '../../lib/ai';
 import { topicLinks } from '../../data/topicLinks';
@@ -19,7 +20,9 @@ export default function TopicOverview({ subject, topic, go }) {
   const boards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
   const board = boards[subject]?.board || examTrack;
   const ibLevel = boards[subject]?.ibLevel;
-  const context = useMemo(() => ({ board, subject, topic, ibLevel }), [board, subject, topic, ibLevel]);
+  // The official syllabus link goes to the AI so the overview can cite it.
+  const syllabus = useMemo(() => syllabusLink(board, subject), [board, subject]);
+  const context = useMemo(() => ({ board, subject, topic, ibLevel, syllabusUrl: syllabus.url, syllabusTitle: syllabus.title }), [board, subject, topic, ibLevel, syllabus]);
 
   const attempts = useMemo(() => (state.worksheets || []).filter((w) => w.subject === subject && w.topic === topic), [state.worksheets, subject, topic]);
   const acc = useMemo(() => {
@@ -187,7 +190,7 @@ function Overview({ context }) {
           <span className="w-8 h-8 rounded-lg bg-violet-100 text-violet-700 flex items-center justify-center"><Sparkles className="w-5 h-5" /></span>
           <div>
             <h3 className="text-[15px] font-semibold text-slate-900">What the exam wants</h3>
-            <div className="text-[12px] text-slate-500">AI overview tuned to {boardName(context.board)} mark schemes.</div>
+            <div className="text-[12px] text-slate-500">AI overview tuned to {boardName(context.board)} mark schemes, with every claim cited to its source.</div>
           </div>
         </div>
         {enabled && (

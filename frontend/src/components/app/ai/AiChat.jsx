@@ -10,8 +10,17 @@ import { askAi, isAiEnabled } from '../../../lib/ai';
 function inline(text, key) {
   // **bold** first, then *italic* and `code`. Models use single-asterisk
   // emphasis often enough that leaving it unhandled shows raw asterisks.
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`)/g).filter(Boolean);
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`|\[[^\]]+\]\(https?:\/\/[^)\s]+\)|https?:\/\/[^\s)]+)/g).filter(Boolean);
   return parts.map((p, i) => {
+    // [label](url) and bare URLs become links — the overview cites sources.
+    const md = /^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/.exec(p);
+    if (md) {
+      return <a key={`${key}-${i}`} href={md[2]} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline decoration-blue-300 hover:text-blue-900 break-all">{md[1]}</a>;
+    }
+    if (/^https?:\/\//.test(p)) {
+      const trimmed = p.replace(/[.,;:]+$/, '');
+      return <a key={`${key}-${i}`} href={trimmed} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline decoration-blue-300 hover:text-blue-900 break-all">{trimmed.replace(/^https?:\/\/(www\.)?/, '')}</a>;
+    }
     if (p.startsWith('**') && p.endsWith('**') && p.length > 4) {
       return <strong key={`${key}-${i}`} className="font-semibold text-slate-900">{p.slice(2, -2)}</strong>;
     }

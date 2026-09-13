@@ -77,7 +77,17 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
 }
 
 function overviewPrompt(ctx: Record<string, unknown>) {
-  return `Write an exam-focused overview of the topic "${ctx.topic}" in ${ctx.subject} for ${boardLabel(String(ctx.board || ""))}${ctx.ibLevel ? ` ${ctx.ibLevel}` : ""}. Use exactly these Markdown sections:\n\n## Overview\n3-5 sentences on what the topic is and why it matters in this exam.\n\n## What the exam wants\nBullet points: the specific things the mark scheme rewards for this topic — required definitions or phrasing, command words to watch, steps or working that earn marks, typical question formats and their mark allocations.\n\n## Common mistakes\n3-5 bullets of errors that lose marks, each with the fix.\n\n## FAQs\n3-4 questions students actually ask about this topic, each with a 1-2 sentence answer.\n\nKeep the whole thing under 380 words.`;
+  const syl = ctx.syllabusUrl ? `[1] ${ctx.syllabusTitle || "Official syllabus"} — ${ctx.syllabusUrl}` : "";
+  const sections = [
+    "## Overview\n3-5 sentences on what the topic is and why it matters in this exam.",
+    "## What the exam wants\nBullet points: the specific things the mark scheme rewards for this topic — required definitions or phrasing, command words to watch, steps or working that earn marks, typical question formats and their mark allocations.",
+    "## Common mistakes\n3-5 bullets of errors that lose marks, each with the fix.",
+    "## FAQs\n3-4 questions students actually ask about this topic, each with a 1-2 sentence answer.",
+    "## Sources\nA numbered list of every source you drew on.",
+  ].join("\n\n");
+  const rules = "CITATION RULES — every factual claim about what the exam requires, mark allocations, command words or syllabus content MUST end with a citation tag like [1] or [2] that points at an entry in Sources. Sources must be real, official, named documents: the board's syllabus / subject guide / specification, the prescribed textbook by title and chapter (e.g. NCERT Class 10 Mathematics, Chapter 4), official past papers and mark schemes by year and paper, examiner reports. Never cite blogs, tutoring sites or unnamed 'study guides'. Only include a URL when you are certain of it; otherwise give the document name alone. The following source is confirmed and must be [1]:";
+  const first = syl || "[1] The board's official syllabus for this subject (name it precisely).";
+  return `Write an exam-focused overview of the topic "${ctx.topic}" in ${ctx.subject} for ${boardLabel(String(ctx.board || ""))}${ctx.ibLevel ? ` ${ctx.ibLevel}` : ""}. Use exactly these Markdown sections:\n\n${sections}\n\n${rules}\n${first}\n\nKeep the whole thing under 450 words.`;
 }
 
 // Read a secret by name, tolerating the spacing/casing people actually type in
@@ -111,7 +121,8 @@ const DB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const CACHE_TIMEOUT_MS = 1500;   // never let a slow database delay an answer
 
 function cacheKey(ctx: Record<string, unknown>) {
-  return [ctx.board, ctx.subject, ctx.topic, ctx.ibLevel || ""]
+  // "v2" = cited overviews; bumping it retires every uncited cache row.
+  return ["v2", ctx.board, ctx.subject, ctx.topic, ctx.ibLevel || ""]
     .map((v) => String(v ?? "").trim().toLowerCase())
     .join("|");
 }

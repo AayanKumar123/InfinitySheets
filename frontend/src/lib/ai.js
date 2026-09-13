@@ -44,7 +44,7 @@ export async function topicOverview(context, { force = false } = {}) {
   // between topics; the server-side cache (public.topic_overviews) is the one
   // that matters — it is shared by every student, so a topic costs one Gemini
   // call for all time rather than one per visit. `force` skips both.
-  const key = `ai_overview:${context.board}:${context.subject}:${context.topic}:${context.ibLevel || ''}`;
+  const key = `ai_overview:v2:${context.board}:${context.subject}:${context.topic}:${context.ibLevel || ''}`;
   if (!force) {
     try { const cached = sessionStorage.getItem(key); if (cached) return cached; } catch (e) { /* ignore */ }
   }

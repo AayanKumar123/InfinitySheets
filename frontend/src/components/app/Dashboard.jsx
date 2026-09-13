@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
 import { SUBJECT_INFO } from '../../data/mock';
@@ -62,15 +63,6 @@ function Ring({ value = 0 }) {
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-xl border border-[color:var(--color-border)] p-4 bg-white">
-      <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">{label}</div>
-      <div className="text-[20px] font-semibold mt-1 text-slate-900">{value}</div>
-    </div>
-  );
-}
-
 // Latest AI diagnosis — the most recently diagnosed worksheet, linking into
 // Smart Learning where the full text and history live.
 function LatestDiagnosisStat({ sheet, go }) {
@@ -100,23 +92,61 @@ function LatestDiagnosisStat({ sheet, go }) {
   );
 }
 
-function DaysStat({ days, subLabel }) {
+// Editable: click the pencil, type a number of days and the exam date behind
+// the countdown is updated — the course subject's exam date when that is what
+// is shown, otherwise the account-wide fallback in Settings.
+function DaysStat({ days, subLabel, onChange }) {
   const has = days !== null && days !== undefined;
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState('');
+  const start = () => { setVal(has ? String(days) : '30'); setEditing(true); };
+  const commit = () => {
+    const n = parseInt(val, 10);
+    if (Number.isNaN(n) || n < 0 || n > 3650) { toast.error('Enter a number of days between 0 and 3650'); return; }
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    onChange(iso, n);
+    setEditing(false);
+  };
   return (
     <div className="rounded-xl border border-violet-200/70 p-4 bg-violet-50 relative overflow-hidden" data-testid="days-until-exam">
-      <div className="relative text-[10px] tracking-[0.14em] uppercase font-semibold text-violet-700">Days until exam</div>
-      <div className="relative text-[24px] font-semibold mt-1 text-slate-900 tabular-nums">
-        {has ? days : '\u2014'}
-        {has && <span className="text-[12px] font-medium text-slate-500 ml-1">{days === 1 ? 'day' : 'days'}</span>}
+      <div className="relative flex items-center justify-between">
+        <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-violet-700">Days until exam</div>
+        {!editing && (
+          <button onClick={start} title="Change the number of days" className="w-6 h-6 rounded-md text-violet-600 hover:bg-violet-100 flex items-center justify-center" data-testid="days-edit"><Pencil className="w-3.5 h-3.5" /></button>
+        )}
       </div>
-      {subLabel && <div className="relative text-[11px] text-slate-500 mt-0.5 truncate">{subLabel}</div>}
-      {!has && !subLabel && <div className="relative text-[11px] text-slate-500 mt-0.5">Add a course</div>}
+      {editing ? (
+        <div className="relative mt-1 flex items-center gap-1.5">
+          <input
+            autoFocus
+            type="number"
+            min="0"
+            max="3650"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+            className="input-base w-20 text-[16px] font-semibold py-1 px-2"
+            data-testid="days-input"
+          />
+          <span className="text-[12px] text-slate-500">days</span>
+          <button onClick={commit} className="w-7 h-7 rounded-md bg-violet-600 text-white flex items-center justify-center" data-testid="days-save"><Check className="w-4 h-4" /></button>
+          <button onClick={() => setEditing(false)} className="w-7 h-7 rounded-md text-slate-500 hover:bg-violet-100 flex items-center justify-center"><X className="w-4 h-4" /></button>
+        </div>
+      ) : (
+        <div className="relative text-[24px] font-semibold mt-1 text-slate-900 tabular-nums">
+          {has ? days : '\u2014'}
+          {has && <span className="text-[12px] font-medium text-slate-500 ml-1">{days === 1 ? 'day' : 'days'}</span>}
+        </div>
+      )}
+      {subLabel && !editing && <div className="relative text-[11px] text-slate-500 mt-0.5 truncate">{subLabel}</div>}
+      {!has && !subLabel && !editing && <div className="relative text-[11px] text-slate-500 mt-0.5">Add a course, or set a date here</div>}
     </div>
   );
 }
 
 export default function Dashboard({ go }) {
-  const { state, clearDraftWorksheet } = useApp();
+  const { state, clearDraftWorksheet, updateSettings, updateCourse } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
   const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
   const draft = state.draftWorksheet;
@@ -240,10 +270,14 @@ export default function Dashboard({ go }) {
     return [...withDiag].sort((a, b) => new Date(b.diagnosis.createdAt || b.date || 0) - new Date(a.diagnosis.createdAt || a.date || 0))[0];
   }, [ws]);
 
-  const goalDate = new Date().toDateString();
-  const questionsToday = state.goalDate === goalDate ? state.questionsToday : 0;
-  const dailyGoal = state.settings?.dailyGoal || 10;
-  const progressPct = Math.min(100, Math.round((questionsToday / dailyGoal) * 100));
+  // Weekly goal: questions answered in the last 7 days against the target
+  // set in Settings.
+  const weeklyGoal = state.settings?.weeklyGoal || 50;
+  const questionsThisWeek = useMemo(() => {
+    const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return ws.filter((w) => new Date(w.date).getTime() >= since).reduce((s, w) => s + (w.total || 0), 0);
+  }, [ws]);
+  const progressPct = Math.min(100, Math.round((questionsThisWeek / weeklyGoal) * 100));
 
   // Flatten all subjects from all courses with their per-subject exam dates
   const courseExams = useMemo(() => {
@@ -269,6 +303,20 @@ export default function Dashboard({ go }) {
   const fallbackDays = fallbackDate ? Math.max(0, Math.ceil((new Date(fallbackDate + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
   const nearest = courseExams[0];
   const examCountdown = nearest ? nearest.days : fallbackDays;
+  const setExamDays = (iso, n) => {
+    if (nearest) {
+      const course = (state.courses || []).find((c) => c.name === nearest.courseName && (Array.isArray(c.subjects) ? c.subjects.some((x) => x.subject === nearest.subject) : c.subject === nearest.subject));
+      if (course) {
+        const patch = Array.isArray(course.subjects)
+          ? { subjects: course.subjects.map((x) => (x.subject === nearest.subject ? { ...x, examDate: iso } : x)) }
+          : { examDate: iso };
+        updateCourse(course.id, patch);
+      }
+    } else {
+      updateSettings({ examDate: iso });
+    }
+    toast.success(`Exam set to ${n} day${n === 1 ? '' : 's'} from today${nearest ? ` for ${nearest.name}` : ''}`);
+  };
   const examLabel = nearest ? nearest.name : (fallbackDate ? new Date(fallbackDate).toLocaleDateString() : null);
 
   // Random greeting — picked once per mount, so it changes every refresh.
@@ -333,7 +381,7 @@ export default function Dashboard({ go }) {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <DaysStat days={examCountdown} subLabel={examLabel} />
+        <DaysStat days={examCountdown} subLabel={examLabel} onChange={setExamDays} />
         <PredictedScoreMini
           predictedBySubject={predictedBySubject}
           visibleSubjects={visibleSubjects}
@@ -352,7 +400,14 @@ export default function Dashboard({ go }) {
           }
         />
         <LatestDiagnosisStat sheet={latestDiagnosed} go={go} />
-        <Stat label="Worksheets completed" value={stats.sheets} />
+        <div className="rounded-xl border border-[color:var(--color-border)] p-4 bg-white" data-testid="weekly-goal">
+          <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">Weekly goal</div>
+          <div className="text-[20px] font-semibold mt-1 text-slate-900 tabular-nums">{questionsThisWeek} <span className="text-[13px] font-medium text-slate-500">/ {weeklyGoal} questions</span></div>
+          <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full bg-blue-500 transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">{progressPct >= 100 ? 'Goal reached this week' : `${weeklyGoal - questionsThisWeek} to go · last 7 days`}</div>
+        </div>
       </div>
 
       {mySubjects.length > 0 && (
@@ -413,12 +468,10 @@ export default function Dashboard({ go }) {
       <StreakHeatmap worksheets={ws} streak={state.streak} />
 
       <div className="grid lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white">
-          <div className="eyebrow-muted mb-2">Today&rsquo;s goal</div>
-          <div className="text-[18px] font-semibold">{questionsToday} / {dailyGoal} questions</div>
-          <div className="mt-3 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-blue-500 transition-all" style={{ width: `${progressPct}%` }} />
-          </div>
+        <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white" data-testid="worksheets-completed">
+          <div className="eyebrow-muted mb-2">Worksheets completed</div>
+          <div className="text-[26px] font-semibold tabular-nums">{stats.sheets}</div>
+          <div className="text-[12px] text-slate-500 mt-1">{ws.reduce((s, w) => s + (w.total || 0), 0)} questions answered in total</div>
         </div>
         <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white">
           <div className="eyebrow-muted mb-3 flex items-center gap-1.5"><CalendarClock className="w-4 h-4 text-violet-600" /> Upcoming exams</div>

@@ -54,6 +54,9 @@ export default function WorksheetAnalysis({ sheet, compact = false, testid = 'ws
             ))}
           </div>
 
+          {/* Time-per-question graph: where the clock went, in order */}
+          <TimeGraph per={a.perQuestion} expected={expected} avg={a.avgMs} testid={`${testid}-graph`} />
+
           {/* Per-question time bars */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -106,6 +109,53 @@ export default function WorksheetAnalysis({ sheet, compact = false, testid = 'ws
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+
+// Line + area graph of seconds spent on each question, with the average and
+// the exam-pace line for reference. Points are coloured by correctness.
+function TimeGraph({ per, expected, avg, testid }) {
+  const W = 640; const H = 190; const PL = 44; const PR = 14; const PT = 14; const PB = 30;
+  const n = per.length;
+  const maxMs = Math.max(1000, ...per.map((p) => p.timeMs), expected || 0, avg || 0) * 1.08;
+  const x = (i) => (n === 1 ? (PL + W - PR) / 2 : PL + (i / (n - 1)) * (W - PL - PR));
+  const y = (ms) => PT + (1 - ms / maxMs) * (H - PT - PB);
+  const path = per.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.timeMs).toFixed(1)}`).join(' ');
+  const area = `${path} L${x(n - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * maxMs);
+  const colour = (p) => (!p.answered ? '#94a3b8' : p.correct ? '#10b981' : '#f43f5e');
+  return (
+    <div data-testid={testid}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-[12.5px] font-semibold text-slate-700">Time spent on each question</div>
+        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+          <span className="inline-flex items-center gap-1"><span className="w-4 border-t-2 border-dashed border-amber-500" /> exam pace</span>
+          <span className="inline-flex items-center gap-1"><span className="w-4 border-t-2 border-dotted border-slate-400" /> your average</span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Time spent per question">
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={PL} x2={W - PR} y1={y(t)} y2={y(t)} stroke="currentColor" className="text-slate-200" strokeWidth="1" />
+            <text x={PL - 6} y={y(t) + 3.5} fontSize="10" textAnchor="end" className="fill-slate-500">{fmtMs(t)}</text>
+          </g>
+        ))}
+        <path d={area} fill="#3b82f6" fillOpacity="0.12" />
+        <path d={path} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
+        {expected > 0 && expected < maxMs && <line x1={PL} x2={W - PR} y1={y(expected)} y2={y(expected)} stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="6 4" />}
+        {avg > 0 && <line x1={PL} x2={W - PR} y1={y(avg)} y2={y(avg)} stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="2 3" />}
+        {per.map((p, i) => (
+          <g key={p.i}>
+            <circle cx={x(i)} cy={y(p.timeMs)} r={p.visits > 1 ? 6 : 4.5} fill={colour(p)} stroke="#fff" strokeWidth="1.5">
+              <title>{`Q${p.i + 1} · ${fmtMs(p.timeMs)} · ${p.answered ? (p.correct ? 'right' : 'wrong') : 'blank'}${p.visits > 1 ? ` · visited ${p.visits}×` : ''}${p.changedFromFirst ? ' · changed answer' : ''}`}</title>
+            </circle>
+            <text x={x(i)} y={H - 10} fontSize="10" textAnchor="middle" className="fill-slate-500">Q{p.i + 1}</text>
+          </g>
+        ))}
+      </svg>
+      <div className="text-[11px] text-slate-500 mt-0.5">Bigger dots were visited more than once. Peaks above the dashed line are where the exam clock would have run out.</div>
     </div>
   );
 }

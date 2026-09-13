@@ -2,11 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SUBJECT_INFO } from '../../data/mock';
 import { enrolledSubjects, subjectBoards, boardName, questionsForSubject } from '../../lib/subjects';
-import { BookOpen, Eye, EyeOff, Sparkles, Library, ChevronRight, Search, ArrowLeft, ArrowRight } from 'lucide-react';
+import { BookOpen, Eye, EyeOff, Sparkles, Library, ChevronRight, Search, ArrowLeft, ArrowRight, ExternalLink, FileText } from 'lucide-react';
+import { syllabusLink } from '../../data/syllabus';
 import StudyDecor from '../decor/StudyDecor';
 import CreateWorksheetButton from './CreateWorksheetButton';
 
-// The Question Bank is a read-only view over the PAST-PAPER LIBRARY
+// The Syllabus Bank is a read-only view over the PAST-PAPER LIBRARY, with a
+// link to each subject's official syllabus,
 // (state.pastPapers = seeded past papers + anything admins upload). Questions
 // are grouped by the student's subjects, honouring each subject's board so a
 // CBSE Mathematics course shows CBSE Mathematics past papers.
@@ -82,7 +84,7 @@ function SubjectPicker({ subjects, questionsBySubject, boards, onPick }) {
     <div className="relative">
       <div className="absolute inset-0 -z-10 opacity-60"><StudyDecor /></div>
       <div className="mb-6">
-        <p className="text-[14px] text-slate-500 max-w-[640px]">Browse real past-paper questions from the library, organised by your subjects. Pick a subject to get started.</p>
+        <p className="text-[14px] text-slate-500 max-w-[640px]">Each subject&rsquo;s official syllabus and the past-paper questions that go with it, organised by your subjects. Pick a subject to get started.</p>
         <div className="text-[12px] text-slate-500 mt-1">{subjects.length} {subjects.length === 1 ? 'subject' : 'subjects'} in your courses</div>
       </div>
 
@@ -100,12 +102,23 @@ function SubjectPicker({ subjects, questionsBySubject, boards, onPick }) {
             const count = qs.length;
             const topicCount = new Set(qs.map((q) => q.topic)).size;
             const b = boards[s];
+            const syl = syllabusLink(b?.board, s);
             return (
+              <div key={s} className="relative">
+              <a
+                href={syl.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={syl.exact ? 'Official syllabus for this subject' : `${syl.boardName} (official curriculum hub)`}
+                data-testid={`qbank-syllabus-${s.replace(/\s+/g, '-')}`}
+                className="absolute right-4 bottom-4 z-10 inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold hover:bg-emerald-100"
+              >
+                <FileText className="w-3.5 h-3.5" /> Syllabus <ExternalLink className="w-3 h-3" />
+              </a>
               <button
-                key={s}
                 onClick={() => onPick(s)}
                 data-testid={`qbank-subject-${s.replace(/\s+/g, '-')}`}
-                className="group text-left card-soft p-5 border border-[color:var(--color-border)] hover:border-blue-400 hover:shadow-md transition-all"
+                className="group w-full text-left card-soft p-5 border border-[color:var(--color-border)] hover:border-blue-400 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-[22px]">{info.emoji}</div>
@@ -120,10 +133,11 @@ function SubjectPicker({ subjects, questionsBySubject, boards, onPick }) {
                     )}
                   </div>
                 )}
-                <div className="text-[12.5px] text-slate-500 mt-1">
+                <div className="text-[12.5px] text-slate-500 mt-1 pr-24">
                   {count} {count === 1 ? 'past-paper question' : 'past-paper questions'}{count > 0 ? ` · ${topicCount} ${topicCount === 1 ? 'topic' : 'topics'}` : ''}
                 </div>
               </button>
+              </div>
             );
           })}
         </div>
@@ -172,6 +186,8 @@ function BrowseSubject({ subject, chosenSubjects, questionsBySubject, boards, on
           <ArrowLeft className="w-4 h-4" /> All subjects
         </button>
       </div>
+
+      <SyllabusCard subject={subject} board={boards[subject]?.board} ibLevel={boards[subject]?.ibLevel} />
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
@@ -307,6 +323,35 @@ function TopicGroup({ topic, questions, revealed, setRevealed, onPractice }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+
+// Official syllabus for the subject being browsed.
+function SyllabusCard({ subject, board, ibLevel }) {
+  const syl = syllabusLink(board, subject);
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 mb-5 flex flex-wrap items-center justify-between gap-3" data-testid="qbank-syllabus-card">
+      <div className="flex items-start gap-3 min-w-0">
+        <span className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0"><FileText className="w-5 h-5" /></span>
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold text-slate-900">{subject} syllabus{board ? ` · ${boardName(board)}` : ''}{ibLevel ? ` ${ibLevel}` : ''}</div>
+          <div className="text-[12.5px] text-slate-600 mt-0.5">
+            {syl.exact ? 'The official subject page: syllabus, assessment structure and specimen papers.' : `${syl.boardName}. The board publishes subject syllabuses from this page.`}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <a href={syl.url} target="_blank" rel="noopener noreferrer" className="btn-violet inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold" data-testid="qbank-syllabus-open">
+          Open syllabus <ExternalLink className="w-4 h-4" />
+        </a>
+        {!syl.exact && (
+          <a href={syl.searchUrl} target="_blank" rel="noopener noreferrer" className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12.5px] font-medium" title="Search the board's site for this subject">
+            <Search className="w-4 h-4" /> Find {subject}
+          </a>
+        )}
       </div>
     </div>
   );
