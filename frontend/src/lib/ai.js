@@ -1,6 +1,7 @@
 // Client for the `ai-chat` Supabase Edge Function (supabase/functions/ai-chat).
 // The Gemini key never reaches the browser — the function holds it as a secret.
 import { supabase, isSupabaseConfigured } from './supabase';
+import { analyticsForPrompt } from './worksheetAnalytics';
 
 export const AI_FUNCTION = 'ai-chat';
 
@@ -85,6 +86,7 @@ export async function diagnoseWorksheet(sheet, { board, ibLevel } = {}) {
   });
   const mins = Math.floor((sheet.durationSec || 0) / 60);
   const secs = (sheet.durationSec || 0) % 60;
+  const timing = analyticsForPrompt(sheet.analytics);
   const content = [
     `Worksheet just completed by the student.`,
     `Board: ${board || sheet.board || 'unknown'}${ibLevel ? ` (${ibLevel})` : ''}. Subject: ${sheet.subject}. Topics: ${sheet.topic}.`,

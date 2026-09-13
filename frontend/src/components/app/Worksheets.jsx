@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import DiagnosisPanel from './ai/DiagnosisPanel';
+import WorksheetAnalysis from './WorksheetAnalysis';
+import { emptyTelemetry, computeAnalytics, UNANSWERED } from '../../lib/worksheetAnalytics';
 
 const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style'];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
@@ -439,7 +441,33 @@ export default function Worksheets({ go }) {
   const skipTopicResetRef = useRef(false);
   // Always-fresh snapshot of the take-stage state for saving on navigate-away.
   const liveRef = useRef({});
-  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated };
+  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime };
+
+  // Per-question telemetry for the worksheet analysis: how long each question
+  // had the student's attention (tab visible), how many times it was visited,
+  // and the first answer given so we can tell right→wrong changes later. Kept
+  // in a ref so recording never re-renders the sheet.
+  const telemetryRef = useRef({ data: emptyTelemetry(0), enteredAt: null, hiddenAt: null });
+  const telemetryOpen = (idx, now = Date.now()) => {
+    const t = telemetryRef.current;
+    if (!t.data.timeMs || idx == null || idx < 0 || idx >= t.data.timeMs.length) { t.enteredAt = null; return; }
+    t.data.visits[idx] = (t.data.visits[idx] || 0) + 1;
+    t.data.order.push(idx);
+    t.enteredAt = t.hiddenAt ? null : now;
+  };
+  const telemetryClose = (idx, now = Date.now()) => {
+    const t = telemetryRef.current;
+    if (t.enteredAt != null && idx != null && t.data.timeMs && idx < t.data.timeMs.length) {
+      t.data.timeMs[idx] = (t.data.timeMs[idx] || 0) + Math.max(0, now - t.enteredAt);
+    }
+    t.enteredAt = null;
+    // Commit a typed answer as the "first answer" the first time it is left.
+    const v = (liveRef.current.answers || [])[idx];
+    if (typeof v === 'string' && v.trim() && t.data.firstAnswer && idx < t.data.firstAnswer.length && t.data.firstAnswer[idx] == null) {
+      t.data.firstAnswer[idx] = v;
+      t.data.firstAnswerMs[idx] = now - (liveRef.current.startTime || now);
+    }
+  };
   const countAnswered = (arr) => (arr || []).filter((a) => a !== -1 && a !== '' && a !== undefined && a !== null).length;
   const makeDraft = (d) => ({
     id: draftIdRef.current || `draft_${Date.now()}`,
@@ -456,6 +484,7 @@ export default function Worksheets({ go }) {
     timeLeft: d.timeLeft,
     total: (d.questions || []).length,
     answered: countAnswered(d.answers),
+    telemetry: telemetryRef.current.data,
     savedAt: new Date().toISOString(),
   });
 
@@ -489,6 +518,10 @@ export default function Worksheets({ go }) {
       setQuestions(d.questions || []);
       setAnswers(d.answers || []);
       setCurrent(d.current || 0);
+      const n = (d.questions || []).length;
+      const base = emptyTelemetry(n);
+      const saved = d.telemetry || {};
+      telemetryRef.current = { data: { ...base, ...saved, timeMs: (saved.timeMs || base.timeMs).slice(0, n), visits: (saved.visits || base.visits).slice(0, n), changes: (saved.changes || base.changes).slice(0, n), firstAnswer: (saved.firstAnswer || base.firstAnswer).slice(0, n), firstAnswerMs: (saved.firstAnswerMs || base.firstAnswerMs).slice(0, n), order: saved.order || [] }, enteredAt: null, hiddenAt: null };
       const secs = typeof d.timeLeft === 'number' ? d.timeLeft : (d.duration || examMinutes) * 60;
       setTimeLeft(secs);
       setStartTime(Date.now() - Math.max(0, ((d.duration || examMinutes) * 60 - secs)) * 1000);
@@ -524,6 +557,35 @@ export default function Worksheets({ go }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, timeLeft]);
 
+  // Time-on-question: open a segment when a question is shown, close it when
+  // the student moves on (or the sheet ends).
+  useEffect(() => {
+    if (stage !== 'take') return;
+    telemetryOpen(current);
+    return () => telemetryClose(current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, current]);
+
+  // Don't count time while the tab is hidden (switched app, locked screen).
+  useEffect(() => {
+    if (stage !== 'take') return;
+    const onVis = () => {
+      const t = telemetryRef.current;
+      const now = Date.now();
+      const idx = liveRef.current.current;
+      if (document.visibilityState === 'hidden') {
+        telemetryClose(idx, now);
+        t.hiddenAt = now;
+      } else if (t.hiddenAt) {
+        t.data.hiddenMs += now - t.hiddenAt;
+        t.hiddenAt = null;
+        t.enteredAt = now;
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [stage]);
+
   const toggleTopic = (t) => {
     setTopics((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
   };
@@ -549,6 +611,7 @@ export default function Worksheets({ go }) {
     // For MCQ, -1 means unanswered. For typed/exam, empty string.
     setAnswers(new Array(qs.length).fill(answerType === 'Multiple choice' ? -1 : ''));
     setCurrent(0);
+    telemetryRef.current = { data: emptyTelemetry(qs.length), enteredAt: null, hiddenAt: null };
     setStartTime(Date.now());
     setTimeLeft(duration * 60);
     setStage('take');
@@ -601,9 +664,11 @@ export default function Worksheets({ go }) {
   };
 
   const finalize = () => {
+    telemetryClose(current);
     const results = questions.map((q, i) => gradeOne(q, answers[i]));
     const correct = results.filter(Boolean).length;
     const durationSec = Math.round((Date.now() - startTime) / 1000);
+    const analytics = computeAnalytics({ questions, answers, results, telemetry: telemetryRef.current.data, gradeOne, durationMin: duration });
     const sheet = {
       id: `ws_${Date.now()}`,
       subject,
@@ -622,6 +687,7 @@ export default function Worksheets({ go }) {
       correct,
       score: Math.round((correct / questions.length) * 100),
       durationSec,
+      analytics,
       date: new Date().toISOString(),
     };
     recordWorksheet(sheet);
@@ -635,6 +701,19 @@ export default function Worksheets({ go }) {
   };
 
   const setAnswerAt = (idx, value) => {
+    // MCQ: the first pick is the "first instinct"; later picks are changes.
+    // Typed answers are committed when the student leaves the question
+    // (see telemetryClose) so keystrokes don't count as changes.
+    const t = telemetryRef.current.data;
+    const prevVal = answers[idx];
+    if (typeof value === 'number' && t.firstAnswer && idx < t.firstAnswer.length) {
+      if (!UNANSWERED(value) && t.firstAnswer[idx] == null) {
+        t.firstAnswer[idx] = value;
+        t.firstAnswerMs[idx] = Date.now() - startTime;
+      } else if (!UNANSWERED(prevVal) && !UNANSWERED(value) && prevVal !== value) {
+        t.changes[idx] = (t.changes[idx] || 0) + 1;
+      }
+    }
     setAnswers((prev) => {
       const c = [...prev];
       c[idx] = value;
@@ -813,6 +892,9 @@ export default function Worksheets({ go }) {
         </div>
         <div className="mb-5">
           <DiagnosisPanel sheet={result} autoRun testid="worksheet-diagnosis" />
+        </div>
+        <div className="mb-5">
+          <WorksheetAnalysis sheet={result} testid="worksheet-analysis" />
         </div>
         <div className="flex flex-col gap-3">
           {result.questions.map((q, i) => {

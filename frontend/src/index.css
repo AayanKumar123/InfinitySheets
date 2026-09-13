@@ -810,3 +810,12 @@ html.dark {
 @media (prefers-reduced-motion: reduce) {
     .viz-bar, .viz-colbar, .viz-val { transition: none; }
 }
+
+/* Worksheet analysis card (dark) */
+html.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.12) !important; }
+html.dark .bg-sky-100 { background-color: rgba(14, 165, 233, 0.18) !important; }
+html.dark .text-sky-700 { color: #7dd3fc !important; }
+html.dark .text-sky-600 { color: #38bdf8 !important; }
+html.dark .text-amber-700 { color: #fcd34d !important; }
+html.dark .bg-slate-300 { background-color: #3f3f46 !important; }
+html.dark .border-slate-400 { border-color: #71717a !important; }

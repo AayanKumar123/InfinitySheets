@@ -4,6 +4,8 @@ import { FileText, AlertTriangle, PlayCircle } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import SubjectGroupedList from './SubjectGroupedList';
+import WorksheetAnalysis from './WorksheetAnalysis';
+import { fmtMs } from '../../lib/worksheetAnalytics';
 
 // Action row shown above the worksheet list. Kept as its own component so it
 // renders identically in the empty state and the populated state below.
@@ -103,15 +105,21 @@ export default function WorksheetHistory() {
         itemLabelSingular="worksheet"
         itemLabelPlural="worksheets"
         renderItem={(w) => (
-          <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-[15px] font-semibold text-slate-900">{w.topic}</div>
-              <div className="text-[12.5px] text-slate-500 mt-1">{new Date(w.date).toLocaleString()} &middot; {w.difficulty} &middot; {w.length} {w.length === 1 ? 'question' : 'questions'}</div>
+          <div className="space-y-2">
+            <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">
+              <div className="min-w-0">
+                <div className="text-[15px] font-semibold text-slate-900">{w.topic}</div>
+                <div className="text-[12.5px] text-slate-500 mt-1">
+                  {new Date(w.date).toLocaleString()} &middot; {w.difficulty} &middot; {w.length} {w.length === 1 ? 'question' : 'questions'}
+                  {w.analytics?.totalActiveMs ? <> &middot; {fmtMs(w.analytics.totalActiveMs)} active</> : null}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[18px] font-semibold text-slate-900">{w.score}%</div>
+                <div className="text-[12.5px] text-slate-500">{w.correct}/{w.total} correct</div>
+              </div>
             </div>
-            <div className="text-right">
-              <div className="text-[18px] font-semibold text-slate-900">{w.score}%</div>
-              <div className="text-[12.5px] text-slate-500">{w.correct}/{w.total} correct</div>
-            </div>
+            {w.analytics && <WorksheetAnalysis sheet={w} compact testid={`history-analysis-${w.id}`} />}
           </div>
         )}
       />
