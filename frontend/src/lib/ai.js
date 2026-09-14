@@ -3,6 +3,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { analyticsForPrompt } from './worksheetAnalytics';
 import { dataUrlParts } from './images';
+import { snapTopic, guessTopicFromText } from './topicSnap';
 
 export const AI_FUNCTION = 'ai-chat';
 
@@ -173,16 +174,21 @@ function parseJsonReply(text) {
 const QUESTION_SHAPE = 'Each question object: {"q": string, "topic": one of the given topics, "answerType": "Multiple choice" | "Typed response" | "Exam style", "marks": integer, "options": [4 strings, MCQ only], "a": index of the correct option (MCQ only), "typedAnswer": string (typed only), "typedAliases": [strings] (typed only), "examAnswer": model answer (exam style), "examKeywords": [3-6 key ideas] (exam style), "markScheme": [{"point": string, "marks": integer}]}';
 
 // Normalise whatever the model returns into the shape the worksheet uses.
-export function shapeQuestion(raw, { answerType, difficulty, topics = [] } = {}) {
+const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
+
+export function shapeQuestion(raw, { answerType, difficulty, topics = [], subject, strict = false } = {}) {
   if (!raw || !raw.q) return null;
   const type = ['Multiple choice', 'Typed response', 'Exam style', 'Drawing'].includes(raw.answerType) ? raw.answerType : answerType;
-  const topic = topics.includes(raw.topic) ? raw.topic : (topics[0] || raw.topic || '');
+  // Snap the label onto a canonical topic (exact → keyword → fuzzy); when the
+  // model gave none, try to read one off the question text.
+  const proposed = raw.topic || guessTopicFromText(subject, raw.q, topics);
+  const topic = snapTopic(subject, proposed, { allowed: topics, fallback: topics[0] });
   const q = {
     q: String(raw.q).trim(),
     _topic: topic,
     topic,
     answerType: type,
-    difficulty: raw.difficulty || difficulty,
+    difficulty: DIFFICULTIES.includes(raw.difficulty) ? raw.difficulty : difficulty,
     marks: Number(raw.marks) || undefined,
     markScheme: Array.isArray(raw.markScheme) ? raw.markScheme.filter((p) => p && p.point).map((p) => ({ point: String(p.point), marks: Math.max(1, parseInt(p.marks, 10) || 1) })) : undefined,
   };
@@ -190,7 +196,11 @@ export function shapeQuestion(raw, { answerType, difficulty, topics = [] } = {})
     const opts = Array.isArray(raw.options) ? raw.options.map((o) => String(o)).filter(Boolean) : [];
     if (opts.length < 2) return null;
     q.options = opts;
-    q.a = Number.isInteger(raw.a) && raw.a >= 0 && raw.a < opts.length ? raw.a : 0;
+    const hasAnswer = Number.isInteger(raw.a) && raw.a >= 0 && raw.a < opts.length;
+    // Imported papers: an MCQ whose correct option is not known is dropped
+    // rather than silently marked "A" — the grader would mark at random.
+    if (!hasAnswer && strict) return null;
+    q.a = hasAnswer ? raw.a : 0;
   } else if (type === 'Typed response') {
     q.typedAnswer = String(raw.typedAnswer || raw.answer || '').trim();
     q.typedAliases = Array.isArray(raw.typedAliases) ? raw.typedAliases.map(String) : [];
@@ -216,7 +226,7 @@ export async function generateQuestions({ board, ibLevel, subject, topics, answe
   ].join('\n');
   const text = await askAi({ mode: 'generate', context: { board, ibLevel, subject, topic: topics.join(', ') }, messages: [{ role: 'user', content }] });
   const parsed = parseJsonReply(text);
-  const list = (parsed.questions || []).map((r) => shapeQuestion(r, { answerType, difficulty, topics })).filter(Boolean);
+  const list = (parsed.questions || []).map((r) => shapeQuestion(r, { answerType, difficulty, topics, subject })).filter(Boolean);
   if (!list.length) throw new Error('The AI returned no usable questions');
   return list.map((q) => ({ ...q, source: 'ai-generated' }));
 }
@@ -235,12 +245,13 @@ export async function extractFromPdf({ paper, scheme, board, subject, topics = [
       : 'No mark scheme is attached: give the correct answer and write a sensible examiner-style marking scheme for each question.',
     `Tag each question with the closest topic from: ${topics.join('; ') || '(free choice)'}.`,
     'Choose "Multiple choice" only when the paper prints options; short numeric / one-line answers are "Typed response"; anything needing explanation or working is "Exam style". Keep sub-parts (a), (b) as separate questions with the stem repeated.',
+    'Put the question stem in "q" without the question number and without repeating the options (options go in "options" only). For MCQs set "a" only when the correct option is printed, given in the mark scheme, or unambiguous — otherwise set "a" to null; never guess. Only include questions that are clearly complete: skip cover pages, instructions, diagram-only questions and answer-key commentary. Never invent options or answers you cannot see.',
     `Reply as {"questions": [...]}. ${QUESTION_SHAPE}. Include "year" if it is printed on the paper.`,
   ].join('\n');
   const text = await askAi({ mode: 'extract', context: { board, subject }, files, messages: [{ role: 'user', content }] });
   const parsed = parseJsonReply(text);
   return (parsed.questions || []).map((r) => {
-    const q = shapeQuestion(r, { answerType: 'Exam style', difficulty: 'Medium', topics });
+    const q = shapeQuestion(r, { answerType: 'Exam style', difficulty: 'Medium', topics, subject, strict: true });
     return q ? { ...q, year: Number(r.year) || undefined } : null;
   }).filter(Boolean);
 }

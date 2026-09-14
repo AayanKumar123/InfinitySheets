@@ -471,7 +471,8 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   // the PDF and returns question drafts with answers + marking schemes.
   const extract = async () => {
     if (!file) { toast.error('Choose a PDF first'); return; }
-    if (!aiOn) { toast.error('Turn AI on in Settings to extract questions'); return; }
+    if (!aiOn) { toast.error('AI is switched off in Settings — turn it on to scan the PDF.'); return; }
+    if (!state.user?.isDemo && state.user?.role && state.user.role !== 'admin') { toast.error('Admin access is required to add to the question bank.'); return; }
     setUploading(true);
     try {
       const [paper] = await filesToAiParts([file]);
@@ -488,19 +489,19 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
         source: 'past-paper',
         _draftId: `d_${Date.now()}_${i}`,
       }));
-      if (!list.length) throw new Error('No questions were found in that PDF');
+      if (!list.length) throw new Error('No complete questions were found in that PDF (MCQs without a known correct option are skipped — attach the mark scheme).');
       if (autosave) {
         let ok = 0;
         for (const d of list) {
           const { _draftId, ...payload } = d;
           try { await addPastPaper(payload); ok += 1; } catch (_) { /* counted below */ }
         }
-        toast.success(`Extracted ${list.length} · saved ${ok} directly to the library`);
+        toast.success(`Scanned ${file.name}: ${list.length} question${list.length === 1 ? '' : 's'} · ${ok} saved to the ${subject} bank`);
         setExtracted([]);
         if (refreshPastPapers) await refreshPastPapers();
       } else {
         setExtracted(list);
-        toast.success(`Extracted ${list.length} question${list.length === 1 ? '' : 's'}${scheme ? ' with marking schemes' : ''}`);
+        toast.success(`Scanned ${file.name}: ${list.length} question${list.length === 1 ? '' : 's'} found${scheme ? ' with marking schemes' : ''}. Review and save below.`);
       }
     } catch (e) {
       toast.error(e?.message || 'Extraction failed');
@@ -540,10 +541,10 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   return (
     <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5" data-testid="admin-bulk-pdf">
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[12px] tracking-[0.16em] uppercase font-semibold text-blue-700 inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Bulk PDF upload</div>
+        <div className="text-[12px] tracking-[0.16em] uppercase font-semibold text-blue-700 inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Scan a PDF into the question bank</div>
         <span className="text-[11px] font-semibold text-slate-500">{syllabus} · {subject}</span>
       </div>
-      <p className="text-[12.5px] text-slate-500 mb-4">Upload a past-paper PDF and the AI extracts every question. Add the official mark scheme too and each question gets its accepted answer and mark points from it. Review and save the ones you want.</p>
+      <p className="text-[12.5px] text-slate-500 mb-4">Upload a past-paper PDF and the AI scans every complete question out of it into <span className="font-semibold">{subject}</span>, snapping each to a canonical topic. Add the official mark scheme too and each question gets its accepted answer and mark points from it. Review and save the ones you want, or flip on autosave.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <Field label="Question paper (PDF)">
