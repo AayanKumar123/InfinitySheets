@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ChevronLeft, ChevronRight, X, Sparkles, ArrowRight } from 'lucide-react';
 
@@ -101,7 +101,9 @@ export default function TutorialOverlay() {
   const wrapRef = useRef(null);
   // The course-overview step is meaningless before a course exists (it would
   // show "No course found"), so a fresh account starts at "Add your courses".
-  const steps = useMemo(() => ((state.courses || []).length ? STEPS : STEPS.filter((s) => s.route !== 'course-overview')), [state.courses]);
+  // Decided once when the tour opens: if it reacted to courses changing, adding
+  // a course mid-tour would insert a step and yank the student to another page.
+  const [steps] = useState(() => ((state.courses || []).length ? STEPS : STEPS.filter((s) => s.route !== 'course-overview')));
   const step = steps[i];
   const isLast = i === steps.length - 1;
 

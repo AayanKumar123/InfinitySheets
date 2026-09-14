@@ -232,7 +232,7 @@ Deno.serve(async (req: Request) => {
   if (mode === "overview") {
     contents = [{ role: "user", parts: [{ text: overviewPrompt(ctx) }] }];
   } else if (FILE_MODES.has(mode)) {
-    const files = cleanFiles(body.files ?? body.images);
+    const files = cleanFiles(Array.isArray(body.files) && body.files.length ? body.files : body.images);
     if (!files.length) return json({ error: "No file was attached" }, 400);
     const note = (Array.isArray(body.messages) ? body.messages : []).map((m) => m?.content || "").join("\n").slice(0, 60000);
     const parts: Part[] = [];

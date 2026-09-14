@@ -31,7 +31,7 @@ export async function askAi({ mode = 'chat', context = {}, messages = [], force 
     throw new Error('AI needs the Supabase connection (set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY).');
   }
   const { data, error } = await supabase.functions.invoke(AI_FUNCTION, {
-    body: { mode, context, force, images, files: files.map(({ mimeType, data, label }) => ({ mimeType, data, label })), messages: messages.map((m) => ({ role: m.role, content: m.content })) },
+    body: { mode, context, force, files: [...(files || []), ...(images || [])].map(({ mimeType, data, label }) => ({ mimeType, data, label })), messages: messages.map((m) => ({ role: m.role, content: m.content })) },
   });
   if (error) throw new Error(await readErrorMessage(error));
   if (data?.error) throw new Error(data.error);
@@ -127,7 +127,7 @@ export async function transcribeWorking({ images, question, subject, board }) {
   return askAi({
     mode: 'transcribe',
     context: { subject, board },
-    images: parts,
+    files: parts,
     messages: [{ role: 'user', content: `Question the student was answering: ${question || '(not given)'}` }],
   });
 }
