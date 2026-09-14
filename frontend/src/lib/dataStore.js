@@ -166,6 +166,11 @@ export async function loadAll(userId, authUser) {
     supabase.from('past_papers').select('*').order('created_at', { ascending: false }),
   ]);
 
+  // A failed read must surface as an error, not as "this student has no
+  // data" — the caller falls back to a minimal signed-in state instead.
+  const failed = [profileRes, settingsRes, wsRes, msRes, csRes, ppRes].find((r) => r.error);
+  if (failed) throw failed.error;
+
   const settingsState = rowToSettingsState(settingsRes.data);
   return {
     user: profileToUser(profileRes.data, authUser),
@@ -225,8 +230,16 @@ export async function deleteCourse(id, userId) {
   if (error) throw error;
 }
 export async function clearProgress(userId) {
-  await supabase.from('worksheets').delete().eq('user_id', userId);
-  await supabase.from('mistakes').delete().eq('user_id', userId);
+  const a = await supabase.from('worksheets').delete().eq('user_id', userId);
+  if (a.error) throw a.error;
+  const b = await supabase.from('mistakes').delete().eq('user_id', userId);
+  if (b.error) throw b.error;
+}
+
+// Permanently delete the signed-in user's account and every row it owns.
+export async function deleteOwnAccount() {
+  const { error } = await supabase.rpc('delete_own_account');
+  if (error) throw error;
 }
 
 export async function migrateLocal({ worksheets, mistakes, courses }, userId) {

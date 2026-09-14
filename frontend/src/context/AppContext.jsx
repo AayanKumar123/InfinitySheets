@@ -326,9 +326,15 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings({ ...stateRef.current, ...cleared }, uid()), 'resetProgress/settings');
   }, []);
 
-  const deleteAccount = useCallback(() => {
+  // Real accounts are deleted server-side first (auth row + every owned row
+  // via cascade); the device copy is cleared either way.
+  const deleteAccount = useCallback(async () => {
     const wasReal = canSync();
-    if (wasReal) { supabase.auth.signOut({ scope: 'local' }).catch((e) => logError('deleteAccount/signout', e)); }
+    if (wasReal) {
+      try { await store.deleteOwnAccount(); }
+      catch (e) { logError('deleteAccount/server', e); throw e; }
+      supabase.auth.signOut({ scope: 'local' }).catch((e) => logError('deleteAccount/signout', e));
+    }
     isDemoLocalRef.current = false;
     bootstrappedRef.current = null;
     setState(defaultState);

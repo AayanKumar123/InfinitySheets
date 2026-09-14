@@ -105,7 +105,10 @@ signup (email/password and Google).
      Authentication → Providers → **Google**, and enable it.
    - The app's button starts Supabase's redirect flow; no Google client ID is
      exposed in the frontend environment.
-5. **Make an admin** (to manage past papers): in SQL Editor,
+5. **Account deletion** is self-service: Settings → Delete account calls
+   `public.delete_own_account()` (SECURITY DEFINER), which removes the auth
+   row and cascades to every table the user owns.
+6. **Make an admin** (to manage past papers): in SQL Editor,
    `update public.profiles set role='admin' where email='you@example.com';`
 
 ---

@@ -335,14 +335,14 @@ function DangerZone({ resetProgress, deleteAccount, restartTutorial }) {
         </div>
         <div className="rounded-xl border border-rose-300 bg-white p-4">
           <div className="text-[13.5px] font-semibold text-rose-700">Delete account</div>
-          <div className="text-[12.5px] text-rose-600/80 mt-0.5 mb-3">Permanently remove this account, worksheets, courses, and settings from this device.</div>
+          <div className="text-[12.5px] text-rose-600/80 mt-0.5 mb-3">Permanently remove this account, its worksheets, courses and settings — from this device and from our servers.</div>
           {!confirmDelete ? (
             <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-white bg-rose-600 hover:bg-rose-700 text-[12.5px] font-semibold">
               <Trash2 className="w-4 h-4" /> Delete account
             </button>
           ) : (
             <div className="flex gap-2">
-              <button onClick={() => { deleteAccount(); window.location.hash = ''; }} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-white bg-rose-600 hover:bg-rose-700 text-[12.5px] font-semibold">Confirm delete</button>
+              <button onClick={async () => { try { await deleteAccount(); window.location.hash = ''; toast.success('Account deleted'); } catch (e) { toast.error(e.message || 'Could not delete the account — try again'); } }} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-white bg-rose-600 hover:bg-rose-700 text-[12.5px] font-semibold">Confirm delete</button>
               <button onClick={() => setConfirmDelete(false)} className="inline-flex items-center px-3.5 py-1.5 rounded-md border border-slate-300 text-slate-700 text-[12.5px] font-semibold hover:bg-slate-50">Cancel</button>
             </div>
           )}
