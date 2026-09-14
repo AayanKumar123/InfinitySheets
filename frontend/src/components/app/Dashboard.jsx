@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
@@ -590,6 +590,33 @@ export default function Dashboard({ go }) {
         <CreateWorksheetButton onClick={() => go('worksheets')} className="px-5 py-2.5" />
         <button onClick={() => go('study')} className="btn-outline-dark px-5 py-2.5 rounded-lg text-[14px] font-medium">Browse subjects</button>
       </div>
+
+      <ComplaintButton user={state.user} />
+    </div>
+  );
+}
+
+// Small "Have a complaint?" link at the foot of the dashboard: opens the
+// student's mail app with a pre-filled message to the team.
+const COMPLAINT_EMAIL = 'aayan.robins@gmail.com';
+function ComplaintButton({ user }) {
+  const subject = encodeURIComponent('InfinitySheets complaint');
+  const body = encodeURIComponent(`Hi,
+
+I have a complaint about InfinitySheets:
+
+
+
+— ${user?.name || 'A student'}${user?.email && !user?.isDemo ? ` (${user.email})` : ''}`);
+  return (
+    <div className="pt-6 mt-2 border-t border-[color:var(--color-border)] flex justify-center">
+      <a
+        href={`mailto:${COMPLAINT_EMAIL}?subject=${subject}&body=${body}`}
+        className="inline-flex items-center gap-1.5 text-[12.5px] text-slate-500 hover:text-slate-900 transition-colors"
+        data-testid="complaint-button"
+      >
+        <Mail className="w-4 h-4" /> Have a complaint?
+      </a>
     </div>
   );
 }

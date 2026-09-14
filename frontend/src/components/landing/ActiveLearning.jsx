@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { useInView } from 'framer-motion';
-import { Brain, Clock, TrendingUp } from 'lucide-react';
 import Reveal from './Reveal';
 import Emphasis from './Emphasis';
 
@@ -19,9 +18,9 @@ const MEASURES = [
 ];
 
 const CALLOUTS = [
-  { Icon: Brain, value: '2.6×', title: 'Higher average grade', body: 'Active learners score 2.6× higher on average than students with no structured study.' },
-  { Icon: Clock, value: '1.6×', title: 'More effective time', body: 'They put in more hours—but in ways that actually move the grade, not just the clock.' },
-  { Icon: TrendingUp, value: '3×', title: 'More improvement', body: 'Three times the gain over a term compared with passive rereading.' },
+  { value: '2.6×', title: 'Higher average grade', body: 'Active learners score 2.6× higher on average than students with no structured study.' },
+  { value: '1.6×', title: 'More effective time', body: 'They put in more hours—but in ways that actually move the grade, not just the clock.' },
+  { value: '3×', title: 'More improvement', body: 'Three times the gain over a term compared with passive rereading.' },
 ];
 
 function SmallMultiple({ measure, inView, delay }) {
@@ -114,11 +113,8 @@ export default function ActiveLearning() {
 
           <Reveal delay={0.2} from="right">
             <div className="flex flex-col divide-y divide-[color:var(--color-border)]">
-              {CALLOUTS.map(({ Icon, value, title, body }) => (
-                <div key={title} className="py-6 first:pt-0 last:pb-0 flex gap-4">
-                  <span className="shrink-0 w-11 h-11 rounded-full border border-violet-300 text-violet-700 flex items-center justify-center">
-                    <Icon className="w-5 h-5" strokeWidth={2} />
-                  </span>
+              {CALLOUTS.map(({ value, title, body }) => (
+                <div key={title} className="py-6 first:pt-0 last:pb-0">
                   <div>
                     <div className="text-[34px] sm:text-[40px] font-semibold tracking-tight text-slate-900 leading-none">{value}</div>
                     <div className="mt-1.5 text-[15px] font-semibold text-slate-900">{title}</div>

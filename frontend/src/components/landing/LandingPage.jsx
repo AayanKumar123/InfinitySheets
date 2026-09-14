@@ -13,7 +13,6 @@ import FoundingStory from './FoundingStory';
 import FAQ from './FAQ';
 import Pricing from './Pricing';
 import StudentGallery3D from './StudentGallery3D';
-import Waitlist from './Waitlist';
 import Footer from './Footer';
 import MobileStickyCTA from './MobileStickyCTA';
 import AuthModal from './AuthModal';
@@ -70,8 +69,6 @@ export default function LandingPage({ hash }) {
       <Pricing />
       <TryQuestion />
       <FAQ />
-      {/* Pre-launch build: one consistent ask — the waitlist (keeps the #signup anchor for all Start Free / Log In links) */}
-      <Waitlist id="signup" />
       <Footer />
       <MobileStickyCTA />
       <AuthModal open={authOpen} initialTab={hash === '#login' ? 'login' : 'signup'} onClose={closeAuth} />
