@@ -859,15 +859,17 @@ html.dark .text-white { color: #fff !important; }
    a soft ambient gradient and frost whatever is behind them, in both themes.
    ===================================================================== */
 :root {
-  --glass-bg: rgba(255, 255, 255, 0.62);
-  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  /* Opaque enough that text behind a card never shows through text on it;
+     the blur + ambient gradient still give the frosted depth. */
+  --glass-bg: rgba(255, 255, 255, 0.84);
+  --glass-bg-strong: rgba(255, 255, 255, 0.94);
   --glass-border: rgba(255, 255, 255, 0.7);
   --glass-shadow: 0 10px 40px -18px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --glass-hi: rgba(255, 255, 255, 0.55);
 }
 html.dark {
-  --glass-bg: rgba(23, 23, 23, 0.58);
-  --glass-bg-strong: rgba(23, 23, 23, 0.78);
+  --glass-bg: rgba(23, 23, 23, 0.86);
+  --glass-bg-strong: rgba(23, 23, 23, 0.95);
   --glass-border: rgba(255, 255, 255, 0.09);
   --glass-shadow: 0 12px 40px -18px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --glass-hi: rgba(255, 255, 255, 0.05);
@@ -899,8 +901,8 @@ header[data-testid="top-header"],
 .fixed .bg-white.rounded-3xl,
 [role="dialog"] .bg-white {
   background-color: var(--glass-bg) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
   border-color: var(--glass-border) !important;
   box-shadow: var(--glass-shadow);
 }
@@ -933,9 +935,9 @@ main button.rounded-xl.border.bg-white:active, main button.card-soft:active { tr
 .btn-violet, .btn-blue, .btn-outline-dark { border-radius: 0.75rem; }
 .btn-violet { box-shadow: 0 6px 18px -8px rgba(124, 58, 237, 0.55); }
 .btn-outline-dark {
-  background-color: var(--glass-bg) !important;
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+  background-color: var(--glass-bg-strong) !important;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 .input-base { border-radius: 0.75rem; background-color: var(--glass-hi); }
 html.dark .input-base { background-color: rgba(255, 255, 255, 0.05); }
