@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Sparkles, ArrowRight, TrendingDown, Stethoscope } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
+import AdSlot from '../ads/AdSlot';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { subjectBoards, boardName } from '../../lib/subjects';
@@ -133,6 +134,7 @@ export default function Recommendations({ go }) {
     return (
       <div className="flex flex-col gap-5 max-w-[900px]">
       {coachPanel}
+      <AdSlot slot="smart-learning" size="compact" />
       <div className="relative rounded-2xl border border-dashed border-[color:var(--color-border)] bg-white overflow-hidden min-h-[360px]">
         <EmptyStateScene variant="lab" className="absolute inset-0" />
         <div className="relative p-12 text-center">
@@ -149,6 +151,8 @@ export default function Recommendations({ go }) {
     <div className="flex flex-col gap-5 max-w-[1180px]">
       {/* The coach leads the page — it can answer about everything below it. */}
       {coachPanel}
+
+      <AdSlot slot="smart-learning" size="compact" />
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-5 items-start">
         <div className="flex flex-col gap-3 min-w-0">

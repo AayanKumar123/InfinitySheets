@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Filter, SlidersHorizontal, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
+import AdSlot from '../ads/AdSlot';
 import { useApp } from '../../context/AppContext';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { useStrengthsWeaknesses } from '../../hooks/useStrengthsWeaknesses';
@@ -336,6 +337,8 @@ export default function Strengths() {
           </div>
         )}
       </div>
+
+      <AdSlot slot="strengths" size="compact" />
 
       {/* List */}
       {filtered.length === 0 ? (

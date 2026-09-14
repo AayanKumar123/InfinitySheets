@@ -66,13 +66,13 @@ export default function LandingPage({ hash }) {
       <PredictedGrade />
       <WhyDifferent />
       <ActiveLearning />
+      <div className="section-light px-6 py-10"><div className="max-w-[820px] mx-auto"><AdSlot slot="landing-lower" size="compact" /></div></div>
       <HowItWorks />
       <FreeResources />
       <Pricing />
       <TryQuestion />
       <FAQ />
       <VisionMission />
-      <div className="section-light px-6 pb-16"><div className="max-w-[820px] mx-auto"><AdSlot slot="landing-lower" size="compact" /></div></div>
       <Footer />
       <MobileStickyCTA />
       <AuthModal open={authOpen} initialTab={hash === '#login' ? 'login' : 'signup'} onClose={closeAuth} />

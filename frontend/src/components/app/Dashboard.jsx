@@ -9,7 +9,9 @@ import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
-import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile } from './StudyInsights';
+import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile, StreakProjectionCard } from './StudyInsights';
+import { recommendedTopics } from '../../lib/studyStats';
+import { TOPICS } from '../../data/mock';
 import AdSlot from '../ads/AdSlot';
 
 
@@ -429,6 +431,7 @@ export default function Dashboard({ go }) {
             {mySubjects.map((s) => {
               const info = SUBJECT_INFO[s] || { emoji: '\u25A0', tone: 'primary' };
               const b = mySubjectBoards[s];
+              const recs = recommendedTopics(ws, s, TOPICS[s] || [], { limit: 3 });
               return (
                 <button
                   key={s}
@@ -455,6 +458,19 @@ export default function Dashboard({ go }) {
                       )}
                     </div>
                   )}
+                  {recs.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-[color:var(--color-border)]" data-testid={`dashboard-recs-${s}`}>
+                      <div className="text-[10px] tracking-[0.12em] uppercase font-semibold text-slate-500 mb-1.5">Study next</div>
+                      <div className="flex flex-wrap gap-1">
+                        {recs.map((r) => (
+                          <span key={r.topic} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border ${r.accuracy === null ? 'bg-slate-50 border-[color:var(--color-border)] text-slate-600' : r.accuracy < 0.4 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-800'}`} title={r.reason}>
+                            {r.topic}
+                            {r.accuracy !== null && <span className="opacity-70">{Math.round(r.accuracy * 100)}%</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -462,12 +478,17 @@ export default function Dashboard({ go }) {
         </div>
       )}
 
+      <AdSlot slot="dashboard-bottom" />
+
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2"><WeeklySummaryCard worksheets={ws} /></div>
         <ReviewDueTile worksheets={ws} onStart={() => go('worksheets')} />
       </div>
 
-      <StreakHeatmap worksheets={ws} streak={state.streak} />
+      <div className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2"><StreakHeatmap worksheets={ws} streak={state.streak} /></div>
+        <StreakProjectionCard worksheets={ws} subjects={mySubjects} boards={mySubjectBoards} streak={state.streak} />
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white" data-testid="worksheets-completed">
@@ -592,8 +613,6 @@ export default function Dashboard({ go }) {
         <CreateWorksheetButton onClick={() => go('worksheets')} className="px-5 py-2.5" />
         <button onClick={() => go('study')} className="btn-outline-dark px-5 py-2.5 rounded-lg text-[14px] font-medium">Browse subjects</button>
       </div>
-
-      <AdSlot slot="dashboard-bottom" className="mt-2" />
 
       <ComplaintButton user={state.user} />
     </div>

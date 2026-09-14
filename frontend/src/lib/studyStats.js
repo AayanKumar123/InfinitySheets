@@ -123,3 +123,31 @@ export function timingTrends(worksheets = [], { subject } = {}) {
   const overTime = [...points].sort((a, b) => a.date - b.date).map((p) => ({ date: p.date, paceMs: p.paceMs, accuracy: p.accuracy }));
   return { byTopic, points, overTime, count: ws.length };
 }
+
+/**
+ * Topics a student should study next in a subject, best first:
+ * weakest attempted topics (accuracy < 65%, most recent weighting), then
+ * topics never attempted. Returns [{ topic, reason, accuracy|null }].
+ */
+export function recommendedTopics(worksheets = [], subject, allTopics = [], { limit = 3, now = Date.now() } = {}) {
+  const stats = {};
+  worksheets.filter((w) => w.subject === subject).forEach((w) => {
+    const age = Math.max(1, (now - new Date(w.date).getTime()) / DAY);
+    const weight = 1 / Math.sqrt(age);          // recent sheets count more
+    (w.questions || []).forEach((q, i) => {
+      const t = q._topic || q.topic || w.topic;
+      if (!t) return;
+      const ok = Array.isArray(w.results) ? !!w.results[i] : (w.answers || [])[i] === q.a;
+      stats[t] = stats[t] || { n: 0, c: 0, wn: 0, wc: 0 };
+      stats[t].n += 1; stats[t].wn += weight;
+      if (ok) { stats[t].c += 1; stats[t].wc += weight; }
+    });
+  });
+  const weak = Object.entries(stats)
+    .map(([topic, s]) => ({ topic, accuracy: s.wc / s.wn, n: s.n }))
+    .filter((t) => t.n >= 2 && t.accuracy < 0.65)
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .map((t) => ({ topic: t.topic, accuracy: t.accuracy, reason: `${Math.round(t.accuracy * 100)}% right` }));
+  const untried = (allTopics || []).filter((t) => !stats[t]).map((t) => ({ topic: t, accuracy: null, reason: 'not attempted' }));
+  return [...weak, ...untried].slice(0, limit);
+}

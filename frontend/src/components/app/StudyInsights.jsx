@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { CalendarDays, Flame, RotateCcw, TrendingDown, TrendingUp, Minus, Timer } from 'lucide-react';
+import { CalendarDays, Flame, RotateCcw, TrendingDown, TrendingUp, Minus, Timer, Sparkles, ArrowRight } from 'lucide-react';
+import { bestProjection } from '../../lib/streakProjection';
 import { weeklySummary, activityCalendar, timingTrends } from '../../lib/studyStats';
 import { buildReviewQueue } from '../../lib/spacedRepetition';
 import { fmtMs } from '../../lib/worksheetAnalytics';
@@ -188,6 +189,37 @@ export function TimingTrendsCard({ worksheets, subject }) {
           <div className="text-[11px] text-slate-500">Top-left is the goal: fast and accurate. Bottom-left means rushing; bottom-right means the topic itself is the problem.</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+/** Dashboard card next to the streak heatmap: where the streak is taking you. */
+export function StreakProjectionCard({ worksheets, subjects, boards, streak }) {
+  const p = useMemo(() => bestProjection(worksheets, subjects, boards, { streak, weeks: 2 }), [worksheets, subjects, boards, streak]);
+  const tone = p ? (p.tone === 'good' ? 'text-emerald-700' : p.tone === 'ok' ? 'text-amber-700' : 'text-rose-700') : '';
+  return (
+    <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white flex flex-col" data-testid="streak-projection">
+      <div className="eyebrow-muted mb-2 flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-violet-600" /> If you keep this up</div>
+      {!p ? (
+        <div className="text-[13px] text-slate-500 flex-1">Finish two worksheets in a subject and this card projects the grade your streak is heading for.</div>
+      ) : (
+        <>
+          <div className="flex items-end gap-3 mt-1">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-500">Now</div>
+              <div className="text-[22px] font-semibold text-slate-900 tabular-nums leading-none mt-0.5">{p.currentLabel}</div>
+            </div>
+            <ArrowRight className="w-5 h-5 text-slate-400 mb-1" />
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-slate-500">In {p.weeks} weeks</div>
+              <div className={`text-[22px] font-semibold tabular-nums leading-none mt-0.5 ${tone}`}>{p.projectedLabel}</div>
+            </div>
+          </div>
+          <p className="text-[13px] text-slate-700 mt-3 leading-snug flex-1" data-testid="streak-projection-message">{p.message}</p>
+          <div className="text-[11.5px] text-slate-500 mt-2">{p.subject} · {p.sheetsPerWeek} sheet{p.sheetsPerWeek === 1 ? '' : 's'}/week · about +{p.gainPerSheet} pts a sheet{p.nextBoundary && !p.crosses && p.weeksToNext ? ` · ${p.nextBoundary.label} in ~${p.weeksToNext}w` : ''}</div>
+        </>
+      )}
     </div>
   );
 }

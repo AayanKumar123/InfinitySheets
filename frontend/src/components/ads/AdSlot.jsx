@@ -21,6 +21,8 @@ export const AD_UNITS = {
   'worksheet-download': null,
   'progress-bottom': null,
   'history-between-groups': null,
+  'smart-learning': null,
+  'strengths': null,
 };
 
 export const AD_MESSAGE = 'By viewing this ad, you’re helping us make better learning resources accessible to more students.';

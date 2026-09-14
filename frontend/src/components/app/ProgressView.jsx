@@ -236,6 +236,8 @@ export default function ProgressView() {
         />
       </div>
 
+      <AdSlot slot="progress-bottom" size="compact" />
+
       <TimingTrendsCard worksheets={ws} subject={soloed || undefined} />
 
       <div ref={cardsSectionRef} className="rounded-2xl border border-[color:var(--color-border)] p-5 bg-white">
@@ -278,7 +280,6 @@ export default function ProgressView() {
         )}
       </div>
 
-      <AdSlot slot="progress-bottom" />
     </div>
   );
 }
