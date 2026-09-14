@@ -792,6 +792,8 @@ export default function Worksheets({ go }) {
         pastPapers,
         aiGenerated,
         paper: true,
+        board: boardForSubject,
+        ibLevel: ibLevelForSubject,
         questions: qs,
         answers,
         working: results.map((r, i) => (r.working || (i === 0 && thumbs.length) ? { images: i === 0 ? thumbs : [], transcript: r.working || null } : undefined)),
@@ -861,6 +863,10 @@ export default function Worksheets({ go }) {
       working: stripFullImages(working),
       flags,
       examMode,
+      // Remembered on the sheet so history / diagnosis still know the board
+      // after the subject is removed from the student's courses.
+      board: boardForSubject,
+      ibLevel: ibLevelForSubject,
       results,
       total: questions.length,
       correct,

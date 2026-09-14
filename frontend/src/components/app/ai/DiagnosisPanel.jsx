@@ -22,8 +22,9 @@ export default function DiagnosisPanel({ sheet, autoRun = false, compact = false
   const saved = live?.diagnosis || null;
 
   const examTrack = state.user?.examTrack || 'CBSE';
-  const board = useMemo(() => subjectBoards(state.courses, examTrack)[live?.subject]?.board || examTrack, [state.courses, examTrack, live?.subject]);
-  const ibLevel = useMemo(() => subjectBoards(state.courses, examTrack)[live?.subject]?.ibLevel, [state.courses, examTrack, live?.subject]);
+  // The sheet's own board wins (it survives the subject being removed later).
+  const board = useMemo(() => live?.board || subjectBoards(state.courses, examTrack)[live?.subject]?.board || examTrack, [state.courses, examTrack, live?.subject, live?.board]);
+  const ibLevel = useMemo(() => live?.ibLevel || subjectBoards(state.courses, examTrack)[live?.subject]?.ibLevel, [state.courses, examTrack, live?.subject, live?.ibLevel]);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);

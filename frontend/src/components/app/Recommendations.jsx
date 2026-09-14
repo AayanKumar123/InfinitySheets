@@ -5,14 +5,14 @@ import EmptyStateScene from '../decor/EmptyStateScene';
 import AdSlot from '../ads/AdSlot';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
-import { subjectBoards, boardName } from '../../lib/subjects';
+import { subjectBoards, boardName, activeWorksheets } from '../../lib/subjects';
 import AiChat from './ai/AiChat';
 import DiagnosisPanel from './ai/DiagnosisPanel';
 
 export default function Recommendations({ go }) {
   const { state } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
-  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
 
   const swOverrides = useSavedSwOverrides();
   const {

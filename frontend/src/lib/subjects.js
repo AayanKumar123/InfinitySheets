@@ -79,3 +79,15 @@ export function defaultBoardFor(subject, preferredTrack) {
   if (offering.length === 0) return preferredTrack;
   return offering.includes(preferredTrack) ? preferredTrack : offering[0];
 }
+
+/**
+ * Worksheets that still belong to the student: only those in subjects
+ * currently in their courses. When a subject is removed, its history stays
+ * on disk (Worksheet History / Mistakes keep it) but it drops out of the
+ * dashboard, predicted grades, performance, strengths and recommendations,
+ * instead of lingering under the fallback exam board.
+ */
+export function activeWorksheets(worksheets, courses, userSubjects, track) {
+  const enrolled = new Set(enrolledSubjects(courses, userSubjects, track));
+  return (worksheets || []).filter((w) => enrolled.has(w.subject));
+}

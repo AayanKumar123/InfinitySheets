@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
 import { SUBJECT_INFO } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, activeWorksheets } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
@@ -152,7 +152,8 @@ function DaysStat({ days, subLabel, onChange }) {
 export default function Dashboard({ go }) {
   const { state, clearDraftWorksheet, updateSettings, updateCourse } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
-  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
+  // Only subjects still in the student's courses count towards the dashboard.
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
   const draft = state.draftWorksheet;
   const resumeDraft = () => {
     try { window.sessionStorage.setItem('resume_ws_draft', '1'); } catch (_) { /* ignore */ }

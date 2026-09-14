@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Filter, SlidersHorizontal, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
 import AdSlot from '../ads/AdSlot';
 import { useApp } from '../../context/AppContext';
+import { activeWorksheets } from '../../lib/subjects';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { useStrengthsWeaknesses } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, TONE_CLASSES } from '../../lib/predictedGrade';
@@ -44,7 +45,7 @@ function savePrefs(prefs) {
 export default function Strengths() {
   const { state } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
-  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
 
   // Hydrate persisted UI prefs on mount
   const initial = useMemo(() => loadPrefs() || {}, []);

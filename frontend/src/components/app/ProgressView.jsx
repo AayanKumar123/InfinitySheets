@@ -4,7 +4,7 @@ import { SUBJECT_INFO } from '../../data/mock';
 import { TrendingUp, TrendingDown, Minus, Sparkles } from 'lucide-react';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { predictedScore, predictedBreakdown, formatGrade, TONE_CLASSES, isGradedTrack } from '../../lib/predictedGrade';
-import { subjectBoards } from '../../lib/subjects';
+import { subjectBoards, activeWorksheets } from '../../lib/subjects';
 import { useStrengthsWeaknesses, useSavedSwOverridesFor, useSavedSwPrefs, computeSw, pickOverridesFor } from '../../hooks/useStrengthsWeaknesses';
 import PredictedScoreMini from './PredictedScoreMini';
 import { TimingTrendsCard } from './StudyInsights';
@@ -25,7 +25,8 @@ function predictedFromList(list) {
 export default function ProgressView() {
   const { state } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
-  const ws = useMemo(() => state.worksheets || [], [state.worksheets]);
+  // Removed subjects leave Performance entirely (history keeps their sheets).
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
   const examTrack = state.user?.examTrack || 'CBSE';
   // A subject's grade format follows the board of the course it belongs to
   // (a CBSE + IB student gets a % for one and a 1-7 grade for the other).
