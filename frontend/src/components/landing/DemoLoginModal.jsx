@@ -143,8 +143,20 @@ export default function DemoLoginModal({ open, onClose }) {
             {busy ? 'Signing in\u2026' : 'Enter demo'}
           </button>
         </form>
-        <div className="mt-3 text-[11.5px] text-slate-500 text-center">
-          Demo state stays on this device &mdash; nothing is uploaded.
+        {/* No-password entry: same local demo (with the Admin tab), one click. */}
+        <div className="mt-4 pt-4 border-t border-[color:var(--color-border)] flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { startDemo(); toast.success('Welcome to the demo — Admin mode is on.'); onClose(); }}
+            data-testid="demo-login-skip"
+            className="btn-outline-dark w-full py-2.5 rounded-lg text-[13.5px] font-medium disabled:opacity-60"
+          >
+            Enter admin mode without a password
+          </button>
+          <div className="text-[11.5px] text-slate-500 text-center">
+            Demo state stays on this device &mdash; nothing is uploaded.
+          </div>
         </div>
       </div>
     </div>
