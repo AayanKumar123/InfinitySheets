@@ -72,7 +72,9 @@ function parseHash(hash) {
   const params = {};
   (query || '').split('&').filter(Boolean).forEach((pair) => {
     const [k, v = ''] = pair.split('=');
-    params[k] = v;
+    // Links encode their values (`subject=Mathematics%20AA`); hand pages the
+    // real text. A malformed escape falls back to the raw value.
+    try { params[k] = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (_) { params[k] = v; }
   });
   return { key: key || 'dashboard', params };
 }

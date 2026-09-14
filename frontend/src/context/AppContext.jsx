@@ -95,7 +95,7 @@ export function AppProvider({ children }) {
       const flagKey = `infinitysheets_synced_${userId}`;
       const local = stateRef.current;
       const already = localStorage.getItem(flagKey);
-      const localHasData = local && !(local.user && local.user.isDemo) &&
+      const localHasData = local && !(local.user && local.user.isDemo) && !local.fromDemo &&
         ((local.worksheets || []).length || (local.mistakes || []).length || (local.courses || []).length);
       if (!already && localHasData) {
         try {
@@ -210,9 +210,10 @@ export function AppProvider({ children }) {
     setLoaded(true);
   }, []);
 
+  // Functional update: the wizard calls addCourse immediately before this,
+  // and a snapshot taken from stateRef would still be missing that course.
   const completeOnboarding = useCallback(({ examTrack, examDate, subjects, frequency, weeklyGoal }) => {
-    const prev = stateRef.current;
-    const next = {
+    const patch = (prev) => ({
       ...prev,
       user: { ...prev.user, examTrack: examTrack || prev.user?.examTrack, subjects: subjects || [] },
       settings: {
@@ -222,16 +223,18 @@ export function AppProvider({ children }) {
         weeklyGoal: typeof weeklyGoal === 'number' ? weeklyGoal : prev.settings.weeklyGoal,
       },
       onboardingDone: true,
-    };
-    setState(next);
-    bg(() => store.upsertProfile(uid(), { examTrack: next.user.examTrack, subjects: next.user.subjects }), 'onboarding/profile');
-    bg(() => store.upsertSettings(next, uid()), 'onboarding/settings');
+    });
+    setState(patch);
+    // The saved rows only need profile + settings fields, which the patch
+    // derives from its arguments, so a snapshot is fine here.
+    const saved = patch(stateRef.current);
+    bg(() => store.upsertProfile(uid(), { examTrack: saved.user?.examTrack, subjects: saved.user?.subjects || [] }), 'onboarding/profile');
+    bg(() => store.upsertSettings(saved, uid()), 'onboarding/settings');
   }, []);
 
   const restartOnboarding = useCallback(() => {
-    const next = { ...stateRef.current, onboardingDone: false };
-    setState(next);
-    bg(() => store.upsertSettings(next, uid()), 'restartOnboarding');
+    setState((prev) => ({ ...prev, onboardingDone: false }));
+    bg(() => store.upsertSettings({ ...stateRef.current, onboardingDone: false }, uid()), 'restartOnboarding');
   }, []);
 
   // Legacy local helpers kept for API compatibility (used nowhere critical).
@@ -239,7 +242,10 @@ export function AppProvider({ children }) {
   const login = useCallback((email) => {
     setState((s) => (s.user && s.user.email === email ? s : { ...s, user: s.user || { name: email.split('@')[0], email, examTrack: 'SSLC' } }));
   }, []);
-  const logout = useCallback(() => setState((s) => ({ ...s, user: null })), []);
+  // Leaving the demo keeps its progress on this device (so re-entering the
+  // demo resumes it) but remembers that the data is the demo's, so a real
+  // sign-up afterwards never migrates it into the new account.
+  const logout = useCallback(() => setState((s) => ({ ...s, user: null, fromDemo: !!s.user?.isDemo || !!s.fromDemo })), []);
 
   // ---- Supabase auth ------------------------------------------------------
   const apiRegister = useCallback(async ({ email, password, name, examTrack, subjects }) => {
