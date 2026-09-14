@@ -37,6 +37,9 @@ export default function SubjectGroupedList({
   // "N items" — pages like WorksheetHistory/Mistakes pass clearer copy.
   itemLabelSingular = 'item',
   itemLabelPlural = 'items',
+  // Optional element rendered between groups (e.g. an ad after the first
+  // group). Never inside a group, so it is never between individual items.
+  between = null,
 }) {
   const groups = useMemo(() => groupBySubject(items || []), [items]);
   // All groups start collapsed so the page stays scannable.
@@ -46,13 +49,14 @@ export default function SubjectGroupedList({
 
   return (
     <div className={`flex flex-col gap-3 ${className}`}>
-      {groups.map(({ subject, list }) => {
+      {groups.map(({ subject, list }, gi) => {
         const isOpen = !!open[subject];
+        const separator = between && gi === 0 && groups.length > 1 ? between : null;
         const contentId = testIdPrefix ? `${testIdPrefix}-items-${subject}` : undefined;
         const headerId = testIdPrefix ? `${testIdPrefix}-group-${subject}` : undefined;
         return (
+          <React.Fragment key={subject}>
           <section
-            key={subject}
             className={`rounded-xl border border-[color:var(--color-border)] bg-white overflow-hidden ${groupClassName}`}
             data-testid={headerId}
           >
@@ -90,6 +94,8 @@ export default function SubjectGroupedList({
               </div>
             )}
           </section>
+          {separator}
+          </React.Fragment>
         );
       })}
     </div>

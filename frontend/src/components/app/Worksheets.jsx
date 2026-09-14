@@ -14,6 +14,8 @@ import { markAgainstScheme, markSchemeText, isAiEnabled, generateQuestions, asse
 import { filesToAiParts } from '../../lib/images';
 import { subjectBoards } from '../../lib/subjects';
 import WorkingCapture from './WorkingCapture';
+import AdSlot from '../ads/AdSlot';
+
 
 // Full-size photos are only needed for transcription; the stored sheet keeps
 // the thumbnail + transcript so localStorage stays small.
@@ -1354,6 +1356,8 @@ export default function Worksheets({ go }) {
             );
           })}
         </div>
+        <AdSlot slot="worksheet-result" className="mt-6" />
+
         <div className="flex gap-3 mt-6">
           <CreateWorksheetButton onClick={() => { setStage('build'); setResult(null); }} />
           <button onClick={() => go('dashboard')} className="btn-outline-dark px-4 py-2 rounded-lg text-[14px] font-medium">Back to dashboard</button>
@@ -1499,6 +1503,8 @@ export default function Worksheets({ go }) {
         </div>
       </div>
 
+      <AdSlot slot="worksheet-builder" size="compact" className="mt-5" />
+
       <div className="mt-5 flex flex-wrap gap-3">
         <button onClick={start} disabled={generating} data-testid="ws-start" className="btn-violet inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-medium disabled:opacity-70">
           {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> Writing original questions…</> : 'Create interactive worksheet'}
@@ -1558,6 +1564,7 @@ export default function Worksheets({ go }) {
             </div>
           )}
           {!paper.startedAt && <div className="text-[11.5px] text-slate-500 mt-2">Start the timer when you begin writing; the time taken is recorded with the result. You can still submit without it.</div>}
+          <AdSlot slot="worksheet-download" size="compact" className="mt-4" />
         </div>
       )}
     </div>

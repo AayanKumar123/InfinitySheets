@@ -10,6 +10,8 @@ import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
 import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile } from './StudyInsights';
+import AdSlot from '../ads/AdSlot';
+
 
 const SUBJECT_TONE_BADGE = {
   primary: 'bg-blue-100 text-blue-700',
@@ -590,6 +592,8 @@ export default function Dashboard({ go }) {
         <CreateWorksheetButton onClick={() => go('worksheets')} className="px-5 py-2.5" />
         <button onClick={() => go('study')} className="btn-outline-dark px-5 py-2.5 rounded-lg text-[14px] font-medium">Browse subjects</button>
       </div>
+
+      <AdSlot slot="dashboard-bottom" className="mt-2" />
 
       <ComplaintButton user={state.user} />
     </div>

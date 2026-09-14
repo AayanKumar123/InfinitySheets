@@ -5,6 +5,7 @@ import EmptyStateScene from '../decor/EmptyStateScene';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import SubjectGroupedList from './SubjectGroupedList';
 import WorksheetAnalysis from './WorksheetAnalysis';
+import AdSlot from '../ads/AdSlot';
 import { fmtMs } from '../../lib/worksheetAnalytics';
 
 // Action row shown above the worksheet list. Kept as its own component so it
@@ -104,6 +105,7 @@ export default function WorksheetHistory() {
         testIdPrefix="history"
         itemLabelSingular="worksheet"
         itemLabelPlural="worksheets"
+        between={<AdSlot slot="history-between-groups" size="compact" />}
         renderItem={(w) => (
           <div className="space-y-2">
             <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5 flex items-center justify-between">

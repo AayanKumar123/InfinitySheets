@@ -14,6 +14,8 @@ import FAQ from './FAQ';
 import Pricing from './Pricing';
 import StudentGallery3D from './StudentGallery3D';
 import Footer from './Footer';
+import VisionMission from './VisionMission';
+import AdSlot from '../ads/AdSlot';
 import MobileStickyCTA from './MobileStickyCTA';
 import AuthModal from './AuthModal';
 
@@ -69,6 +71,8 @@ export default function LandingPage({ hash }) {
       <Pricing />
       <TryQuestion />
       <FAQ />
+      <VisionMission />
+      <div className="section-light px-6 pb-16"><div className="max-w-[820px] mx-auto"><AdSlot slot="landing-lower" size="compact" /></div></div>
       <Footer />
       <MobileStickyCTA />
       <AuthModal open={authOpen} initialTab={hash === '#login' ? 'login' : 'signup'} onClose={closeAuth} />
