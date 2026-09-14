@@ -663,7 +663,7 @@ export default function Worksheets({ go }) {
   // Validate the builder, ask the AI for original questions when that source
   // is ticked, and assemble the sheet. Resolves to null when validation fails.
   const assembleQuestions = async ({ withReviews }) => {
-    if (!subject) { toast.error('Select a subject'); return null; }
+    if (!subject) { toast.error(chosenSubjects.length ? 'Select a subject' : 'Add a course first — its subjects appear here'); return null; }
     if (!topics.length) { toast.error('Select at least one topic'); return null; }
     if (!pastPapers && !aiGenerated) { toast.error('Pick past papers, AI generated, or both'); return null; }
     if (pastPapers && !aiGenerated && ppAvailable === 0) {
@@ -1376,6 +1376,11 @@ export default function Worksheets({ go }) {
             </select>
             {hasCourses && (
               <div className="text-[11px] text-slate-500 mt-1">Showing the subjects from your courses.</div>
+            )}
+            {chosenSubjects.length === 0 && (
+              <button type="button" onClick={() => go('courses')} className="text-[12px] text-blue-700 hover:text-blue-900 mt-1 text-left" data-testid="ws-add-course-hint">
+                No subjects yet — add a course to choose from its subjects &rarr;
+              </button>
             )}
           </Field>
           <Field label="Answer type">

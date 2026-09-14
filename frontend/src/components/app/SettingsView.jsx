@@ -167,16 +167,16 @@ function Preferences({ settings, updateSettings }) {
     <Section title="Preferences" icon={Sliders} subtitle="How much you want to practise and how hard.">
       <div className="grid grid-cols-1 gap-4">
         <Field label="Daily goal">
-          <SegmentedButtons options={GOALS.map((g) => ({ value: g, label: `${g} questions` }))} value={s.dailyGoal} onChange={(v) => setS({ ...s, dailyGoal: v })} testid="pref-daily" />
+          <SegmentedButtons options={GOALS.map((g) => ({ value: g, label: `${g} questions` }))} value={s.dailyGoal} onChange={(v) => setS((p) => ({ ...p, dailyGoal: v }))} testid="pref-daily" />
         </Field>
         <Field label="Weekly goal">
-          <SegmentedButtons options={WEEKLY_GOALS.map((g) => ({ value: g, label: `${g} questions` }))} value={s.weeklyGoal} onChange={(v) => setS({ ...s, weeklyGoal: v })} testid="pref-weekly" />
+          <SegmentedButtons options={WEEKLY_GOALS.map((g) => ({ value: g, label: `${g} questions` }))} value={s.weeklyGoal} onChange={(v) => setS((p) => ({ ...p, weeklyGoal: v }))} testid="pref-weekly" />
         </Field>
         <Field label="Study frequency">
-          <SegmentedButtons options={FREQUENCIES} value={s.frequency} onChange={(v) => setS({ ...s, frequency: v })} testid="pref-frequency" />
+          <SegmentedButtons options={FREQUENCIES} value={s.frequency} onChange={(v) => setS((p) => ({ ...p, frequency: v }))} testid="pref-frequency" />
         </Field>
         <Field label="Default worksheet difficulty">
-          <SegmentedButtons options={DIFF} value={s.defaultDifficulty} onChange={(v) => setS({ ...s, defaultDifficulty: v })} testid="pref-difficulty" />
+          <SegmentedButtons options={DIFF} value={s.defaultDifficulty} onChange={(v) => setS((p) => ({ ...p, defaultDifficulty: v }))} testid="pref-difficulty" />
         </Field>
       </div>
       <button

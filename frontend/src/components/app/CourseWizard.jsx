@@ -31,7 +31,7 @@ function inDays(d) {
 }
 
 export default function CourseWizard({ mode = 'onboarding', onClose }) {
-  const { state, addCourse, completeOnboarding } = useApp();
+  const { state, addCourse, completeOnboarding, updateSettings } = useApp();
   const isOnboarding = mode === 'onboarding';
 
   const [step, setStep] = useState(0);
@@ -106,6 +106,8 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
       toast.success(`Setup complete — here's your course overview`);
       // The tutorial's first step will navigate to #course-overview automatically.
     } else {
+      // The Schedule step is shown here too; keep what the student chose.
+      updateSettings({ frequency, weeklyGoal });
       toast.success(`${name} added`);
       window.location.hash = `#course-overview?id=${encodeURIComponent(courseId)}`;
     }

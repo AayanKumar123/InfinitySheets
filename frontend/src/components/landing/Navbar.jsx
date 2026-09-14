@@ -36,7 +36,7 @@ export default function Navbar({ onStart }) {
           {links.map((l) => (
             <a key={l.href} href={l.href} className="text-[14px] text-slate-600 hover:text-slate-900 transition-colors">{l.label}</a>
           ))}
-          <a href="#signup" className="text-[14px] font-medium text-slate-900">Log In</a>
+          <a href="#login" className="text-[14px] font-medium text-slate-900">Log In</a>
           <a href="#signup" className="text-[14px] font-medium text-slate-900">Sign Up</a>
         </nav>
         <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export default function Navbar({ onStart }) {
             {links.map((l) => (
               <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-[14px] text-slate-700">{l.label}</a>
             ))}
-            <a href="#signup" onClick={() => setOpen(false)} className="text-[14px] font-medium">Log In</a>
+            <a href="#login" onClick={() => setOpen(false)} className="text-[14px] font-medium">Log In</a>
             <a href="#signup" onClick={() => setOpen(false)} className="text-[14px] font-medium">Sign Up</a>
             <button
               onClick={openDemo}

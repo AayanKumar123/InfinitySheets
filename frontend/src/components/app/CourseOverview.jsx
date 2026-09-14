@@ -137,9 +137,11 @@ export default function CourseOverview({ courseId, go }) {
         </div>
 
         <div className="flex flex-col gap-4">
-          {course.subjects.map((s) => (
-            <SubjectBlock key={s.subject} s={s} onStudy={onStudy} />
-          ))}
+          {course.subjects.map((s, i) => {
+            // Older / imported courses may list plain subject names.
+            const entry = typeof s === 'string' ? { subject: s } : s;
+            return <SubjectBlock key={entry.subject || i} s={entry} onStudy={onStudy} />;
+          })}
         </div>
       </div>
     </div>

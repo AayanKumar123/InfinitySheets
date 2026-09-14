@@ -25,9 +25,9 @@ export function enrolledSubjects(courses, userSubjects, track) {
     });
   });
   if (fromCourses.length) return fromCourses;
-  const fromUser = userSubjects || [];
-  if (fromUser.length) return fromUser;
-  return trackSubs;
+  // Onboarding picks, for accounts that have not built a course yet.
+  const fromUser = (userSubjects || []).filter((s) => trackSubs.includes(s) || !trackSubs.length);
+  return fromUser;
 }
 
 // Map<subjectName, { board, ibLevel }> so each subject can show which board /

@@ -56,11 +56,14 @@ const STEPS = [
 ];
 
 export default function TutorialOverlay() {
-  const { finishTutorial } = useApp();
+  const { finishTutorial, state } = useApp();
   const [i, setI] = useState(0);
   const wrapRef = useRef(null);
-  const step = STEPS[i];
-  const isLast = i === STEPS.length - 1;
+  // The course-overview step is meaningless before a course exists (it would
+  // show "No course found"), so a fresh account starts at "Add your courses".
+  const steps = useMemo(() => ((state.courses || []).length ? STEPS : STEPS.filter((s) => s.route !== 'course-overview')), [state.courses]);
+  const step = steps[i];
+  const isLast = i === steps.length - 1;
 
   // Navigate to the step's route when step changes
   useEffect(() => {
@@ -117,7 +120,7 @@ export default function TutorialOverlay() {
           <span className="hidden md:block absolute -left-2.5 top-7 w-6 h-6 rotate-45 bg-white border-l border-b border-[color:var(--color-border)]" />
           <div className="relative bg-white border border-[color:var(--color-border)] rounded-2xl overflow-hidden">
             <div className="h-1 w-full bg-slate-100">
-              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((i + 1) / STEPS.length) * 100}%` }} />
+              <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${((i + 1) / steps.length) * 100}%` }} />
             </div>
             <div className="p-5">
               <div className="flex items-start justify-between gap-3">
@@ -145,7 +148,7 @@ export default function TutorialOverlay() {
                   <button key={s.title} onClick={() => setI(idx)} aria-label={`Go to step ${idx + 1}`}
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === i ? 'bg-blue-600' : (idx < i ? 'bg-blue-300' : 'bg-slate-300')}`} />
                 ))}
-                <span className="ml-2 text-[11.5px] text-slate-500 tabular-nums">{i + 1} / {STEPS.length}</span>
+                <span className="ml-2 text-[11.5px] text-slate-500 tabular-nums">{i + 1} / {steps.length}</span>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={close} className="text-[12.5px] text-slate-500 hover:text-slate-800 transition-colors">Skip</button>

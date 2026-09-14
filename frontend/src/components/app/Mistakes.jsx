@@ -34,8 +34,18 @@ export default function Mistakes() {
             <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-5">
               <div className="text-[12.5px] text-slate-500 mb-1">{m.topic}</div>
               <div className="text-[14.5px] font-medium text-slate-900">{m.question}</div>
+              {!Array.isArray(m.options) && (
+                // Typed / exam-style / drawing mistakes have no options: show
+                // what was given and, on reveal, what was expected.
+                <div className="mt-3 flex flex-col gap-1.5 text-[13.5px]">
+                  <div className="text-slate-600">Your answer: <span className={shown ? 'text-rose-600 font-medium' : 'text-slate-800'}>{m.given && m.given !== -1 ? String(m.given) : <span className="italic text-slate-400">(blank)</span>}</span></div>
+                  {shown && (
+                    <div className="text-slate-600">Expected: <span className="text-emerald-700 font-medium">{m.typedAnswer || (m.examKeywords || []).join(', ') || 'marked against the scheme'}</span></div>
+                  )}
+                </div>
+              )}
               <div className="mt-3 flex flex-col gap-2">
-                {m.options.map((opt, i) => {
+                {(Array.isArray(m.options) ? m.options : []).map((opt, i) => {
                   const isCorrect = i === m.correct;
                   const isGiven = i === m.given;
                   let cls = 'border-[color:var(--color-border)] hover:border-slate-300';
