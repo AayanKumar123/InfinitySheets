@@ -17,7 +17,6 @@ function stepsFor(track) {
   if (track === 'IB') return ['Exam', 'Subjects', 'HL / SL', 'Dates', 'Schedule'];
   return ['Exam', 'Subjects', 'Dates', 'Schedule'];
 }
-const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
 const FREQUENCY_OPTIONS = [
   { id: 'daily', label: 'Every day', hint: '7 sessions / week' },
   { id: '3-4 per week', label: '3–4 times a week', hint: 'Balanced pace' },
@@ -41,7 +40,8 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const [ibLevels, setIbLevels] = useState({}); // { subject: 'HL' | 'SL' }
   const [dates, setDates] = useState({});   // { subject: 'YYYY-MM-DD' }
   const [target, setTarget] = useState('');
-  const [level, setLevel] = useState('Intermediate');
+  // Everyone starts at the same level; the app adapts from results.
+  const level = 'Intermediate';
   const [courseName, setCourseName] = useState('');
   const [frequency, setFrequency] = useState(state.settings?.frequency || '3-4 per week');
   const [weeklyGoal, setWeeklyGoal] = useState(state.settings?.weeklyGoal || 50);
@@ -294,13 +294,8 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                   <input className="input-base" placeholder="e.g., IB Year 2" value={courseName} onChange={(e) => setCourseName(e.target.value)} />
                 </label>
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">Default target / level</span>
-                  <div className="flex items-center gap-2">
-                    <input className="input-base" placeholder="Target (e.g., 7)" value={target} onChange={(e) => setTarget(e.target.value)} />
-                    <select className="input-base" value={level} onChange={(e) => setLevel(e.target.value)} style={{ maxWidth: 160 }}>
-                      {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                  </div>
+                  <span className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">Target grade (optional)</span>
+                  <input className="input-base" placeholder="e.g., 7, A*, 90%" value={target} onChange={(e) => setTarget(e.target.value)} />
                 </label>
               </div>
 

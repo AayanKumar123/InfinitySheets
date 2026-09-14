@@ -14,6 +14,7 @@ import { markAgainstScheme, markSchemeText, isAiEnabled, generateQuestions, asse
 import { filesToAiParts } from '../../lib/images';
 import { subjectBoards } from '../../lib/subjects';
 import WorkingCapture from './WorkingCapture';
+import { textbookQuestion, asciiNotation } from '../../lib/notation';
 import AdSlot from '../ads/AdSlot';
 
 
@@ -32,8 +33,7 @@ const DURATION_STEP = 5;
 /* ================== Normalization + grading helpers ================== */
 
 function normalizeText(s) {
-  return (s || '')
-    .toString()
+  return asciiNotation((s || '').toString())
     .toLowerCase()
     .replace(/[\u2018\u2019\u201C\u201D]/g, "'")
     .replace(/[^a-z0-9\s\.]/g, ' ')
@@ -144,7 +144,8 @@ function buildQuestions({ topics, answerType, difficulty, length, pastPapers, ai
     if (!picked) picked = aiPool();
     out.push(picked);
   }
-  return out;
+  // Textbook notation everywhere the student reads it: 3², √2, H₂O, ×, ≤.
+  return out.map(textbookQuestion);
 }
 
 // A printed worksheet the student is doing on paper: questions + timer,
@@ -177,40 +178,36 @@ function fmtDuration(min) {
 // math/typographic characters to ASCII so the printout stays readable.
 function sanitizeForPDF(s) {
   if (s === null || s === undefined) return '';
+  // jsPDF's Helvetica is WinAnsi: it prints ¹ ² ³ × ÷ ± ° ½ ¼ ¾ natively, so
+  // those stay and the printed sheet reads like a textbook. Everything
+  // outside that range is written out in ASCII instead of becoming a box.
+  const SUPS = { '⁰': '^0', '⁴': '^4', '⁵': '^5', '⁶': '^6', '⁷': '^7', '⁸': '^8', '⁹': '^9', '⁺': '^+', '⁻': '^-', '⁽': '^(', '⁾': '^)', 'ⁿ': '^n', 'ⁱ': '^i', 'ˣ': '^x', 'ʸ': '^y', 'ᵃ': '^a', 'ᵇ': '^b', 'ᶜ': '^c', 'ᵈ': '^d', 'ᵉ': '^e', 'ᵏ': '^k', 'ᵐ': '^m', 'ᵖ': '^p', 'ᵗ': '^t' };
+  const SUBS = { '₀': '0', '₁': '1', '₂': '2', '₃': '3', '₄': '4', '₅': '5', '₆': '6', '₇': '7', '₈': '8', '₉': '9', '₊': '+', '₋': '-', 'ₙ': 'n', 'ᵢ': 'i', 'ₓ': 'x', 'ₐ': 'a', 'ₑ': 'e', 'ₖ': 'k', 'ₘ': 'm', 'ₚ': 'p', 'ₜ': 't' };
+  const GREEK = { 'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta', 'Δ': 'Delta', 'θ': 'theta', 'λ': 'lambda', 'μ': 'mu', 'π': 'pi', 'ρ': 'rho', 'σ': 'sigma', 'Σ': 'Sigma', 'τ': 'tau', 'φ': 'phi', 'ω': 'omega', 'Ω': 'Omega', 'ε': 'epsilon' };
   return String(s)
-    // Superscripts / subscripts.
-    .replace(/\u00b2/g, '^2')
-    .replace(/\u00b3/g, '^3')
-    .replace(/\u2070/g, '^0')
-    .replace(/\u00b9/g, '^1')
-    .replace(/[\u2074-\u2079]/g, (c) => `^${c.charCodeAt(0) - 0x2070}`)
-    .replace(/[\u2080-\u2089]/g, (c) => `_${c.charCodeAt(0) - 0x2080}`)
+    .replace(/[⁰⁴-⁹⁺⁻⁽⁾ⁿⁱˣʸᵃᵇᶜᵈᵉᵏᵐᵖᵗ]/g, (c) => SUPS[c] || c)
+    .replace(/[₀-₉₊₋ₙᵢₓₐₑₖₘₚₜ]/g, (c) => SUBS[c] || c)
+    .replace(/[Α-ω]/g, (c) => GREEK[c] || c)
+    .replace(/√/g, 'sqrt').replace(/∛/g, 'cbrt')
+    .replace(/≤/g, '<=').replace(/≥/g, '>=').replace(/≠/g, '!=').replace(/⇌/g, '<->')
+    .replace(/⅓/g, '1/3').replace(/⅔/g, '2/3')
     // Dashes and minus.
-    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
+    .replace(/[‐‑‒–—−]/g, '-')
     // Quotes and apostrophes.
-    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
-    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
-    // Multiplication / division / plus-minus / degree / ellipsis / bullet.
-    .replace(/\u00d7/g, 'x')
-    .replace(/\u00f7/g, '/')
-    .replace(/\u00b1/g, '+/-')
-    .replace(/\u00b0/g, ' deg')
-    .replace(/\u2026/g, '...')
-    .replace(/[\u2022\u25cf]/g, '*')
-    // Middle dot / non-breaking space.
-    .replace(/\u00b7/g, '.')
-    .replace(/\u00a0/g, ' ')
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/[“”„‟]/g, '"')
+    // Ellipsis / bullet / middle dot / non-breaking space.
+    .replace(/…/g, '...')
+    .replace(/[•●]/g, '*')
+    .replace(/·/g, '.')
+    .replace(/ /g, ' ')
     // Arrows / infinity — spell them out when possible.
-    .replace(/\u2192/g, '->')
-    .replace(/\u2190/g, '<-')
-    .replace(/\u21d2/g, '=>')
-    .replace(/\u221e/g, 'inf')
-    // Fractions.
-    .replace(/\u00bd/g, '1/2')
-    .replace(/\u00bc/g, '1/4')
-    .replace(/\u00be/g, '3/4')
-    // Anything else non-latin1: strip.
-    .replace(/[^\x20-\x7e\n\r\t]/g, '');
+    .replace(/→/g, '->')
+    .replace(/←/g, '<-')
+    .replace(/⇒/g, '=>')
+    .replace(/∞/g, 'infinity')
+    // Anything else outside WinAnsi: strip.
+    .replace(/[^\x20-\x7e\n\r\t°±²³¹¼½¾×÷]/g, '');
 }
 
 function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerType, duration, studentName }) {

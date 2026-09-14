@@ -4,6 +4,7 @@ import { SUBJECT_INFO } from '../../data/mock';
 import { enrolledSubjects, subjectBoards, boardName, questionsForSubject } from '../../lib/subjects';
 import { BookOpen, Eye, EyeOff, Sparkles, Library, ChevronRight, Search, ArrowLeft, ArrowRight, ExternalLink, FileText } from 'lucide-react';
 import { syllabusLink } from '../../data/syllabus';
+import { textbook } from '../../lib/notation';
 import StudyDecor from '../decor/StudyDecor';
 import CreateWorksheetButton from './CreateWorksheetButton';
 
@@ -31,8 +32,8 @@ export default function QuestionBank({ go, subjectParam }) {
     chosenSubjects.forEach((subject) => {
       out[subject] = questionsForSubject(state.pastPapers, subject, state.courses, track).map((p) => ({
         id: p.id,
-        q: p.q,
-        options: Array.isArray(p.options) ? p.options : [],
+        q: textbook(p.q),
+        options: Array.isArray(p.options) ? p.options.map(textbook) : [],
         a: p.a,
         topic: p.topic || 'General',
         difficulty: p.difficulty,

@@ -171,7 +171,7 @@ function parseJsonReply(text) {
   return JSON.parse(repaired);
 }
 
-const QUESTION_SHAPE = 'Each question object: {"q": string, "topic": one of the given topics, "answerType": "Multiple choice" | "Typed response" | "Exam style", "marks": integer, "options": [4 strings, MCQ only], "a": index of the correct option (MCQ only), "typedAnswer": string (typed only), "typedAliases": [strings] (typed only), "examAnswer": model answer (exam style), "examKeywords": [3-6 key ideas] (exam style), "markScheme": [{"point": string, "marks": integer}]}';
+const QUESTION_SHAPE = 'Write all maths and science in textbook Unicode notation: 3², x⁻¹, 10⁻³, √2, ×, ÷, ≤, ≥, ±, π, θ, H₂O, m/s² — never ^, sqrt(), *, or LaTeX. Each question object: {"q": string, "topic": one of the given topics, "answerType": "Multiple choice" | "Typed response" | "Exam style", "marks": integer, "options": [4 strings, MCQ only], "a": index of the correct option (MCQ only), "typedAnswer": string (typed only), "typedAliases": [strings] (typed only), "examAnswer": model answer (exam style), "examKeywords": [3-6 key ideas] (exam style), "markScheme": [{"point": string, "marks": integer}]}';
 
 // Normalise whatever the model returns into the shape the worksheet uses.
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
