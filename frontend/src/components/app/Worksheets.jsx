@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
 import { enrolledSubjects, questionsForSubject } from '../../lib/subjects';
-import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck } from 'lucide-react';
+import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck, Printer, Play, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import CreateWorksheetButton from './CreateWorksheetButton';
@@ -10,7 +10,8 @@ import DiagnosisPanel from './ai/DiagnosisPanel';
 import WorksheetAnalysis from './WorksheetAnalysis';
 import { emptyTelemetry, computeAnalytics, UNANSWERED } from '../../lib/worksheetAnalytics';
 import { dueReviews, reviewToQuestion } from '../../lib/spacedRepetition';
-import { markAgainstScheme, markSchemeText, isAiEnabled } from '../../lib/ai';
+import { markAgainstScheme, markSchemeText, isAiEnabled, generateQuestions, assessPaper } from '../../lib/ai';
+import { filesToAiParts } from '../../lib/images';
 import { subjectBoards } from '../../lib/subjects';
 import WorkingCapture from './WorkingCapture';
 
@@ -88,7 +89,10 @@ function toAnswerType(base, answerType) {
   };
 }
 
-function buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions = [] }) {
+function buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions = [], generated = [] }) {
+  // Original AI-written questions, when the model delivered them. The local
+  // bank is only the fallback for when the AI is off or unreachable.
+  let genIdx = 0;
   const list = (topics && topics.length) ? topics : [];
   // Past-paper questions matching selected topics + answer type. Drawing
   // questions are format-agnostic (the photo is the answer) so they ride
@@ -99,6 +103,7 @@ function buildQuestions({ topics, answerType, difficulty, length, pastPapers, ai
   const preferAI = !!aiGenerated;
 
   const aiPool = () => {
+    if (genIdx < generated.length) return generated[genIdx++];
     const t = list[Math.floor(Math.random() * Math.max(1, list.length))] || null;
     const pool = (t && QUESTION_BANK[t]) || FALLBACK_QUESTIONS;
     const base = pool[Math.floor(Math.random() * pool.length)] || pool[0];
@@ -138,6 +143,16 @@ function buildQuestions({ topics, answerType, difficulty, length, pastPapers, ai
     out.push(picked);
   }
   return out;
+}
+
+// A printed worksheet the student is doing on paper: questions + timer,
+// kept in localStorage so it survives navigation and reloads.
+const PAPER_KEY = 'infinitysheets_paper_session';
+function loadPaper() {
+  try { return JSON.parse(window.localStorage.getItem(PAPER_KEY) || 'null'); } catch (_) { return null; }
+}
+function savePaper(p) {
+  try { if (p) window.localStorage.setItem(PAPER_KEY, JSON.stringify(p)); else window.localStorage.removeItem(PAPER_KEY); } catch (_) { /* ignore */ }
 }
 
 function fmtDuration(min) {
@@ -458,6 +473,18 @@ export default function Worksheets({ go }) {
   const [examLocked, setExamLocked] = useState(false); // lock screen showing
   const [reviewOpen, setReviewOpen] = useState(false); // pre-submit check
   const aiOn = isAiEnabled(state);
+  const [generating, setGenerating] = useState(false);   // AI is writing questions
+  const [paper, setPaper] = useState(() => loadPaper()); // printed worksheet session
+  const [paperNow, setPaperNow] = useState(Date.now());
+  const [assessing, setAssessing] = useState(false);
+  const [paperFiles, setPaperFiles] = useState([]);
+  useEffect(() => { savePaper(paper); }, [paper]);
+  useEffect(() => {
+    if (!paper?.startedAt || paper.submittedAt) return;
+    const id = setInterval(() => setPaperNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [paper?.startedAt, paper?.submittedAt]);
+  const ibLevelForSubject = useMemo(() => subjectBoards(state.courses, track)[subject]?.ibLevel, [state.courses, track, subject]);
   const boardForSubject = useMemo(() => subjectBoards(state.courses, track)[subject]?.board || track, [state.courses, track, subject]);
   const reviewsDue = useMemo(() => dueReviews(state.worksheets || [], { subject }), [state.worksheets, subject]);
   const [startTime, setStartTime] = useState(0);
@@ -633,18 +660,45 @@ export default function Worksheets({ go }) {
     return (pastPaperPool || []).filter((p) => topics.includes(p.topic) && (p.answerType === answerType || p.answerType === 'Drawing')).length;
   }, [pastPaperPool, topics, answerType]);
 
-  const start = () => {
-    if (!subject) { toast.error('Select a subject'); return; }
-    if (!topics.length) { toast.error('Select at least one topic'); return; }
-    if (!pastPapers && !aiGenerated) { toast.error('Pick past papers, AI generated, or both'); return; }
+  // Validate the builder, ask the AI for original questions when that source
+  // is ticked, and assemble the sheet. Resolves to null when validation fails.
+  const assembleQuestions = async ({ withReviews }) => {
+    if (!subject) { toast.error('Select a subject'); return null; }
+    if (!topics.length) { toast.error('Select at least one topic'); return null; }
+    if (!pastPapers && !aiGenerated) { toast.error('Pick past papers, AI generated, or both'); return null; }
     if (pastPapers && !aiGenerated && ppAvailable === 0) {
       toast.error('No past-paper questions match this selection. Ask an admin to upload some, or also tick AI generated.');
-      return;
+      return null;
     }
     const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
-    const reviewQuestions = includeReviews ? reviewsDue.filter((r) => topics.includes(r.topic) || !r.topic).map(reviewToQuestion) : [];
-    const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions });
+    const reviewQuestions = withReviews && includeReviews ? reviewsDue.filter((r) => topics.includes(r.topic) || !r.topic).map(reviewToQuestion) : [];
+    let generated = [];
+    if (aiGenerated && aiOn) {
+      // How many the AI has to write: the sheet minus reviews minus the
+      // past-paper share (alternating fill when both sources are ticked).
+      const reviewsN = Math.min(reviewQuestions.length, Math.max(1, Math.floor(length / 2)));
+      const ppN = pastPapers ? Math.min(Math.ceil((length - reviewsN) / 2), ppAvailable) : 0;
+      const need = Math.max(0, length - reviewsN - ppN);
+      if (need > 0) {
+        setGenerating(true);
+        try {
+          generated = await generateQuestions({ board: boardForSubject, ibLevel: ibLevelForSubject, subject, topics, answerType, difficulty, count: need });
+        } catch (e) {
+          toast.error(`${e.message || 'The AI could not write questions'} — using the built-in bank instead.`);
+        } finally {
+          setGenerating(false);
+        }
+      }
+    }
+    const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions, generated });
     if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
+    return qs;
+  };
+
+  const start = async () => {
+    if (generating) return;
+    const qs = await assembleQuestions({ withReviews: true });
+    if (!qs) return;
     draftIdRef.current = `draft_${Date.now()}`;
     setQuestions(qs);
     // For MCQ, -1 means unanswered. For typed/exam, empty string.
@@ -665,17 +719,10 @@ export default function Worksheets({ go }) {
   // Same validation + question build as `start`, but instead of entering
   // the interactive stage, this hands the questions to jsPDF and downloads
   // the printable worksheet + answer key. No progress is recorded.
-  const downloadPDF = () => {
-    if (!subject) { toast.error('Select a subject'); return; }
-    if (!topics.length) { toast.error('Select at least one topic'); return; }
-    if (!pastPapers && !aiGenerated) { toast.error('Pick past papers, AI generated, or both'); return; }
-    if (pastPapers && !aiGenerated && ppAvailable === 0) {
-      toast.error('No past-paper questions match this selection. Ask an admin to upload some, or also tick AI generated.');
-      return;
-    }
-    const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
-    const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool });
-    if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
+  const downloadPDF = async () => {
+    if (generating) return;
+    const qs = await assembleQuestions({ withReviews: false });
+    if (!qs) return;
     try {
       downloadWorksheetPDF({
         questions: qs,
@@ -687,10 +734,84 @@ export default function Worksheets({ go }) {
         studentName: state.user?.name || '',
       });
       toast.success('PDF ready \u2014 check your downloads folder.');
+      // Open a paper session so the student can time it and hand in the answers.
+      setPaper({ id: `paper_${Date.now()}`, subject, topics, answerType, difficulty, duration, questions: qs, createdAt: new Date().toISOString(), startedAt: null, submittedAt: null });
+      setPaperFiles([]);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('PDF export failed', err);
       toast.error('Could not generate PDF. Please try again.');
+    }
+  };
+
+  // ---- Printed worksheet: timer + hand-in ----------------------------------
+  const paperElapsedSec = paper?.startedAt ? Math.max(0, Math.floor(((paper.submittedAt ? new Date(paper.submittedAt).getTime() : paperNow) - new Date(paper.startedAt).getTime()) / 1000)) : 0;
+  const paperLeftSec = paper ? Math.max(0, paper.duration * 60 - paperElapsedSec) : 0;
+  const startPaperTimer = () => setPaper((p) => (p ? { ...p, startedAt: new Date().toISOString() } : p));
+  const discardPaper = () => { setPaper(null); setPaperFiles([]); };
+  const addPaperFiles = (list) => {
+    const files = Array.from(list || []).filter((f) => /^image\//.test(f.type) || f.type === 'application/pdf' || /\.pdf$/i.test(f.name));
+    if (!files.length) { toast.error('Add photos or a PDF of your answers'); return; }
+    setPaperFiles((prev) => [...prev, ...files].slice(0, 12));
+  };
+  const submitPaper = async () => {
+    if (!paper || assessing) return;
+    if (!paperFiles.length) { toast.error('Scan or upload your answers first'); return; }
+    if (!aiOn) { toast.error('Turn AI on in Settings to have the answers assessed'); return; }
+    setAssessing(true);
+    try {
+      const parts = await filesToAiParts(paperFiles, { label: 'STUDENT ANSWERS' });
+      const results = await assessPaper({ questions: paper.questions, files: parts, board: boardForSubject, subject: paper.subject });
+      const submittedAt = new Date().toISOString();
+      const durationSec = paper.startedAt ? Math.floor((new Date(submittedAt).getTime() - new Date(paper.startedAt).getTime()) / 1000) : 0;
+      const qs = paper.questions;
+      // MCQ answers come back as letters or option text; map them to indexes.
+      const answers = qs.map((q, i) => {
+        const r = results[i];
+        if (q.answerType !== 'Multiple choice') return r.answer;
+        const letter = /^[A-Za-z]\b/.exec((r.answer || '').trim());
+        const li = letter ? letter[0].toUpperCase().charCodeAt(0) - 65 : -1;
+        if (li >= 0 && li < (q.options || []).length) return li;
+        const ti = (q.options || []).findIndex((o) => o.toLowerCase() === (r.answer || '').trim().toLowerCase());
+        return ti >= 0 ? ti : (r.answer ? -2 : -1);
+      });
+      const res = results.map((r) => r.correct);
+      const correct = res.filter(Boolean).length;
+      const thumbs = parts.filter((p) => p.thumb).map((p) => ({ thumb: p.thumb }));
+      const sheet = {
+        id: `ws_${Date.now()}`,
+        subject: paper.subject,
+        topic: paper.topics.join(', '),
+        topics: paper.topics,
+        difficulty: paper.difficulty,
+        length: qs.length,
+        answerType: paper.answerType,
+        duration: paper.duration,
+        pastPapers,
+        aiGenerated,
+        paper: true,
+        questions: qs,
+        answers,
+        working: results.map((r, i) => (r.working || (i === 0 && thumbs.length) ? { images: i === 0 ? thumbs : [], transcript: r.working || null } : undefined)),
+        marking: Object.fromEntries(results.map((r) => [r.i, { marks: r.marks, max: r.max, feedback: r.feedback, at: submittedAt }])),
+        results: res,
+        total: qs.length,
+        correct,
+        score: Math.round((correct / Math.max(1, qs.length)) * 100),
+        durationSec,
+        analytics: null,
+        date: submittedAt,
+      };
+      recordWorksheet(sheet);
+      setResult(sheet);
+      setPaper(null);
+      setPaperFiles([]);
+      setStage('result');
+      toast.success(`Marked: ${correct}/${qs.length} correct`);
+    } catch (e) {
+      toast.error(e.message || 'Could not assess the answers');
+    } finally {
+      setAssessing(false);
     }
   };
 
@@ -1158,6 +1279,11 @@ export default function Worksheets({ go }) {
         <div className="mb-5">
           <WorksheetAnalysis sheet={result} testid="worksheet-analysis" />
         </div>
+        {result.paper && (
+          <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-[13px] text-slate-700 inline-flex items-center gap-2">
+            <Printer className="w-4 h-4 text-blue-600" /> Done on paper and marked by the AI from your scans{result.durationSec ? ` · ${fmtTime(result.durationSec)} on the timer` : ''}
+          </div>
+        )}
         {result.analytics?.examMode && (
           <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-[13px] text-slate-700 inline-flex items-center gap-2">
             <Lock className="w-4 h-4 text-rose-600" /> Taken in exam mode · {result.analytics.examMode.exits === 0 ? 'no violations' : `${result.analytics.examMode.exits} fullscreen exit${result.analytics.examMode.exits === 1 ? '' : 's'}`}
@@ -1184,7 +1310,7 @@ export default function Worksheets({ go }) {
                       <>
                         <div className="text-[13px] text-zinc-600 mt-1">Correct: <span className="font-medium text-zinc-800">{q.options[q.a]}</span></div>
                         {!ok && given !== -1 && (
-                          <div className="text-[13px] text-rose-600 mt-0.5">Your answer: {q.options[given]}</div>
+                          <div className="text-[13px] text-rose-600 mt-0.5">Your answer: {given >= 0 ? q.options[given] : <span className="italic">(could not be read from the page)</span>}</div>
                         )}
                       </>
                     )}
@@ -1219,7 +1345,7 @@ export default function Worksheets({ go }) {
                         <WorkingCapture value={w} onChange={() => {}} question={q} readOnly required={isDrawing} testid={`result-working-${i}`} />
                       </div>
                     )}
-                    {!isMCQ && Array.isArray(q.markScheme) && q.markScheme.length > 0 && (
+                    {(result.marking?.[i] || (!isMCQ && Array.isArray(q.markScheme) && q.markScheme.length > 0)) && (
                       <AiMarkRow sheet={result} idx={i} q={q} given={given} working={w} board={boardForSubject} subject={subject} enabled={aiOn} onMarked={(m) => { const live = (state.worksheets || []).find((x) => x.id === result.id) || result; updateWorksheet(result.id, { marking: { ...(live.marking || {}), [i]: m } }); }} />
                     )}
                   </div>
@@ -1369,15 +1495,66 @@ export default function Worksheets({ go }) {
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <button onClick={start} data-testid="ws-start" className="btn-violet px-5 py-3 rounded-lg text-[14px] font-medium">Create interactive worksheet</button>
+        <button onClick={start} disabled={generating} data-testid="ws-start" className="btn-violet inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-medium disabled:opacity-70">
+          {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> Writing original questions…</> : 'Create interactive worksheet'}
+        </button>
         <button
           onClick={downloadPDF}
+          disabled={generating}
           data-testid="ws-download-pdf"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-medium bg-white text-slate-800 border border-slate-300 hover:border-blue-500 hover:text-blue-700 transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-medium bg-white text-slate-800 border border-slate-300 hover:border-blue-500 hover:text-blue-700 transition-colors disabled:opacity-70"
         >
           <Download className="w-5 h-5" /> Download as PDF
         </button>
       </div>
+      {aiGenerated && aiOn && (
+        <div className="text-[11.5px] text-slate-500 mt-2 inline-flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-blue-600" /> AI questions are written fresh for this sheet — original, in-syllabus, in {boardForSubject} style — not picked from a bank.</div>
+      )}
+
+      {paper && (
+        <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50/50 p-5" data-testid="paper-session">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <span className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0"><Printer className="w-5 h-5" /></span>
+              <div className="min-w-0">
+                <div className="text-[15px] font-semibold text-slate-900">Printed worksheet · {paper.subject}</div>
+                <div className="text-[12.5px] text-slate-600 mt-0.5">{paper.questions.length} questions · {paper.topics.join(', ')} · {fmtDuration(paper.duration)}. Do it on paper, then scan or upload your answers and the AI marks them.</div>
+              </div>
+            </div>
+            <button onClick={discardPaper} className="text-slate-400 hover:text-rose-600" title="Discard this paper session" data-testid="paper-discard"><Trash2 className="w-4 h-4" /></button>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {!paper.startedAt ? (
+              <button onClick={startPaperTimer} className="btn-violet inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13.5px] font-semibold" data-testid="paper-start">
+                <Play className="w-4 h-4" /> Start timer ({fmtDuration(paper.duration)})
+              </button>
+            ) : (
+              <div className={`inline-flex items-center gap-2 text-[15px] font-semibold tabular-nums px-3.5 py-2 rounded-lg ${paperLeftSec === 0 ? 'bg-rose-100 text-rose-800' : 'bg-white border border-[color:var(--color-border)] text-slate-900'}`} data-testid="paper-timer">
+                <Clock className="w-4 h-4" /> {paperLeftSec === 0 ? `Time's up · took ${fmtTime(paperElapsedSec)}` : `${fmtTime(paperLeftSec)} left`}
+              </div>
+            )}
+            <label className="btn-outline-dark inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13.5px] font-medium cursor-pointer">
+              <Upload className="w-4 h-4" /> Scan / upload answers
+              <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={(e) => { addPaperFiles(e.target.files); e.target.value = ''; }} data-testid="paper-files" />
+            </label>
+            <button onClick={submitPaper} disabled={assessing || !paperFiles.length} className="btn-violet inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13.5px] font-semibold disabled:opacity-50" data-testid="paper-submit">
+              {assessing ? <><Loader2 className="w-4 h-4 animate-spin" /> Marking…</> : <><ClipboardCheck className="w-4 h-4" /> Submit for marking</>}
+            </button>
+          </div>
+          {paperFiles.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2" data-testid="paper-file-list">
+              {paperFiles.map((f, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-[color:var(--color-border)] text-[12px] text-slate-700">
+                  <FileText className="w-3.5 h-3.5 text-slate-500" /> {f.name}
+                  <button onClick={() => setPaperFiles((prev) => prev.filter((_, k) => k !== i))} className="text-slate-400 hover:text-rose-600"><X className="w-3.5 h-3.5" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          {!paper.startedAt && <div className="text-[11.5px] text-slate-500 mt-2">Start the timer when you begin writing; the time taken is recorded with the result. You can still submit without it.</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -1398,7 +1575,7 @@ function AiMarkRow({ sheet, idx, q, given, working, board, subject, enabled, onM
       toast.error(e.message || 'Could not mark this answer');
     } finally { setBusy(false); }
   };
-  if (!enabled) return null;
+  if (!enabled && !saved) return null;
   return (
     <div className="mt-2">
       {saved ? (

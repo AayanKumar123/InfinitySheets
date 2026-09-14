@@ -25,12 +25,12 @@ async function readErrorMessage(error) {
  * Ask the assistant. `messages` is [{ role: 'user' | 'assistant', content }].
  * Resolves to the reply text; throws an Error with a readable message.
  */
-export async function askAi({ mode = 'chat', context = {}, messages = [], force = false, images = [] }) {
+export async function askAi({ mode = 'chat', context = {}, messages = [], force = false, images = [], files = [] }) {
   if (!isSupabaseConfigured) {
     throw new Error('AI needs the Supabase connection (set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY).');
   }
   const { data, error } = await supabase.functions.invoke(AI_FUNCTION, {
-    body: { mode, context, force, images, messages: messages.map((m) => ({ role: m.role, content: m.content })) },
+    body: { mode, context, force, images, files: files.map(({ mimeType, data, label }) => ({ mimeType, data, label })), messages: messages.map((m) => ({ role: m.role, content: m.content })) },
   });
   if (error) throw new Error(await readErrorMessage(error));
   if (data?.error) throw new Error(data.error);
@@ -156,4 +156,132 @@ export async function markAgainstScheme({ q, given, working, board, subject }) {
   const parsed = JSON.parse(m[0]);
   const marks = Math.max(0, Math.min(max, Number(parsed.marks) || 0));
   return { marks, max, feedback: String(parsed.feedback || '').trim() };
+}
+
+// Pull the JSON object out of a model reply (tolerates ```json fences).
+function parseJsonReply(text) {
+  const m = /\{[\s\S]*\}/.exec(text || '');
+  if (!m) throw new Error('The AI did not return a usable result');
+  try { return JSON.parse(m[0]); } catch (_) { /* repair below */ }
+  // Common slips: unquoted keys, trailing commas.
+  const repaired = m[0]
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
+    .replace(/,\s*([}\]])/g, '$1');
+  return JSON.parse(repaired);
+}
+
+const QUESTION_SHAPE = 'Each question object: {"q": string, "topic": one of the given topics, "answerType": "Multiple choice" | "Typed response" | "Exam style", "marks": integer, "options": [4 strings, MCQ only], "a": index of the correct option (MCQ only), "typedAnswer": string (typed only), "typedAliases": [strings] (typed only), "examAnswer": model answer (exam style), "examKeywords": [3-6 key ideas] (exam style), "markScheme": [{"point": string, "marks": integer}]}';
+
+// Normalise whatever the model returns into the shape the worksheet uses.
+export function shapeQuestion(raw, { answerType, difficulty, topics = [] } = {}) {
+  if (!raw || !raw.q) return null;
+  const type = ['Multiple choice', 'Typed response', 'Exam style', 'Drawing'].includes(raw.answerType) ? raw.answerType : answerType;
+  const topic = topics.includes(raw.topic) ? raw.topic : (topics[0] || raw.topic || '');
+  const q = {
+    q: String(raw.q).trim(),
+    _topic: topic,
+    topic,
+    answerType: type,
+    difficulty: raw.difficulty || difficulty,
+    marks: Number(raw.marks) || undefined,
+    markScheme: Array.isArray(raw.markScheme) ? raw.markScheme.filter((p) => p && p.point).map((p) => ({ point: String(p.point), marks: Math.max(1, parseInt(p.marks, 10) || 1) })) : undefined,
+  };
+  if (type === 'Multiple choice') {
+    const opts = Array.isArray(raw.options) ? raw.options.map((o) => String(o)).filter(Boolean) : [];
+    if (opts.length < 2) return null;
+    q.options = opts;
+    q.a = Number.isInteger(raw.a) && raw.a >= 0 && raw.a < opts.length ? raw.a : 0;
+  } else if (type === 'Typed response') {
+    q.typedAnswer = String(raw.typedAnswer || raw.answer || '').trim();
+    q.typedAliases = Array.isArray(raw.typedAliases) ? raw.typedAliases.map(String) : [];
+    if (!q.typedAnswer) return null;
+  } else {
+    q.examAnswer = String(raw.examAnswer || raw.answer || '').trim();
+    q.examKeywords = Array.isArray(raw.examKeywords) ? raw.examKeywords.map(String).filter(Boolean) : [];
+  }
+  return q;
+}
+
+/**
+ * Original, in-syllabus questions written by the AI. Resolves to an array of
+ * shaped questions (source: 'ai-generated').
+ */
+export async function generateQuestions({ board, ibLevel, subject, topics, answerType, difficulty, count }) {
+  const n = Math.max(1, Math.min(30, count || 5));
+  const content = [
+    `Write ${n} original ${answerType} questions for ${subject} (${board}${ibLevel ? ` ${ibLevel}` : ''}) at ${difficulty} difficulty.`,
+    `Topics to cover (spread the questions across them, each tagged with exactly one): ${topics.join('; ')}.`,
+    'They must be brand-new questions in the exact style this exam uses. Never reproduce a past-paper question; vary the contexts and numbers. Every question needs a correct answer and a marking scheme.',
+    `Reply as {"questions": [...]}. ${QUESTION_SHAPE}. Use "answerType": "${answerType}" for every question.`,
+  ].join('\n');
+  const text = await askAi({ mode: 'generate', context: { board, ibLevel, subject, topic: topics.join(', ') }, messages: [{ role: 'user', content }] });
+  const parsed = parseJsonReply(text);
+  const list = (parsed.questions || []).map((r) => shapeQuestion(r, { answerType, difficulty, topics })).filter(Boolean);
+  if (!list.length) throw new Error('The AI returned no usable questions');
+  return list.map((q) => ({ ...q, source: 'ai-generated' }));
+}
+
+/**
+ * Admin bulk import: a question-paper PDF (plus an optional mark-scheme PDF)
+ * → drafts with answers and marking schemes filled in.
+ */
+export async function extractFromPdf({ paper, scheme, board, subject, topics = [] }) {
+  const files = [{ ...paper, label: 'QUESTION PAPER' }];
+  if (scheme) files.push({ ...scheme, label: 'MARK SCHEME' });
+  const content = [
+    `Extract every question from the QUESTION PAPER for ${subject} (${board}).`,
+    scheme
+      ? 'A MARK SCHEME is attached: take the accepted answer and the mark points for each question from it, matched by question number.'
+      : 'No mark scheme is attached: give the correct answer and write a sensible examiner-style marking scheme for each question.',
+    `Tag each question with the closest topic from: ${topics.join('; ') || '(free choice)'}.`,
+    'Choose "Multiple choice" only when the paper prints options; short numeric / one-line answers are "Typed response"; anything needing explanation or working is "Exam style". Keep sub-parts (a), (b) as separate questions with the stem repeated.',
+    `Reply as {"questions": [...]}. ${QUESTION_SHAPE}. Include "year" if it is printed on the paper.`,
+  ].join('\n');
+  const text = await askAi({ mode: 'extract', context: { board, subject }, files, messages: [{ role: 'user', content }] });
+  const parsed = parseJsonReply(text);
+  return (parsed.questions || []).map((r) => {
+    const q = shapeQuestion(r, { answerType: 'Exam style', difficulty: 'Medium', topics });
+    return q ? { ...q, year: Number(r.year) || undefined } : null;
+  }).filter(Boolean);
+}
+
+/**
+ * Paper worksheet: the student answered a printed sheet and uploaded photos /
+ * a PDF. Resolves to per-question results:
+ *   [{ i, answer, working, correct, marks, max, feedback }]
+ */
+export async function assessPaper({ questions, files, board, subject }) {
+  const maxOf = (q) => (q.markScheme || []).reduce((s, p) => s + (Number(p.marks) || 1), 0) || q.marks || 1;
+  const lines = questions.map((q, i) => {
+    let accepted = '';
+    if (q.answerType === 'Multiple choice') accepted = `options ${q.options.map((o, k) => `${String.fromCharCode(65 + k)}. ${o}`).join(' | ')}; correct: ${String.fromCharCode(65 + q.a)}`;
+    else if (q.answerType === 'Typed response') accepted = `accepted: ${q.typedAnswer}${(q.typedAliases || []).length ? ` (also ${q.typedAliases.join(', ')})` : ''}`;
+    else accepted = `model answer: ${q.examAnswer || '(use the scheme)'}${(q.examKeywords || []).length ? `; key ideas: ${q.examKeywords.join(', ')}` : ''}`;
+    const scheme = markSchemeText(q.markScheme);
+    const max = maxOf(q);
+    return `Q${i + 1} [${max} mark${max === 1 ? '' : 's'}]: ${q.q}\n   ${accepted}${scheme ? `\n   mark scheme: ${scheme}` : ''}`;
+  });
+  const content = [
+    `The printed worksheet had these ${questions.length} questions:`,
+    ...lines,
+    '',
+    'Read the uploaded answers. For every question return: the answer the student gave (or "" if not attempted), a one-line transcription of their working, whether it is correct, marks awarded out of the maximum, and 1-2 sentences of feedback.',
+    'Reply as {"results": [{"i": question number starting at 1, "answer": string, "working": string, "correct": boolean, "marks": number, "max": number, "feedback": string}]}.',
+  ].join('\n');
+  const text = await askAi({ mode: 'assess', context: { board, subject }, files, messages: [{ role: 'user', content }] });
+  const parsed = parseJsonReply(text);
+  const byIndex = new Map((parsed.results || []).map((r) => [Number(r.i) - 1, r]));
+  return questions.map((q, i) => {
+    const r = byIndex.get(i) || {};
+    const max = maxOf(q);
+    return {
+      i,
+      answer: r.answer == null ? '' : String(r.answer),
+      working: r.working ? String(r.working) : '',
+      correct: !!r.correct,
+      marks: Math.max(0, Math.min(max, Number(r.marks) || 0)),
+      max,
+      feedback: r.feedback ? String(r.feedback) : '',
+    };
+  });
 }

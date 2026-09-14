@@ -4,6 +4,8 @@ import { Shield, Plus, Trash2, FileText, Sparkles, Filter, Upload, Link2, X, Loa
 import { SUBJECTS, TOPICS, EXAM_TRACKS } from '../../data/mock';
 import { FULL_PAPER_TYPE } from '../../data/pastPapers';
 import { toast } from 'sonner';
+import { extractFromPdf, isAiEnabled } from '../../lib/ai';
+import { filesToAiParts } from '../../lib/images';
 
 const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style', 'Drawing', FULL_PAPER_TYPE];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
@@ -43,10 +45,6 @@ export function schemeTotal(scheme, fallback) {
 const cleanScheme = (scheme) => (Array.isArray(scheme) ? scheme : [])
   .map((p) => ({ point: (p.point || '').trim(), marks: Math.max(1, parseInt(p.marks, 10) || 1) }))
   .filter((p) => p.point);
-
-const API_BASE = (typeof window !== 'undefined' && window.location && window.location.origin)
-  ? window.location.origin
-  : (process.env.REACT_APP_BACKEND_URL || '');
 
 // --------------------------------------------------------------------------
 // Root component
@@ -458,6 +456,8 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   const { state, refreshPastPapers } = useApp();
   const addedBy = state.user?.email || (state.user?.isDemo ? 'demo' : 'unknown');
   const [file, setFile] = useState(null);
+  const [schemeFile, setSchemeFile] = useState(null);   // optional mark-scheme PDF
+  const aiOn = isAiEnabled(state);
   const [year, setYear] = useState('');
   const [link, setLink] = useState('');
   const [autosave, setAutosave] = useState(false);
@@ -465,33 +465,42 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   const [extracted, setExtracted] = useState([]); // list of question drafts
   const [savingAll, setSavingAll] = useState(false);
 
-  const clear = () => { setFile(null); setExtracted([]); setYear(''); setLink(''); };
+  const clear = () => { setFile(null); setSchemeFile(null); setExtracted([]); setYear(''); setLink(''); };
 
+  // The AI reads the paper (and the mark scheme, when given) straight from
+  // the PDF and returns question drafts with answers + marking schemes.
   const extract = async () => {
     if (!file) { toast.error('Choose a PDF first'); return; }
+    if (!aiOn) { toast.error('Turn AI on in Settings to extract questions'); return; }
     setUploading(true);
     try {
-      const params = new URLSearchParams({ subject, board: syllabus, difficulty: 'Medium', addedBy });
-      if (year) params.set('year', year);
-      if (link) params.set('link', link);
-      if (autosave) params.set('autosave', 'true');
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch(`${API_BASE}/api/past-papers/extract?${params.toString()}`, { method: 'POST', body: fd });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body?.detail || `Extract failed (${res.status})`);
-      }
-      if (body.autosaved) {
-        const savedCount = body.savedCount || 0;
-        toast.success(`Extracted ${body.count} · saved ${savedCount} directly to the library`);
+      const [paper] = await filesToAiParts([file]);
+      const [scheme] = schemeFile ? await filesToAiParts([schemeFile]) : [null];
+      const topics = TOPICS[subject] || [];
+      const drafts = await extractFromPdf({ paper, scheme, board: syllabus, subject, topics });
+      const list = drafts.map((q, i) => ({
+        ...q,
+        subject,
+        board: syllabus,
+        year: year ? parseInt(year, 10) : q.year || null,
+        link: link.trim() || null,
+        addedBy,
+        source: 'past-paper',
+        _draftId: `d_${Date.now()}_${i}`,
+      }));
+      if (!list.length) throw new Error('No questions were found in that PDF');
+      if (autosave) {
+        let ok = 0;
+        for (const d of list) {
+          const { _draftId, ...payload } = d;
+          try { await addPastPaper(payload); ok += 1; } catch (_) { /* counted below */ }
+        }
+        toast.success(`Extracted ${list.length} · saved ${ok} directly to the library`);
         setExtracted([]);
-        // Refresh the shared library so the newly-saved questions show up.
         if (refreshPastPapers) await refreshPastPapers();
       } else {
-        const list = (body.questions || []).map((q, i) => ({ ...q, _draftId: `d_${Date.now()}_${i}` }));
         setExtracted(list);
-        toast.success(`Extracted ${list.length} question${list.length === 1 ? '' : 's'}`);
+        toast.success(`Extracted ${list.length} question${list.length === 1 ? '' : 's'}${scheme ? ' with marking schemes' : ''}`);
       }
     } catch (e) {
       toast.error(e?.message || 'Extraction failed');
@@ -534,14 +543,22 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
         <div className="text-[12px] tracking-[0.16em] uppercase font-semibold text-blue-700 inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Bulk PDF upload</div>
         <span className="text-[11px] font-semibold text-slate-500">{syllabus} · {subject}</span>
       </div>
-      <p className="text-[12.5px] text-slate-500 mb-4">Upload a past-paper PDF and we&apos;ll use AI to extract questions. Review and save the ones you want.</p>
+      <p className="text-[12.5px] text-slate-500 mb-4">Upload a past-paper PDF and the AI extracts every question. Add the official mark scheme too and each question gets its accepted answer and mark points from it. Review and save the ones you want.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-        <Field label="PDF file">
+        <Field label="Question paper (PDF)">
           <label className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/50 px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors">
             <Upload className="w-5 h-5 text-slate-500" />
             <span className="text-[12.5px] text-slate-700 truncate flex-1">{file ? file.name : 'Choose a PDF\u2026'}</span>
-            <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" data-testid="admin-pdf-file" />
+            <input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" data-testid="admin-pdf-file" />
+          </label>
+        </Field>
+        <Field label="Mark scheme (PDF, optional)">
+          <label className="flex items-center gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/40 px-3 py-2 cursor-pointer hover:bg-emerald-50 transition-colors">
+            <ClipboardCheck className="w-5 h-5 text-emerald-600" />
+            <span className="text-[12.5px] text-slate-700 truncate flex-1">{schemeFile ? schemeFile.name : 'Add the marking scheme\u2026'}</span>
+            {schemeFile && <button type="button" onClick={(e) => { e.preventDefault(); setSchemeFile(null); }} className="text-slate-400 hover:text-rose-600"><X className="w-4 h-4" /></button>}
+            <input type="file" accept="application/pdf,image/*" onChange={(e) => setSchemeFile(e.target.files?.[0] || null)} className="hidden" data-testid="admin-scheme-file" />
           </label>
         </Field>
         <Field label="Year (optional)">

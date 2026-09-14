@@ -1,6 +1,6 @@
 // InfinitySheets AI — one Gemini-backed endpoint for every assistant in the app.
 //
-//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark', context, messages, images? }
+//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark' | 'generate' | 'extract' | 'assess', context, messages, files? }
 //   → { text, model }
 //
 // The Gemini key lives ONLY here, as a project secret (Dashboard → Edge
@@ -64,6 +64,15 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
   }
   if (mode === "transcribe") {
     return `You transcribe photographs of a student's handwritten working for ${boardLabel(board)} ${ctx.subject || ""}. Write out EXACTLY what is on the page as plain text, line by line, in the order written: every equation, number, unit, diagram label and crossed-out attempt (mark crossed-out work with [crossed out]). Use plain Unicode for maths (x², √, ½, →, °), never LaTeX. Do not solve, correct, comment on or improve the work. If something is unreadable write [unclear]. If the photo has a diagram, describe it briefly in square brackets, e.g. [diagram: right-angled triangle, hypotenuse labelled 13 cm]. Output only the transcription.`;
+  }
+  if (mode === "generate") {
+    return `${base}\n\nYou write ORIGINAL practice questions for this exam. Every question must be new (never copied from a past paper), squarely inside the current syllabus for the topic, at the requested difficulty, and in the exact style and command words this board uses. Numbers, contexts and wording must be your own. Reply with a single JSON object and nothing else.`;
+  }
+  if (mode === "extract") {
+    return `You extract questions from a past-paper PDF for ${boardLabel(board)}${level} ${ctx.subject || ""}. Transcribe each question faithfully (plain Unicode maths, no LaTeX). When a mark scheme document is also supplied, match its answers and mark points to each question by question number. Reply with a single JSON object and nothing else.`;
+  }
+  if (mode === "assess") {
+    return `You are an examiner for ${boardLabel(board)}${level} ${ctx.subject || ""}. The student sat a printed worksheet on paper and has uploaded photos or a PDF of their handwritten answers. Read the answers, match them to the numbered questions supplied, transcribe the working briefly, and mark each strictly against the accepted answer / marking scheme given. Never award marks for answers that are not on the page. Reply with a single JSON object and nothing else.`;
   }
   if (mode === "mark") {
     return `You are an examiner marking one answer for ${boardLabel(board)}${level} strictly against the marking scheme supplied. Award marks only for points that are actually present in the student's typed answer or transcribed working; follow-through marks only where the scheme allows. Reply with a single JSON object and nothing else.`;
@@ -182,7 +191,16 @@ async function cacheBumpHit(id: string) {
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
-const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark"]);
+const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark", "generate", "extract", "assess"]);
+const JSON_MODES = new Set(["mark", "generate", "extract", "assess"]);
+const FILE_MODES = new Set(["transcribe", "extract", "assess"]);
+// Inline files: photos and PDFs. Gemini reads both natively.
+type FileIn = { mimeType: string; data: string; label?: string };
+function cleanFiles(list: unknown, max = 6): FileIn[] {
+  return (Array.isArray(list) ? list : []).slice(0, max)
+    .filter((f) => f && (/^image\//.test(String(f.mimeType)) || f.mimeType === "application/pdf") && typeof f.data === "string" && f.data.length < 12_000_000)
+    .map((f) => ({ mimeType: String(f.mimeType), data: String(f.data), label: f.label ? String(f.label) : undefined }));
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -193,7 +211,7 @@ Deno.serve(async (req: Request) => {
   const preferred = envLike("GEMINI_MODEL");
   const models = preferred ? [preferred, ...MODEL_CHAIN.filter((m) => m !== preferred)] : [...MODEL_CHAIN];
 
-  let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[]; force?: boolean; images?: Array<{ mimeType: string; data: string }> };
+  let body: { mode?: string; context?: Record<string, unknown>; messages?: Msg[]; force?: boolean; images?: FileIn[]; files?: FileIn[] };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
   const mode = MODES.has(String(body.mode)) ? String(body.mode) : "chat";
   const ctx = body.context || {};
@@ -213,15 +231,17 @@ Deno.serve(async (req: Request) => {
   let contents: Array<{ role: string; parts: Part[] }>;
   if (mode === "overview") {
     contents = [{ role: "user", parts: [{ text: overviewPrompt(ctx) }] }];
-  } else if (mode === "transcribe") {
-    const images = (Array.isArray(body.images) ? body.images : []).slice(0, 4)
-      .filter((i) => i && /^image\//.test(String(i.mimeType)) && typeof i.data === "string" && i.data.length < 6_000_000);
-    if (!images.length) return json({ error: "No image to transcribe" }, 400);
-    const note = (Array.isArray(body.messages) ? body.messages : []).map((m) => m?.content || "").join("\n").slice(0, 2000);
-    contents = [{ role: "user", parts: [
-      ...images.map((i) => ({ inline_data: { mime_type: i.mimeType, data: i.data } })),
-      { text: `${note}\n\nTranscribe the handwritten working in the photo(s).` },
-    ] }];
+  } else if (FILE_MODES.has(mode)) {
+    const files = cleanFiles(body.files ?? body.images);
+    if (!files.length) return json({ error: "No file was attached" }, 400);
+    const note = (Array.isArray(body.messages) ? body.messages : []).map((m) => m?.content || "").join("\n").slice(0, 60000);
+    const parts: Part[] = [];
+    files.forEach((f) => {
+      if (f.label) parts.push({ text: `--- ${f.label} ---` });
+      parts.push({ inline_data: { mime_type: f.mimeType, data: f.data } });
+    });
+    parts.push({ text: mode === "transcribe" ? `${note}\n\nTranscribe the handwritten working in the photo(s).` : note });
+    contents = [{ role: "user", parts }];
   } else {
     const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-14);
     contents = msgs
@@ -233,7 +253,11 @@ Deno.serve(async (req: Request) => {
   const payload = JSON.stringify({
     system_instruction: { parts: [{ text: systemPrompt(mode, ctx) }] },
     contents,
-    generationConfig: { temperature: mode === "transcribe" || mode === "mark" ? 0.1 : 0.4, maxOutputTokens: mode === "transcribe" ? 2500 : 1500 },
+    generationConfig: {
+      temperature: mode === "generate" ? 0.9 : mode === "transcribe" || JSON_MODES.has(mode) ? 0.1 : 0.4,
+      maxOutputTokens: JSON_MODES.has(mode) ? 8000 : mode === "transcribe" ? 2500 : 1500,
+      ...(JSON_MODES.has(mode) ? { responseMimeType: "application/json" } : {}),
+    },
   });
 
   // Walk the model chain. A 503 is transient (retry the same model); a 429 means

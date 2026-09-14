@@ -38,3 +38,34 @@ export function dataUrlParts(dataUrl) {
   const m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl || '');
   return m ? { mimeType: m[1], data: m[2] } : null;
 }
+
+// Any file (a PDF, say) → { mimeType, data } base64 parts for the AI.
+export function fileToParts(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(dataUrlParts(r.result));
+    r.onerror = () => reject(new Error('Could not read that file'));
+    r.readAsDataURL(file);
+  });
+}
+
+/**
+ * Photos are compressed, PDFs are passed through. Resolves to
+ * [{ mimeType, data, label, thumb?, name }] ready for askAi({ files }).
+ */
+export async function filesToAiParts(files, { label } = {}) {
+  const out = [];
+  for (const f of Array.from(files || [])) {
+    if (/^image\//.test(f.type)) {
+      const p = await prepareImage(f);
+      out.push({ ...dataUrlParts(p.full), label, thumb: p.thumb, name: f.name });
+    } else if (f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
+      if (f.size > 8 * 1024 * 1024) throw new Error(`${f.name} is over 8 MB. Split it or export a smaller PDF.`);
+      const p = await fileToParts(f);
+      out.push({ mimeType: 'application/pdf', data: p.data, label, name: f.name });
+    } else {
+      throw new Error(`${f.name}: only photos and PDFs are supported`);
+    }
+  }
+  return out;
+}
