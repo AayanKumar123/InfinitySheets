@@ -305,23 +305,25 @@ export function AppProvider({ children }) {
     setState((s) => ({ ...defaultState, theme: s.theme }));
   }, []);
 
+  // These mutators patch state functionally. Replacing the whole state with
+  // a snapshot from stateRef silently dropped any update React had not
+  // flushed yet (e.g. the course the wizard added a moment earlier).
   const updateProfile = useCallback((patch) => {
-    const next = { ...stateRef.current, user: { ...stateRef.current.user, ...patch } };
-    setState(next);
+    setState((s) => ({ ...s, user: { ...s.user, ...patch } }));
     bg(() => store.upsertProfile(uid(), patch), 'updateProfile');
   }, []);
 
   const updateSettings = useCallback((patch) => {
-    const next = { ...stateRef.current, settings: { ...stateRef.current.settings, ...patch } };
-    setState(next);
-    bg(() => store.upsertSettings(next, uid()), 'updateSettings');
+    setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
+    const forRow = { ...stateRef.current, settings: { ...stateRef.current.settings, ...patch } };
+    bg(() => store.upsertSettings(forRow, uid()), 'updateSettings');
   }, []);
 
   const resetProgress = useCallback(() => {
-    const next = { ...stateRef.current, worksheets: [], mistakes: [], streak: 0, questionsToday: 0, goalDate: null, lastStudyDate: null };
-    setState(next);
+    const cleared = { worksheets: [], mistakes: [], streak: 0, questionsToday: 0, goalDate: null, lastStudyDate: null };
+    setState((s) => ({ ...s, ...cleared }));
     bg(() => store.clearProgress(uid()), 'resetProgress/clear');
-    bg(() => store.upsertSettings(next, uid()), 'resetProgress/settings');
+    bg(() => store.upsertSettings({ ...stateRef.current, ...cleared }, uid()), 'resetProgress/settings');
   }, []);
 
   const deleteAccount = useCallback(() => {
@@ -411,14 +413,12 @@ export function AppProvider({ children }) {
   }, []);
 
   const finishTutorial = useCallback(() => {
-    const next = { ...stateRef.current, tutorialDone: true };
-    setState(next);
-    bg(() => store.upsertSettings(next, uid()), 'finishTutorial');
+    setState((s) => ({ ...s, tutorialDone: true }));
+    bg(() => store.upsertSettings({ ...stateRef.current, tutorialDone: true }, uid()), 'finishTutorial');
   }, []);
   const restartTutorial = useCallback(() => {
-    const next = { ...stateRef.current, tutorialDone: false };
-    setState(next);
-    bg(() => store.upsertSettings(next, uid()), 'restartTutorial');
+    setState((s) => ({ ...s, tutorialDone: false }));
+    bg(() => store.upsertSettings({ ...stateRef.current, tutorialDone: false }, uid()), 'restartTutorial');
   }, []);
 
   const addCourse = useCallback((course) => {
@@ -516,8 +516,7 @@ export function AppProvider({ children }) {
     mistakes.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const trimmedMistakes = mistakes.slice(0, 200);
 
-    const next = {
-      ...prev,
+    const seeded = {
       worksheets,
       mistakes: trimmedMistakes,
       streak: Math.max(prev.streak || 0, 5),
@@ -525,7 +524,8 @@ export function AppProvider({ children }) {
       goalDate: today,
       lastStudyDate: today,
     };
-    setState(next);
+    const next = { ...prev, ...seeded };
+    setState((s) => ({ ...s, ...seeded }));
     bg(() => store.upsertWorksheets(worksheets, uid()), 'seed/worksheets');
     bg(() => store.upsertMistakes(trimmedMistakes, uid()), 'seed/mistakes');
     bg(() => store.upsertSettings(next, uid()), 'seed/settings');
