@@ -42,12 +42,17 @@ function Router() {
     return <PrivacyPage />;
   }
 
-  // If user is logged in, show the dashboard app
-  if (state.user) {
+  // The landing page is always the front door: with no route in the URL
+  // (or a landing anchor), show it even when a session exists — the navbar
+  // then offers "Open app". App routes (#dashboard, #courses, …) open the app.
+  const landingAnchor = hash === '' || hash === '#' || LANDING_ANCHORS.has(hash.replace(/\?.*$/, ''));
+  if (state.user && !landingAnchor) {
     return <AppShell hash={hash} />;
   }
   return <LandingPage hash={hash} />;
 }
+
+const LANDING_ANCHORS = new Set(['#top', '#features', '#story', '#how', '#pricing', '#try', '#faq', '#vision', '#signup', '#login']);
 
 function App() {
   return (

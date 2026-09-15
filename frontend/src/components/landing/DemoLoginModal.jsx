@@ -59,6 +59,7 @@ export default function DemoLoginModal({ open, onClose }) {
         toast.success('Welcome to the demo.');
         onClose();
         window.location.hash = '#dashboard';
+        window.location.hash = '#dashboard';
       } else {
         setBusy(false);
         toast.error('Incorrect username or password.');
@@ -148,7 +149,7 @@ export default function DemoLoginModal({ open, onClose }) {
           <button
             type="button"
             disabled={busy}
-            onClick={() => { startDemo(); toast.success('Welcome to the demo — Admin mode is on.'); onClose(); }}
+            onClick={() => { startDemo(); toast.success('Welcome to the demo — Admin mode is on.'); onClose(); window.location.hash = '#dashboard'; }}
             data-testid="demo-login-skip"
             className="btn-outline-dark w-full py-2.5 rounded-lg text-[13.5px] font-medium disabled:opacity-60"
           >
