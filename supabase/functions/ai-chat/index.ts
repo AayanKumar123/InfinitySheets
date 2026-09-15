@@ -1,6 +1,6 @@
 // InfinitySheets AI — one Gemini-backed endpoint for every assistant in the app.
 //
-//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark' | 'generate' | 'extract' | 'assess', context, messages, files? }
+//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark' | 'generate' | 'extract' | 'assess' | 'solution' | 'plan' | 'syllabus', context, messages, files? }
 //   → { text, model }
 //
 // The Gemini key lives ONLY here, as a project secret (Dashboard → Edge
@@ -76,6 +76,19 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
   }
   if (mode === "mark") {
     return `You are an examiner marking one answer for ${boardLabel(board)}${level} strictly against the marking scheme supplied. Award marks only for points that are actually present in the student's typed answer or transcribed working; follow-through marks only where the scheme allows. Reply with a single JSON object and nothing else.`;
+  }
+  if (mode === "solution") {
+    return `${base}
+
+You write a fully worked model solution for ONE question the student got wrong. Structure: **Step 1**, **Step 2**, ... each one line of reasoning or working, then **Answer**, then a one-line **Where you slipped** that contrasts the student's answer with the correct one. Show every mark-earning step the scheme rewards. Under 220 words.`;
+  }
+  if (mode === "plan") {
+    return `${base}
+
+You build a study plan from the student's performance data and exam date. Reply with a single JSON object and nothing else: {"summary": "one sentence", "days": [{"day": "Mon", "date": "YYYY-MM-DD", "tasks": [{"subject": string, "topic": string, "minutes": integer, "what": "one specific action"}]}]}. Weakest topics first, spaced repetition of earlier ones later in the week, never more than 3 tasks per day, and respect the student's stated frequency.`;
+  }
+  if (mode === "syllabus") {
+    return `You read an official syllabus / specification PDF for ${boardLabel(board)}${level} ${ctx.subject || ""} and list its teachable topics. Reply with a single JSON object and nothing else: {"topics": [{"name": "short topic title as the syllabus names it", "summary": "one line of what is assessed"}]}. Merge sub-points into 15-40 topics, in syllabus order. Skip assessment objectives, administration and appendices.`;
   }
   if (mode === "diagnose") {
     return `${base}\n\nYou are running a post-worksheet diagnosis. The message contains the worksheet the student just finished: every question, the correct answer, and what the student put. Write a diagnosis with exactly these Markdown sections:\n\n## Where you went wrong\nGo through the incorrect questions (reference them by number). For each, name the actual misconception or slip — not just 'you got it wrong' — and give the one-line correct reasoning. If everything was correct, say so and instead identify where the answers were fragile or where the exam would push harder.\n\n## What you could have done better\n3-5 bullets on technique: reading the command word, showing working, units, eliminating options, time management, or the specific phrasing this board's mark scheme wants. Tie each to a real question from this worksheet.\n\n## Next steps\nExactly 3 bullets: the most valuable things to practise next, in priority order, each with why.\n\nBe direct and encouraging, never padded. Under 350 words.`;
@@ -191,9 +204,9 @@ async function cacheBumpHit(id: string) {
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
-const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark", "generate", "extract", "assess"]);
-const JSON_MODES = new Set(["mark", "generate", "extract", "assess"]);
-const FILE_MODES = new Set(["transcribe", "extract", "assess"]);
+const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark", "generate", "extract", "assess", "solution", "plan", "syllabus"]);
+const JSON_MODES = new Set(["mark", "generate", "extract", "assess", "plan", "syllabus"]);
+const FILE_MODES = new Set(["transcribe", "extract", "assess", "syllabus"]);
 // Inline files: photos and PDFs. Gemini reads both natively.
 type FileIn = { mimeType: string; data: string; label?: string };
 function cleanFiles(list: unknown, max = 6): FileIn[] {

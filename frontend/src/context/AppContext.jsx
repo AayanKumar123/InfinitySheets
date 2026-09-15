@@ -5,6 +5,11 @@ import { SEED_PAST_PAPERS } from '../data/pastPapers';
 import { enrolledSubjects } from '../lib/subjects';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as store from '../lib/dataStore';
+import { computeBadges, BADGES } from '../lib/badges';
+import { rateCard } from '../lib/flashcards';
+import { initAnalytics, identify, track } from '../lib/analytics';
+import { registerServiceWorker, watchOnline } from '../lib/offline';
+import { toast } from 'sonner';
 
 // Study data now lives in Supabase (Postgres + RLS) when the user is signed in
 // with a real account. Demo mode (user.isDemo) stays 100% local (localStorage,
@@ -39,7 +44,17 @@ const defaultState = {
     keyboardShortcuts: true,
     sound: true,
     aiEnabled: true,
+    digestEmail: false,
+    pushReminders: false,
+    reminderHour: 18,
   },
+  // Next wave: flashcard progress, the AI study plan, unlocked badges and
+  // admin-imported syllabus topics (public, read-only for students).
+  flashcards: { cards: {}, reviewed: 0 },
+  studyPlan: null,
+  badges: {},
+  syllabusTopics: [],
+  flaggedQuestionIds: [],
   questionsToday: 0,
   goalDate: null,
   // In-progress worksheet the student left mid-way (null when none). Lets them
@@ -112,6 +127,7 @@ export function AppProvider({ children }) {
       const loadedState = await store.loadAll(userId, authUser);
       setState((s) => ({ ...defaultState, theme: s.theme, draftWorksheet: s.draftWorksheet, ...loadedState }));
       setSyncStatus('saved');
+      identify(userId);
     } catch (e) {
       logError('loadAll', e);
       // Fall back to a minimal signed-in user so the app is still usable.
@@ -126,6 +142,16 @@ export function AppProvider({ children }) {
         },
       }));
     }
+  }, []);
+
+  // Offline shell + analytics provider (both no-ops when not configured).
+  useEffect(() => {
+    registerServiceWorker();
+    initAnalytics();
+    return watchOnline((online) => {
+      if (!online) setSyncStatus('offline');
+      else setSyncStatus((cur) => (cur === 'offline' ? (canSync() ? 'saved' : 'idle') : cur));
+    });
   }, []);
 
   // Hydrate local (theme + demo) then wire Supabase auth lifecycle.
@@ -391,6 +417,7 @@ export function AppProvider({ children }) {
     const { next, newMistakes } = computeWorksheet(stateRef.current, sheet);
     // Completing a worksheet clears any saved in-progress draft.
     setState({ ...next, draftWorksheet: null });
+    track('worksheet_completed', { subject: sheet.subject, score: sheet.score, total: sheet.total, difficulty: sheet.difficulty, answerType: sheet.answerType, examMode: !!sheet.examMode, simulation: !!sheet.simulation, paper: !!sheet.paper });
     bg(() => store.upsertWorksheet(sheet, uid()), 'recordWorksheet/sheet');
     bg(() => store.upsertMistakes(newMistakes, uid()), 'recordWorksheet/mistakes');
     bg(() => store.upsertSettings(next, uid()), 'recordWorksheet/settings');
@@ -582,6 +609,81 @@ export function AppProvider({ children }) {
     }
   }, []);
 
+  // ---- next wave ----------------------------------------------------------
+  // Badges: recomputed from state whenever progress changes; new unlocks are
+  // stamped with a date, toasted, and saved with the settings row.
+  useEffect(() => {
+    if (!loaded || !state.user) return;
+    const unlocked = computeBadges(state);
+    const fresh = Object.keys(unlocked).filter((id) => !state.badges?.[id]);
+    if (!fresh.length) return;
+    const stamp = new Date().toISOString();
+    const badges = { ...(state.badges || {}) };
+    fresh.forEach((id) => { badges[id] = stamp; });
+    setState((s) => ({ ...s, badges }));
+    fresh.forEach((id) => {
+      const b = BADGES.find((x) => x.id === id);
+      if (b) toast.success(`${b.emoji} Badge unlocked: ${b.name}`, { description: b.how });
+      track('badge_unlocked', { badge: id });
+    });
+    bg(() => store.upsertSettings({ ...stateRef.current, badges }, uid()), 'badges');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, state.worksheets, state.streak, state.flashcards?.reviewed]);
+
+  const rateFlashcard = useCallback((key, rating) => {
+    setState((s) => {
+      const cur = s.flashcards || { cards: {}, reviewed: 0 };
+      const cards = { ...(cur.cards || {}), [key]: rateCard(cur.cards?.[key], rating) };
+      return { ...s, flashcards: { cards, reviewed: (cur.reviewed || 0) + 1 } };
+    });
+    track('flashcard_rated', { rating });
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'flashcards');
+  }, []);
+
+  const setStudyPlan = useCallback((plan) => {
+    setState((s) => ({ ...s, studyPlan: plan }));
+    bg(() => store.upsertSettings({ ...stateRef.current, studyPlan: plan }, uid()), 'studyPlan');
+  }, []);
+  const togglePlanTask = useCallback((dayIdx, taskIdx) => {
+    let next = null;
+    setState((s) => {
+      if (!s.studyPlan) return s;
+      const days = s.studyPlan.days.map((d, i) => (i !== dayIdx ? d : { ...d, tasks: d.tasks.map((t, j) => (j !== taskIdx ? t : { ...t, done: !t.done })) }));
+      next = { ...s.studyPlan, days };
+      return { ...s, studyPlan: next };
+    });
+    bg(() => next && store.upsertSettings({ ...stateRef.current, studyPlan: next }, uid()), 'studyPlan/toggle');
+  }, []);
+
+  // Why a question was missed: stored on the sheet (reasons[i]) and on the
+  // matching mistake row so Strengths can split knowledge vs technique.
+  const tagMistakeReason = useCallback((sheetId, i, reason) => {
+    let sheet = null;
+    let mistake = null;
+    setState((s) => {
+      const worksheets = (s.worksheets || []).map((w) => {
+        if (w.id !== sheetId) return w;
+        const reasons = { ...(w.reasons || {}) };
+        if (reason) reasons[i] = reason; else delete reasons[i];
+        sheet = { ...w, reasons };
+        return sheet;
+      });
+      const mid = `${sheetId}-${i}`;
+      const mistakes = (s.mistakes || []).map((m) => {
+        if (m.id !== mid) return m;
+        mistake = { ...m, reason: reason || null };
+        return mistake;
+      });
+      return { ...s, worksheets, mistakes };
+    });
+    bg(() => sheet && store.upsertWorksheet(sheet, uid()), 'tagReason/sheet');
+    bg(() => mistake && store.upsertMistakes([mistake], uid()), 'tagReason/mistake');
+  }, []);
+
+  const setSyllabusTopics = useCallback((rows) => {
+    setState((s) => ({ ...s, syllabusTopics: rows }));
+  }, []);
+
   const value = useMemo(() => ({
     state, loaded, syncStatus,
     signup, login, logout,
@@ -593,6 +695,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
+    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -604,6 +707,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
+    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

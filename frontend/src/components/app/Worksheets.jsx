@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
-import { enrolledSubjects, questionsForSubject } from '../../lib/subjects';
+import { enrolledSubjects, questionsForSubject, syllabusTopicNames } from '../../lib/subjects';
 import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck, Printer, Play, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -16,6 +16,18 @@ import { subjectBoards } from '../../lib/subjects';
 import WorkingCapture from './WorkingCapture';
 import { textbookQuestion, asciiNotation } from '../../lib/notation';
 import AdSlot from '../ads/AdSlot';
+import ReportQuestion from './ReportQuestion';
+import { adaptiveDifficulty } from '../../lib/adaptive';
+import { presetFor, presetMarks, simulationScore } from '../../lib/examPresets';
+import { workedSolution } from '../../lib/ai';
+import { track as trackEvent } from '../../lib/analytics';
+import { Brain, Wand2, BookOpenCheck } from 'lucide-react';
+
+// Confidence the student attaches to each answer; compared with the result
+// afterwards to show calibration (over/under-confidence).
+const CONFIDENCE = [['sure', 'Sure'], ['unsure', 'Unsure'], ['guess', 'Guess']];
+// Why a question was missed — tagged on the result screen.
+export const MISTAKE_REASONS = [['misread', 'Misread'], ['careless', 'Careless slip'], ['unknown', "Didn't know"], ['time', 'Ran out of time']];
 
 
 // Full-size photos are only needed for transcription; the stored sheet keeps
@@ -388,7 +400,8 @@ function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerTy
 /* ================== Main component ================== */
 
 export default function Worksheets({ go }) {
-  const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet } = useApp();
+  const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet, tagMistakeReason } = useApp();
+  const tagReason = (sheetId, i, reason) => { tagMistakeReason(sheetId, i, reason); if (reason) trackEvent('mistake_tagged', { reason }); };
   const track = state.user?.examTrack || 'SSLC';
   const examMinutes = EXAM_DURATIONS[track] || 60;
 
@@ -429,7 +442,7 @@ export default function Worksheets({ go }) {
   );
   const hasCourses = (state.courses || []).length > 0;
 
-  const topicsForSubject = (s) => (customSubjectTopics[s] || TOPICS[s] || pastPaperTopicsBySubject[s] || []);
+  const topicsForSubject = (s) => (customSubjectTopics[s] || syllabusTopicNames(state.syllabusTopics, subjectBoards(state.courses, track)[s]?.board || track, s) || TOPICS[s] || pastPaperTopicsBySubject[s] || []);
 
   const preselect = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_subject') : null;
   const preselectTopic = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_topic') : null;
@@ -450,8 +463,8 @@ export default function Worksheets({ go }) {
   // selector, so the two can never disagree. Topic / answer-type narrowing is
   // layered on top in buildQuestions and ppAvailable.
   const pastPaperPool = useMemo(
-    () => questionsForSubject(state.pastPapers, subject, state.courses, track),
-    [state.pastPapers, subject, state.courses, track],
+    () => { const hidden = new Set(state.flaggedQuestionIds || []); return questionsForSubject(state.pastPapers, subject, state.courses, track).filter((p) => !hidden.has(p.id)); },
+    [state.pastPapers, subject, state.courses, track, state.flaggedQuestionIds],
   );
   const [difficulty, setDifficulty] = useState('Medium');
   const [duration, setDuration] = useState(examMinutes);
@@ -463,6 +476,9 @@ export default function Worksheets({ go }) {
   const [answers, setAnswers] = useState([]); // holds number (MCQ index) or string (typed/exam)
   const [working, setWorking] = useState([]); // per-question { images, transcript } (photo of working)
   const [flags, setFlags] = useState([]);     // per-question "come back to this"
+  const [confidence, setConfidence] = useState([]); // per-question sure | unsure | guess
+  const [adaptive, setAdaptive] = useState(false);   // difficulty picked from recent accuracy
+  const [simulation, setSimulation] = useState(false); // full exam paper structure
   const [current, setCurrent] = useState(0);
   // Sheet-level modes chosen on the build screen.
   const [examMode, setExamMode] = useState(false);     // fullscreen, locked
@@ -486,6 +502,14 @@ export default function Worksheets({ go }) {
   const ibLevelForSubject = useMemo(() => subjectBoards(state.courses, track)[subject]?.ibLevel, [state.courses, track, subject]);
   const boardForSubject = useMemo(() => subjectBoards(state.courses, track)[subject]?.board || track, [state.courses, track, subject]);
   const reviewsDue = useMemo(() => dueReviews(state.worksheets || [], { subject }), [state.worksheets, subject]);
+  const adaptivePick = useMemo(() => adaptiveDifficulty(state.worksheets || [], subject, topics, state.settings?.defaultDifficulty || 'Medium'), [state.worksheets, subject, topics, state.settings?.defaultDifficulty]);
+  const effDifficulty = adaptive ? adaptivePick.level : difficulty;
+  const simPreset = useMemo(() => presetFor(boardForSubject), [boardForSubject]);
+  const simMeta = useMemo(() => ({ board: boardForSubject, name: simPreset.name, minutes: simPreset.minutes, sections: simPreset.sections, marks: presetMarks(simPreset) }), [boardForSubject, simPreset]);
+  // A whole past paper picked in the Syllabus Bank ("Attempt this paper").
+  const [paperPick] = useState(() => {
+    try { const raw = window.sessionStorage.getItem('preselect_paper'); window.sessionStorage.removeItem('preselect_paper'); return raw ? JSON.parse(raw) : null; } catch (_) { return null; }
+  });
   const [startTime, setStartTime] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [result, setResult] = useState(null);
@@ -495,7 +519,7 @@ export default function Worksheets({ go }) {
   const skipTopicResetRef = useRef(false);
   // Always-fresh snapshot of the take-stage state for saving on navigate-away.
   const liveRef = useRef({});
-  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime, working, flags, examMode, paceCoach, examExits };
+  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime, working, flags, examMode, paceCoach, examExits, confidence, simulation: simulation ? simMeta : null };
 
   // Per-question telemetry for the worksheet analysis: how long each question
   // had the student's attention (tab visible), how many times it was visited,
@@ -541,6 +565,8 @@ export default function Worksheets({ go }) {
     telemetry: telemetryRef.current.data,
     working: stripFullImages(d.working),
     flags: d.flags,
+    confidence: d.confidence,
+    simulation: d.simulation,
     examMode: d.examMode,
     paceCoach: d.paceCoach,
     examExits: d.examExits,
@@ -578,6 +604,8 @@ export default function Worksheets({ go }) {
       setAnswers(d.answers || []);
       setWorking(d.working || []);
       setFlags(d.flags || []);
+      setConfidence(d.confidence || []);
+      setSimulation(!!d.simulation);
       setExamMode(!!d.examMode);
       setPaceCoach(!!d.paceCoach);
       setExamExits(d.examExits || 0);
@@ -662,6 +690,13 @@ export default function Worksheets({ go }) {
   // Validate the builder, ask the AI for original questions when that source
   // is ticked, and assemble the sheet. Resolves to null when validation fails.
   const assembleQuestions = async ({ withReviews }) => {
+    // A picked past paper is taken as-is, in its printed order.
+    if (paperPick && paperPick.ids?.length) {
+      const byId = new Map((state.pastPapers || []).map((p) => [p.id, p]));
+      const qs = paperPick.ids.map((id) => byId.get(id)).filter(Boolean).map((p) => textbookQuestion({ ...p, _topic: p.topic, source: 'past-paper' }));
+      if (qs.length) return qs;
+    }
+    if (simulation) return assembleSimulation();
     if (!subject) { toast.error(chosenSubjects.length ? 'Select a subject' : 'Add a course first — its subjects appear here'); return null; }
     if (!topics.length) { toast.error('Select at least one topic'); return null; }
     if (!pastPapers && !aiGenerated) { toast.error('Pick past papers, AI generated, or both'); return null; }
@@ -681,7 +716,7 @@ export default function Worksheets({ go }) {
       if (need > 0) {
         setGenerating(true);
         try {
-          generated = await generateQuestions({ board: boardForSubject, ibLevel: ibLevelForSubject, subject, topics, answerType, difficulty, count: need });
+          generated = await generateQuestions({ board: boardForSubject, ibLevel: ibLevelForSubject, subject, topics, answerType, difficulty: effDifficulty, count: need });
         } catch (e) {
           toast.error(`${e.message || 'The AI could not write questions'} — using the built-in bank instead.`);
         } finally {
@@ -689,9 +724,34 @@ export default function Worksheets({ go }) {
         }
       }
     }
-    const qs = buildQuestions({ topics, answerType, difficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions, generated });
+    const qs = buildQuestions({ topics, answerType, difficulty: effDifficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions, generated });
     if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
     return qs;
+  };
+
+  // Exam simulation: one AI call per section (MCQ / short / long), each
+  // question stamped with its section and mark weight. The local bank fills
+  // any section the AI could not.
+  const assembleSimulation = async () => {
+    if (!subject) { toast.error('Add a course first — its subjects appear here'); return null; }
+    const allTopics = topicsList.length ? topicsList : topics;
+    if (!allTopics.length) { toast.error('This subject has no topics to build a paper from'); return null; }
+    const out = [];
+    setGenerating(true);
+    try {
+      for (let si = 0; si < simPreset.sections.length; si++) {
+        const sec = simPreset.sections[si];
+        let got = [];
+        if (aiOn) {
+          try {
+            got = await generateQuestions({ board: boardForSubject, ibLevel: ibLevelForSubject, subject, topics: allTopics, answerType: sec.type, difficulty: 'Exam level', count: sec.count });
+          } catch (e) { toast.error(`${sec.name}: ${e.message || 'AI unavailable'} — using the bank.`); }
+        }
+        const qs = buildQuestions({ topics: allTopics, answerType: sec.type, difficulty: 'Exam level', length: sec.count, pastPapers: false, aiGenerated: true, pastPaperPool, reviewQuestions: [], generated: got });
+        qs.forEach((q) => out.push({ ...q, _section: si, marks: sec.marksEach }));
+      }
+    } finally { setGenerating(false); }
+    return out;
   };
 
   const start = async () => {
@@ -704,6 +764,8 @@ export default function Worksheets({ go }) {
     setAnswers(qs.map((q) => (q.answerType === 'Multiple choice' ? -1 : '')));
     setWorking(new Array(qs.length).fill(undefined));
     setFlags(new Array(qs.length).fill(false));
+    setConfidence(new Array(qs.length).fill(null));
+    trackEvent('worksheet_started', { subject, answerType, difficulty: effDifficulty, count: qs.length, examMode, simulation, adaptive, paper: !!paperPick });
     setExamExits(0);
     setExamLocked(false);
     paceWarnedRef.current = new Set();
@@ -711,7 +773,7 @@ export default function Worksheets({ go }) {
     telemetryRef.current = { data: emptyTelemetry(qs.length), enteredAt: null, hiddenAt: null };
     if (examMode) enterFullscreen();
     setStartTime(Date.now());
-    setTimeLeft(duration * 60);
+    setTimeLeft((simulation ? simPreset.minutes : duration) * 60);
     setStage('take');
   };
 
@@ -849,16 +911,19 @@ export default function Worksheets({ go }) {
       subject,
       topic: topics.join(', '),
       topics,
-      difficulty,
+      difficulty: simulation ? 'Exam level' : effDifficulty,
+      adaptive: adaptive ? adaptivePick : undefined,
       length: questions.length,
       answerType,
-      duration,
+      duration: simulation ? simPreset.minutes : duration,
       pastPapers,
       aiGenerated,
       questions,
       answers,
       working: stripFullImages(working),
       flags,
+      confidence,
+      simulation: simulation ? simMeta : null,
       examMode,
       // Remembered on the sheet so history / diagnosis still know the board
       // after the subject is removed from the student's courses.
@@ -1124,7 +1189,11 @@ export default function Worksheets({ go }) {
                 <RotateCcw className="w-3.5 h-3.5" /> Review
               </span>
             )}
+            {simulation && typeof q._section === 'number' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold" data-testid="ws-section">{simMeta.sections[q._section]?.name}</span>
+            )}
             {q.marks ? <span className="ml-auto text-[11px] font-semibold text-slate-500">[{q.marks} mark{q.marks === 1 ? '' : 's'}]</span> : null}
+            <ReportQuestion q={q} subject={subject} compact testid={`ws-report-${current}`} />
           </div>
           <div className="h-1.5 rounded-full bg-zinc-100 overflow-hidden mb-5">
             <div className="h-full bg-blue-500 transition-all" style={{ width: `${((current + 1) / questions.length) * 100}%` }} />
@@ -1182,6 +1251,17 @@ export default function Worksheets({ go }) {
               )}
             </div>
           )}
+
+          {/* How sure are you? Compared with the result for calibration. */}
+          <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="ws-confidence">
+            <span className="text-[11.5px] text-slate-500 inline-flex items-center gap-1"><Brain className="w-3.5 h-3.5" /> How sure are you?</span>
+            {CONFIDENCE.map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setConfidence((prev) => { const c = [...prev]; c[current] = c[current] === k ? null : k; return c; })}
+                className={`px-2.5 py-1 rounded-md text-[12px] font-medium border transition-colors ${confidence[current] === k ? (k === 'sure' ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : k === 'unsure' ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-rose-300 bg-rose-50 text-rose-800') : 'border-zinc-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
 
           {/* Photo of working — the answer itself for drawing questions,
               optional supporting evidence for everything else. */}
@@ -1289,6 +1369,16 @@ export default function Worksheets({ go }) {
             <Printer className="w-4 h-4 text-blue-600" /> Done on paper and marked by the AI from your scans{result.durationSec ? ` · ${fmtTime(result.durationSec)} on the timer` : ''}
           </div>
         )}
+        {result.simulation && (() => { const sc = simulationScore(result); return sc ? (
+          <div className="mb-5 rounded-2xl border border-violet-200 bg-violet-50/60 p-5" data-testid="sim-result">
+            <div className="eyebrow-muted mb-1">Exam simulation · {result.simulation.name}</div>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="text-[28px] font-semibold text-slate-900">{sc.got} <span className="text-[16px] text-slate-500">/ {sc.max} marks</span></div>
+              <div className={`px-3 py-1.5 rounded-lg border text-[14px] font-semibold ${sc.grade.tone === 'good' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : sc.grade.tone === 'ok' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>{sc.grade.label} <span className="font-normal text-slate-500">· {sc.grade.sub}</span></div>
+            </div>
+            <div className="text-[12px] text-slate-600 mt-2">Marks by section: {result.simulation.sections.map((sec, si) => { const idx = result.questions.map((q, i) => (q._section === si ? i : -1)).filter((i) => i >= 0); const ok = idx.filter((i) => result.results?.[i]).length; return `${sec.name} ${ok}/${idx.length}`; }).join(' · ')}. Use "Mark against the scheme" on written answers for examiner-style partial credit.</div>
+          </div>
+        ) : null; })()}
         {result.analytics?.examMode && (
           <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-[13px] text-slate-700 inline-flex items-center gap-2">
             <Lock className="w-4 h-4 text-rose-600" /> Taken in exam mode · {result.analytics.examMode.exits === 0 ? 'no violations' : `${result.analytics.examMode.exits} fullscreen exit${result.analytics.examMode.exits === 1 ? '' : 's'}`}
@@ -1350,6 +1440,19 @@ export default function Worksheets({ go }) {
                         <WorkingCapture value={w} onChange={() => {}} question={q} readOnly required={isDrawing} testid={`result-working-${i}`} />
                       </div>
                     )}
+                    {!ok && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid={`reason-${i}`}>
+                        <span className="text-[11px] text-slate-500">Why?</span>
+                        {MISTAKE_REASONS.map(([k, label]) => {
+                          const live = (state.worksheets || []).find((x) => x.id === result.id) || result;
+                          const sel = live.reasons?.[i] === k;
+                          return (
+                            <button key={k} type="button" onClick={() => tagReason(result.id, i, sel ? null : k)} className={`px-2 py-0.5 rounded-md text-[11.5px] font-medium border transition-colors ${sel ? 'border-slate-700 bg-slate-800 text-white' : 'border-zinc-200 bg-white text-slate-600 hover:bg-slate-50'}`}>{label}</button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!ok && !isDrawing && <SolutionRow sheet={result} idx={i} q={q} given={given} board={boardForSubject} ibLevel={ibLevelForSubject} subject={subject} enabled={aiOn} onSolved={(text) => { const live = (state.worksheets || []).find((x) => x.id === result.id) || result; updateWorksheet(result.id, { solutions: { ...(live.solutions || {}), [i]: text } }); }} />}
                     {(result.marking?.[i] || (!isMCQ && Array.isArray(q.markScheme) && q.markScheme.length > 0)) && (
                       <AiMarkRow sheet={result} idx={i} q={q} given={given} working={w} board={boardForSubject} subject={subject} enabled={aiOn} onMarked={(m) => { const live = (state.worksheets || []).find((x) => x.id === result.id) || result; updateWorksheet(result.id, { marking: { ...(live.marking || {}), [i]: m } }); }} />
                     )}
@@ -1375,6 +1478,11 @@ export default function Worksheets({ go }) {
   return (
     <div className="max-w-[820px]">
       <p className="text-[14px] text-zinc-500 mb-6">Create targeted practice. Choose a subject you&apos;re studying, pick one or more topics, and dial in the format.</p>
+      {paperPick && paperPick.ids?.length > 0 && (
+        <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-[13px] text-slate-700 flex flex-wrap items-center gap-2" data-testid="ws-paper-pick">
+          <FileText className="w-4 h-4 text-emerald-700" /> <span className="font-semibold text-emerald-800">Attempting a past paper:</span> {paperPick.label || `${paperPick.ids.length} questions`}. Press Create to start it exactly as printed.
+        </div>
+      )}
       <div className="rounded-2xl border border-zinc-200 p-6 flex flex-col gap-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Subject">
@@ -1419,7 +1527,13 @@ export default function Worksheets({ go }) {
         </Field>
 
         <Field label="Difficulty">
-          <Segmented value={difficulty} onChange={setDifficulty} options={DIFFICULTIES} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented value={adaptive ? adaptivePick.level : difficulty} onChange={(v) => { setAdaptive(false); setDifficulty(v); }} options={DIFFICULTIES} />
+            <button type="button" onClick={() => setAdaptive((v) => !v)} data-testid="ws-adaptive" className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium border transition-colors ${adaptive ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-zinc-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
+              <Wand2 className="w-4 h-4" /> Adaptive
+            </button>
+          </div>
+          {adaptive && <div className="text-[11.5px] text-slate-500 mt-1.5" data-testid="ws-adaptive-reason"><span className="font-semibold text-violet-800">{adaptivePick.level}</span> · {adaptivePick.reason}</div>}
         </Field>
 
         <Field label={`Duration · ${fmtDuration(duration)}${isDurationDefault ? ' (real exam length)' : ''}`}>
@@ -1495,6 +1609,13 @@ export default function Worksheets({ go }) {
               testid="ws-exam-mode"
             />
             <CheckboxCard
+              label={<span>Exam simulation <span className="text-slate-500 font-normal">— full paper, real sections</span></span>}
+              icon={<BookOpenCheck className="w-5 h-5 text-violet-600" />}
+              checked={simulation}
+              onChange={setSimulation}
+              testid="ws-simulation"
+            />
+            <CheckboxCard
               label={<span>Pace coach <span className="text-slate-500 font-normal">— a time budget per question</span></span>}
               icon={<Gauge className="w-5 h-5 text-amber-600" />}
               checked={paceCoach}
@@ -1502,6 +1623,11 @@ export default function Worksheets({ go }) {
               testid="ws-pace-coach"
             />
           </div>
+          {simulation && (
+            <div className="text-[11.5px] text-slate-600 mt-2 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2" data-testid="ws-simulation-info">
+              <span className="font-semibold text-violet-800">{simMeta.name}</span> · {simMeta.minutes} min · {simMeta.marks} marks · {simMeta.sections.map((sec) => `${sec.name}: ${sec.count} × ${sec.marksEach}`).join(' · ')}. Covers every topic in {subject || 'the subject'}; the result is converted to a grade using the board's boundaries.
+            </div>
+          )}
           {examMode && <div className="text-[11.5px] text-slate-500 mt-2">The sheet takes over the whole screen, Save &amp; exit is disabled and leaving fullscreen is logged as a violation. Just like the real thing.</div>}
         </div>
       </div>
@@ -1602,6 +1728,40 @@ function AiMarkRow({ sheet, idx, q, given, working, board, subject, enabled, onM
       ) : (
         <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 hover:text-violet-900 disabled:opacity-60" data-testid={`mark-${idx}`}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />} Mark against the scheme{markSchemeText(q.markScheme) ? '' : ' (model answer)'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// "Show me the working": a worked model solution for a missed question.
+function SolutionRow({ sheet, idx, q, given, board, ibLevel, subject, enabled, onSolved }) {
+  const { state } = useApp();
+  const live = (state.worksheets || []).find((w) => w.id === sheet.id) || sheet;
+  const saved = live.solutions?.[idx];
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(!!saved);
+  const run = async () => {
+    setBusy(true);
+    try {
+      const text = await workedSolution({ q, given, board, ibLevel, subject });
+      onSolved(text);
+      setOpen(true);
+      trackEvent('solution_requested', { subject });
+    } catch (e) { toast.error(e.message || 'Could not write the solution'); }
+    finally { setBusy(false); }
+  };
+  if (!enabled && !saved) return null;
+  return (
+    <div className="mt-2">
+      {saved ? (
+        <div>
+          <button type="button" onClick={() => setOpen((v) => !v)} className="text-[12.5px] font-semibold text-blue-700 hover:text-blue-900 inline-flex items-center gap-1" data-testid={`solution-toggle-${idx}`}><BookOpenCheck className="w-4 h-4" /> {open ? 'Hide' : 'Show'} the working</button>
+          {open && <div className="mt-1.5 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 text-[12.5px] text-slate-800 whitespace-pre-wrap" data-testid={`solution-${idx}`}>{saved.replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/^\*\s+/gm, '• ')}</div>}
+        </div>
+      ) : (
+        <button type="button" onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-60" data-testid={`solution-${idx}`}>
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpenCheck className="w-4 h-4" />} Show me the working
         </button>
       )}
     </div>

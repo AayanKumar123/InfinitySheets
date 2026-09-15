@@ -296,3 +296,65 @@ export async function assessPaper({ questions, files, board, subject }) {
     };
   });
 }
+
+/**
+ * Worked model solution for one question the student got wrong. Resolves to
+ * Markdown text (Step 1 … Answer … Where you slipped).
+ */
+export async function workedSolution({ q, given, board, ibLevel, subject }) {
+  const type = q.answerType || 'Multiple choice';
+  let accepted = '';
+  let student = '';
+  if (type === 'Multiple choice' && Array.isArray(q.options)) {
+    accepted = q.options[q.a];
+    student = typeof given === 'number' && given >= 0 ? q.options[given] : '(no answer)';
+  } else if (type === 'Typed response') {
+    accepted = q.typedAnswer || '';
+    student = given ? String(given) : '(blank)';
+  } else {
+    accepted = q.examAnswer || (q.examKeywords || []).join(', ');
+    student = given ? String(given) : '(blank)';
+  }
+  const content = [
+    `Question: ${q.q}`,
+    accepted ? `Correct answer: ${accepted}` : '',
+    markSchemeText(q.markScheme) ? `Mark scheme: ${markSchemeText(q.markScheme)}` : '',
+    `Student's answer: ${student}`,
+  ].filter(Boolean).join('\n');
+  return askAi({ mode: 'solution', context: { board, ibLevel, subject, topic: q._topic || q.topic }, messages: [{ role: 'user', content }] });
+}
+
+/**
+ * A week-long study plan from the student's data. Resolves to
+ * { summary, days: [{ day, date, tasks: [{ subject, topic, minutes, what }] }] }.
+ */
+export async function buildStudyPlan({ board, examDate, frequency, weeklyGoal, weakTopics, subjects, startDate }) {
+  const content = [
+    `Today is ${startDate}. Exam date: ${examDate || 'not set'}. Study frequency the student chose: ${frequency || '3-4 per week'}. Weekly question goal: ${weeklyGoal || 50}.`,
+    `Subjects: ${(subjects || []).join(', ') || '(none yet)'}.`,
+    `Weakest topics (subject · topic · accuracy%): ${(weakTopics || []).map((t) => `${t.subject} · ${t.topic} · ${t.accuracy}%`).join('; ') || '(no data yet — spread evenly)'}.`,
+    'Plan the next 7 days starting today.',
+  ].join('\n');
+  const text = await askAi({ mode: 'plan', context: { board }, messages: [{ role: 'user', content }] });
+  const parsed = parseJsonReply(text);
+  const days = (parsed.days || []).slice(0, 7).map((d) => ({
+    day: String(d.day || ''),
+    date: String(d.date || ''),
+    tasks: (d.tasks || []).slice(0, 3).map((t) => ({ subject: String(t.subject || ''), topic: String(t.topic || ''), minutes: Math.max(5, Math.min(180, Number(t.minutes) || 20)), what: String(t.what || '') })),
+  })).filter((d) => d.tasks.length);
+  if (!days.length) throw new Error('The AI returned an empty plan');
+  return { summary: String(parsed.summary || ''), days };
+}
+
+/**
+ * Admin: read a syllabus PDF and list its topics. Resolves to
+ * [{ name, summary }].
+ */
+export async function extractSyllabusTopics({ file, board, subject }) {
+  const content = `List the topics in this ${subject} syllabus for ${board}.`;
+  const text = await askAi({ mode: 'syllabus', context: { board, subject }, files: [{ ...file, label: 'SYLLABUS' }], messages: [{ role: 'user', content }] });
+  const parsed = parseJsonReply(text);
+  const seen = new Set();
+  return (parsed.topics || []).map((t) => ({ name: String(t.name || '').trim().slice(0, 80), summary: String(t.summary || '').trim().slice(0, 240) }))
+    .filter((t) => t.name && !seen.has(t.name.toLowerCase()) && seen.add(t.name.toLowerCase()));
+}

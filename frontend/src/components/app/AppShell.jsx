@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, GraduationCap, Pencil, FileText, Library, History, TrendingUp, Dumbbell, Sparkles, AlertTriangle, Settings, Shield , BookOpen } from 'lucide-react';
+import { LayoutDashboard, GraduationCap, Pencil, FileText, Library, History, TrendingUp, Dumbbell, Sparkles, AlertTriangle, Settings, Shield, BookOpen, Layers, Users } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import Dashboard from './Dashboard';
 import StartStudying from './StartStudying';
@@ -22,6 +22,11 @@ import Sidebar from './shell/Sidebar';
 import DemoBanner from './shell/DemoBanner';
 import TopHeader from './shell/TopHeader';
 import { toast } from 'sonner';
+import Flashcards from './Flashcards';
+import Groups from './Groups';
+import { pageview } from '../../lib/analytics';
+import { maybeRemind } from '../../lib/offline';
+import { dueReviews } from '../../lib/spacedRepetition';
 
 const BASE_NAV = [
   { key: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
@@ -32,6 +37,8 @@ const BASE_NAV = [
   { key: 'progress', label: 'Performance', Icon: TrendingUp },
   { key: 'strengths', label: 'Strengths & Weaknesses', Icon: Dumbbell },
   { key: 'recommendations', label: 'Smart Learning', Icon: Sparkles },
+  { key: 'flashcards', label: 'Flashcards', Icon: Layers },
+  { key: 'groups', label: 'Study Groups', Icon: Users },
   { key: 'settings', label: 'Settings', Icon: Settings },
 ];
 const ADMIN_ITEM = { key: 'admin', label: 'Admin', Icon: Shield };
@@ -92,6 +99,8 @@ function renderRoute(activeKey, params, go, isAdmin) {
     case 'recommendations': return <Recommendations go={go} />;
     case 'mistakes': return <Mistakes />;
     case 'settings': return <SettingsView />;
+    case 'flashcards': return <Flashcards go={go} />;
+    case 'groups': return <Groups />;
     case 'resources': return <ResourcesPage embedded />;
     case 'admin': return isAdmin ? <AdminPlaceholder /> : <Dashboard go={go} />;
     case 'course-overview': return <CourseOverview courseId={params.id} go={go} />;
@@ -146,6 +155,20 @@ export default function AppShell({ hash }) {
     // becomes visible again.
     if (isMobile) setSidebarOpen(false);
   };
+  // Analytics page views + the once-a-day study reminder check.
+  useEffect(() => { pageview(current.key); }, [current.key]);
+  useEffect(() => {
+    const check = () => maybeRemind({
+      enabled: !!state.settings?.pushReminders,
+      hour: state.settings?.reminderHour ?? 18,
+      dueCount: dueReviews(state.worksheets || []).length,
+      studiedToday: state.lastStudyDate === new Date().toDateString(),
+      streak: state.streak || 0,
+    });
+    check();
+    const id = setInterval(check, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [state.settings?.pushReminders, state.settings?.reminderHour, state.worksheets, state.lastStudyDate, state.streak]);
   const isDark = state.theme === 'dark';
   const showOnboarding = !state.onboardingDone;
   const showTutorial = state.onboardingDone && !state.tutorialDone;

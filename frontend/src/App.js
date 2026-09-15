@@ -5,6 +5,7 @@ import LandingPage from './components/landing/LandingPage';
 import ResourcesPage from './components/landing/ResourcesPage';
 import PrivacyPage from './components/landing/PrivacyPage';
 import AppShell from './components/app/AppShell';
+import SharedProgress from './components/app/SharedProgress';
 import { Toaster } from './components/ui/sonner';
 
 function Router() {
@@ -35,6 +36,12 @@ function Router() {
   //     remains visible (see AppShell's 'resources' route)
   if (!state.user && hash.startsWith('#resources')) {
     return <ResourcesPage />;
+  }
+
+  // Teacher / parent view of a student's progress — public by token.
+  if (hash.startsWith('#shared')) {
+    const token = (hash.split('?')[1] || '').split('&').map((p) => p.split('=')).find(([k]) => k === 'token')?.[1] || '';
+    return <SharedProgress token={token} />;
   }
 
   // Privacy policy — always available, no auth needed.

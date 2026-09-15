@@ -123,3 +123,36 @@ cd frontend && yarn install && yarn start        # http://localhost:3000
 cd backend && pip install -r requirements.txt
 uvicorn server:app --host 0.0.0.0 --port 8001
 ```
+
+---
+
+## Next-wave features (branch `feature/next-wave`)
+
+Everything below ships in the app; the three marked **needs config** work
+end-to-end once the owner adds the listed keys (nothing is exposed in the
+frontend bundle).
+
+| # | Feature | Where | Notes |
+|---|---------|-------|-------|
+| 1 | Confidence rating | Worksheet take stage → *How sure are you?* (Sure / Unsure / Guess) | Compared with results in *How you worked → Confidence vs results*. Stored as `confidence[]` on the sheet. |
+| 2 | Adaptive difficulty | Builder → *Adaptive* next to the difficulty picker | `lib/adaptive.js`: ≥85 % on the last 6 sheets' questions for those topics → step up, <55 % → step down. Shows the reason; overridable. |
+| 3 | Mistake-reason tagging | Result screen → *Why?* chips on wrong answers | Saved on the sheet (`reasons`) and the mistake row; Strengths & Weaknesses shows *Why you lose marks* (knowledge vs technique). |
+| 4 | Exam simulation | Builder → *Exam simulation* | `lib/examPresets.js` has a paper structure per board (sections, counts, marks, time, negative marking for JEE/NEET). One AI call per section; result converts marks → board grade. |
+| 5 | Worked solutions | Result screen → *Show me the working* | `ai-chat` mode `solution`; cached on the sheet (`solutions[i]`). |
+| 6 | Flashcards | Sidebar → Flashcards | Deck from mistakes; Again/Hard/Good/Easy drive the 1-3-7-14-day intervals. Progress in `user_settings.data.flashcards`. |
+| 7 | Weekly email digest — **needs config** | Settings → *Reminders & digest* | Edge function `weekly-digest` + `supabase/setup/weekly_digest_cron.sql`. Secrets: `DIGEST_SECRET`, `RESEND_API_KEY`, `DIGEST_FROM`, `APP_URL`. Without `RESEND_API_KEY` it dry-runs. |
+| 8 | Push reminders | Settings → *Daily study reminder* | Local Notifications via the service worker (`public/sw.js`), once a day at the chosen hour when reviews are due / streak at risk. No push server needed. |
+| 9 | AI study plan | Smart Learning → *This week's plan* | `ai-chat` mode `plan`; tasks tick off and open the builder pre-filled. |
+| 10 | Goals & badges | Dashboard card | `lib/badges.js` — 18 badges derived from state; unlock dates saved in `user_settings.data.badges`. |
+| 11 | Bulk syllabus import | Admin → *Syllabus topics* | Upload the board's syllabus PDF → `ai-chat` mode `syllabus` → `public.syllabus_topics`; overrides the built-in topic list for that board+subject in the builder. |
+| 12 | Question quality flags | Any question → *Report*; Admin → *Reported questions* | `public.question_flags`; 3+ open flags hide a bank question from new sheets (`flagged_question_ids()`). |
+| 13 | Past-paper library browser | Syllabus Bank → year / answer-type filters → *Attempt the YYYY paper* | Runs the filtered questions as one worksheet in printed order. Filters appear once uploaded papers carry a `year`. |
+| 14 | Teacher / parent share | Settings → *Share progress* → link `#shared?token=…` | `public.progress_shares` + `shared_progress()` returns scores/topics only — never answers or email. Revocable. |
+| 15 | Study groups | Sidebar → Study Groups | `study_groups` / `group_members`, 6-letter join code, weekly leaderboard (`group_leaderboard()`, first names only). Real accounts only. |
+| 16 | Offline mode | automatic | `public/sw.js` caches the app shell (production builds); data is already mirrored to localStorage; header shows *Offline · saved on this device* and re-syncs on `online`. |
+| 17 | Google sign-in — **needs config** | Log in / Sign up → *Continue with Google* | Code is in place (`apiGoogleAuth`); follow step 4 of the dashboard setup above. |
+| 18 | Analytics events — **needs config** | `lib/analytics.js` | Set `REACT_APP_POSTHOG_KEY` (+ optional `REACT_APP_POSTHOG_HOST`) or `REACT_APP_PLAUSIBLE_DOMAIN`. Events: `worksheet_started/completed`, `badge_unlocked`, `flashcard_rated`, `study_plan_generated`, `question_flagged`, `solution_requested`, `mistake_tagged`, `share_created`, `group_created/joined`, `pageview`. No-op (dev console only) without a key. |
+
+Database changes for this wave: `supabase/migrations/0008_next_wave.sql`
+(applied to the project). Edge functions: `ai-chat` v17 (new modes
+`solution`, `plan`, `syllabus`), `weekly-digest` v1.

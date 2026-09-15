@@ -113,19 +113,28 @@ export function settingsToRow(state, userId) {
     exam_date: s.examDate ?? null,
     sound: s.sound ?? true,
     keyboard_shortcuts: s.keyboardShortcuts ?? true,
+    digest_email: s.digestEmail ?? false,
+    push_reminders: s.pushReminders ?? false,
     streak: state.streak ?? 0,
     last_study_date: state.lastStudyDate ?? null,
     questions_today: state.questionsToday ?? 0,
     goal_date: state.goalDate ?? null,
     onboarding_done: state.onboardingDone ?? false,
     tutorial_done: state.tutorialDone ?? false,
+    // Small per-user blobs that do not deserve their own table.
+    data: { flashcards: state.flashcards || null, studyPlan: state.studyPlan || null, badges: state.badges || null, reminderHour: s.reminderHour ?? 18 },
     updated_at: nowISO(),
   };
 }
 export function rowToSettingsState(row) {
   if (!row) return {};
+  const extra = row.data && typeof row.data === 'object' ? row.data : {};
   return {
+    flashcards: extra.flashcards || { cards: {}, reviewed: 0 },
+    studyPlan: extra.studyPlan || null,
+    badges: extra.badges || {},
     settings: {
+      reminderHour: typeof extra.reminderHour === 'number' ? extra.reminderHour : 18,
       dailyGoal: row.daily_goal ?? 10,
       weeklyGoal: row.weekly_goal ?? 50,
       frequency: row.frequency ?? '3-4 per week',
@@ -133,6 +142,8 @@ export function rowToSettingsState(row) {
       examDate: row.exam_date ?? '',
       sound: row.sound ?? true,
       keyboardShortcuts: row.keyboard_shortcuts ?? true,
+      digestEmail: row.digest_email ?? false,
+      pushReminders: row.push_reminders ?? false,
     },
     streak: row.streak ?? 0,
     lastStudyDate: row.last_study_date ?? null,
@@ -157,13 +168,15 @@ export function profileToUser(row, authUser) {
 
 // ------------------------------- reads -------------------------------------
 export async function loadAll(userId, authUser) {
-  const [profileRes, settingsRes, wsRes, msRes, csRes, ppRes] = await Promise.all([
+  const [profileRes, settingsRes, wsRes, msRes, csRes, ppRes, stRes, flRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
     supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('worksheets').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('mistakes').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('courses').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('past_papers').select('*').order('created_at', { ascending: false }),
+    supabase.from('syllabus_topics').select('board, subject, topics'),
+    supabase.rpc('flagged_question_ids'),
   ]);
 
   // A failed read must surface as an error, not as "this student has no
@@ -178,6 +191,8 @@ export async function loadAll(userId, authUser) {
     mistakes: (msRes.data || []).map(rowToMistake),
     courses: (csRes.data || []).map(rowToCourse),
     pastPapers: (ppRes.data || []).map((r) => (r.data && typeof r.data === 'object' ? { ...r.data, id: r.id } : r)),
+    syllabusTopics: stRes.data || [],
+    flaggedQuestionIds: (flRes.data || []).map((r) => (typeof r === 'string' ? r : r.flagged_question_ids || r.question_id)).filter(Boolean),
     ...settingsState,
   };
 }
@@ -286,5 +301,94 @@ export async function createPastPaper(pp) {
 }
 export async function deletePastPaper(id) {
   const { error } = await supabase.from('past_papers').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ------------------------------- next wave ---------------------------------
+// Admin-imported syllabus topics (rows of { board, subject, topics: [{name, summary}] }).
+export async function listSyllabusTopics() {
+  const { data, error } = await supabase.from('syllabus_topics').select('board, subject, topics, source, updated_at');
+  if (error) throw error;
+  return data || [];
+}
+export async function upsertSyllabusTopics({ board, subject, topics, source }, userId) {
+  const { error } = await supabase.from('syllabus_topics').upsert({ board, subject, topics, source: source || null, updated_by: userId || null, updated_at: nowISO() }, { onConflict: 'board,subject' });
+  if (error) throw error;
+}
+
+// Question quality flags.
+export async function flagQuestion({ questionId, question, subject, reason, note }, userId) {
+  const { error } = await supabase.from('question_flags').insert({ user_id: userId, question_id: questionId || null, question: String(question || '').slice(0, 2000), subject: subject || null, reason, note: note ? String(note).slice(0, 500) : null });
+  if (error) throw error;
+}
+export async function listQuestionFlags(status = 'open') {
+  const { data, error } = await supabase.from('question_flags').select('*').eq('status', status).order('created_at', { ascending: false }).limit(200);
+  if (error) throw error;
+  return data || [];
+}
+export async function setFlagStatus(id, status) {
+  const { error } = await supabase.from('question_flags').update({ status }).eq('id', id);
+  if (error) throw error;
+}
+export async function flaggedQuestionIds() {
+  const { data, error } = await supabase.rpc('flagged_question_ids');
+  if (error) throw error;
+  return (data || []).map((r) => (typeof r === 'string' ? r : r.flagged_question_ids || r.question_id)).filter(Boolean);
+}
+
+// Read-only progress shares.
+export async function listShares(userId) {
+  const { data, error } = await supabase.from('progress_shares').select('*').eq('user_id', userId).is('revoked_at', null).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+export async function createShare(label, userId) {
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(18))).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const { data, error } = await supabase.from('progress_shares').insert({ token, user_id: userId, label: label || null }).select().single();
+  if (error) throw error;
+  return data;
+}
+export async function revokeShare(token) {
+  const { error } = await supabase.from('progress_shares').update({ revoked_at: nowISO() }).eq('token', token);
+  if (error) throw error;
+}
+export async function fetchSharedProgress(token) {
+  const { data, error } = await supabase.rpc('shared_progress', { p_token: token });
+  if (error) throw error;
+  return data;
+}
+
+// Study groups.
+export async function myGroups() {
+  const { data, error } = await supabase.from('study_groups').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+export async function createGroup(name, school) {
+  const { data, error } = await supabase.rpc('create_group', { p_name: name, p_school: school || null });
+  if (error) throw error;
+  return data;
+}
+export async function joinGroup(code) {
+  const { data, error } = await supabase.rpc('join_group', { p_code: code });
+  if (error) throw error;
+  return data;
+}
+export async function leaveGroup(groupId, userId) {
+  const { error } = await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId);
+  if (error) throw error;
+}
+export async function groupLeaderboard(groupId) {
+  const { data, error } = await supabase.rpc('group_leaderboard', { p_group: groupId });
+  if (error) throw error;
+  return data || [];
+}
+
+// Digest / reminder preferences live on user_settings.
+export async function updateNotificationPrefs({ digestEmail, pushReminders }, userId) {
+  const row = { user_id: userId, updated_at: nowISO() };
+  if (typeof digestEmail === 'boolean') row.digest_email = digestEmail;
+  if (typeof pushReminders === 'boolean') row.push_reminders = pushReminders;
+  const { error } = await supabase.from('user_settings').upsert(row, { onConflict: 'user_id' });
   if (error) throw error;
 }

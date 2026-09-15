@@ -154,17 +154,35 @@ function SubjectPicker({ subjects, questionsBySubject, boards, onPick }) {
 function BrowseSubject({ subject, chosenSubjects, questionsBySubject, boards, onBack, onSwitchSubject, go }) {
   const [query, setQuery] = useState('');
   const [revealed, setRevealed] = useState({});
+  const [year, setYear] = useState('');
+  const [type, setType] = useState('');
   const list = useMemo(() => questionsBySubject[subject] || [], [questionsBySubject, subject]);
+  const years = useMemo(() => Array.from(new Set(list.map((x) => x.year).filter(Boolean))).sort((a, b) => b - a), [list]);
+  const types = useMemo(() => Array.from(new Set(list.map((x) => x.answerType).filter(Boolean))), [list]);
 
   const filtered = useMemo(() => {
-    if (!query) return list;
+    let base = list;
+    if (year) base = base.filter((x) => String(x.year) === String(year));
+    if (type) base = base.filter((x) => x.answerType === type);
+    if (!query) return base;
     const q = query.toLowerCase();
-    return list.filter((x) =>
+    return base.filter((x) =>
       x.q.toLowerCase().includes(q)
       || x.topic.toLowerCase().includes(q)
       || (x.options || []).some((o) => String(o).toLowerCase().includes(q))
     );
-  }, [list, query]);
+  }, [list, query, year, type]);
+
+  // "Attempt this paper": every question from one year, in printed order.
+  const attemptPaper = () => {
+    const ids = filtered.map((x) => x.id).filter(Boolean);
+    if (!ids.length) return;
+    try {
+      window.sessionStorage.setItem('preselect_subject', subject);
+      window.sessionStorage.setItem('preselect_paper', JSON.stringify({ ids, label: `${subject}${year ? ` ${year}` : ''}${type ? ` · ${type}` : ''} · ${ids.length} questions` }));
+    } catch (e) { /* ignore */ }
+    go('worksheets');
+  };
 
   const launchPractice = (topic) => {
     window.sessionStorage.setItem('preselect_subject', subject);
@@ -206,6 +224,29 @@ function BrowseSubject({ subject, chosenSubjects, questionsBySubject, boards, on
           />
         </div>
       </div>
+
+      {(years.length > 0 || types.length > 1) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4" data-testid="qbank-filters">
+          {years.length > 0 && (
+            <select className="input-base w-auto py-1.5" value={year} onChange={(e) => setYear(e.target.value)} data-testid="qbank-year">
+              <option value="">All years</option>
+              {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          )}
+          {types.length > 1 && (
+            <select className="input-base w-auto py-1.5" value={type} onChange={(e) => setType(e.target.value)} data-testid="qbank-type">
+              <option value="">All answer types</option>
+              {types.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
+          {(year || type || query) && filtered.length > 0 && (
+            <button onClick={attemptPaper} className="btn-violet inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold" data-testid="qbank-attempt-paper">
+              <FileText className="w-4 h-4" /> Attempt {year ? `the ${year} paper` : 'these'} ({filtered.length})
+            </button>
+          )}
+          {(year || type) && <button onClick={() => { setYear(''); setType(''); }} className="text-[12px] text-slate-500 hover:text-slate-800">Clear</button>}
+        </div>
+      )}
 
       {chosenSubjects.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-5">

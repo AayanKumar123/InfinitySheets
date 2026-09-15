@@ -9,10 +9,31 @@ import { analyticsInsights, fmtMs } from '../../lib/worksheetAnalytics';
  *   sheet    — a finished worksheet record with `analytics` attached
  *   compact  — collapsed by default (for history lists)
  */
+// Confidence ratings vs actual results: are "sure" answers really right, and
+// how many "guesses" landed? Null when the student rated nothing.
+function calibrationSummary(sheet) {
+  const conf = sheet?.confidence || [];
+  const results = sheet?.results || [];
+  if (!conf.some(Boolean)) return null;
+  const rows = [['sure', 'Sure'], ['unsure', 'Unsure'], ['guess', 'Guess']].map(([key, label]) => {
+    const idx = conf.map((c, i) => (c === key ? i : -1)).filter((i) => i >= 0);
+    return { key, label, n: idx.length, right: idx.filter((i) => results[i]).length };
+  });
+  const sure = rows[0];
+  const guess = rows[2];
+  let text;
+  if (sure.n >= 2 && sure.right / sure.n < 0.6) text = `You were sure on ${sure.n} answers but only ${sure.right} were right — over-confidence. Slow down and check those, they feel finished when they are not.`;
+  else if (guess.n >= 2 && guess.right / guess.n >= 0.7) text = `${guess.right} of your ${guess.n} guesses were right — you know more than you think. Trust your first instinct more.`;
+  else if (sure.n >= 2 && sure.right === sure.n) text = 'Every answer you were sure about was right — your confidence is well calibrated.';
+  else text = 'Rate more answers over a few sheets and this will show whether your confidence matches your results.';
+  return { rows: rows.filter((r) => r.n), text };
+}
+
 export default function WorksheetAnalysis({ sheet, compact = false, testid = 'ws-analysis' }) {
   const a = sheet?.analytics;
   const [open, setOpen] = useState(!compact);
   const insights = useMemo(() => analyticsInsights(a), [a]);
+  const calibration = useMemo(() => calibrationSummary(sheet), [sheet]);
   if (!a || !a.perQuestion?.length) return null;
 
   const max = Math.max(1, ...a.perQuestion.map((p) => p.timeMs));
@@ -103,6 +124,20 @@ export default function WorksheetAnalysis({ sheet, compact = false, testid = 'ws
               </div>
             ))}
           </div>
+
+          {calibration && (
+            <div className="rounded-xl border border-[color:var(--color-border)] bg-white px-3 py-2.5" data-testid={`${testid}-calibration`}>
+              <div className="text-[12.5px] font-semibold text-slate-700 mb-1.5">Confidence vs results</div>
+              <div className="flex flex-wrap gap-2 text-[12px]">
+                {calibration.rows.map((r) => (
+                  <span key={r.key} className={`px-2.5 py-1 rounded-md border ${r.key === 'sure' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : r.key === 'unsure' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-rose-200 bg-rose-50 text-rose-800'}`}>
+                    {r.label}: {r.right}/{r.n} right{r.n ? ` (${Math.round((r.right / r.n) * 100)}%)` : ''}
+                  </span>
+                ))}
+              </div>
+              <div className="text-[12px] text-slate-600 mt-1.5">{calibration.text}</div>
+            </div>
+          )}
 
           {a.hiddenMs > 5000 && (
             <div className="text-[11.5px] text-slate-500">You were away from the tab for {fmtMs(a.hiddenMs)}; that time isn't counted above.</div>

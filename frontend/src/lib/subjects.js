@@ -91,3 +91,11 @@ export function activeWorksheets(worksheets, courses, userSubjects, track) {
   const enrolled = new Set(enrolledSubjects(courses, userSubjects, track));
   return (worksheets || []).filter((w) => enrolled.has(w.subject));
 }
+
+// Topics for a subject: an admin-imported syllabus (public.syllabus_topics)
+// for the student's board wins over the built-in TOPICS map.
+export function syllabusTopicNames(syllabusTopics, board, subject) {
+  const rows = syllabusTopics || [];
+  const row = rows.find((r) => r.subject === subject && r.board === board) || rows.find((r) => r.subject === subject);
+  return row ? (row.topics || []).map((t) => t.name).filter(Boolean) : null;
+}

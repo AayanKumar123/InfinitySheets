@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { toast } from 'sonner';
 import { User, Sliders, Accessibility, GraduationCap, AlertTriangle, Save, RotateCcw, Trash2, Sun, Moon, Keyboard, BookOpen, Calendar, Bot } from 'lucide-react';
 import { EXAM_TRACKS, SUBJECTS } from '../../data/mock';
+import { RemindersSection, ShareSection } from './NotifyShareSettings';
 
 const GOALS = [5, 10, 20];
 const WEEKLY_GOALS = [20, 50, 100];
@@ -25,6 +26,8 @@ export default function SettingsView() {
       <Preferences settings={state.settings} updateSettings={updateSettings} />
 
       <AiSection settings={state.settings} updateSettings={updateSettings} />
+      <RemindersSection />
+      <ShareSection />
       <AccessibilitySection settings={state.settings} updateSettings={updateSettings} theme={state.theme} toggleTheme={toggleTheme} />
 
       <SetupSection user={state.user} settings={state.settings} restartOnboarding={restartOnboarding} />

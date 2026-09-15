@@ -6,6 +6,7 @@ import { FULL_PAPER_TYPE } from '../../data/pastPapers';
 import { toast } from 'sonner';
 import { extractFromPdf, isAiEnabled } from '../../lib/ai';
 import { filesToAiParts } from '../../lib/images';
+import { SyllabusImport, FlagQueue } from './AdminNextWave';
 
 const ANSWER_TYPES = ['Multiple choice', 'Typed response', 'Exam style', 'Drawing', FULL_PAPER_TYPE];
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
@@ -125,6 +126,8 @@ export default function AdminPlaceholder() {
         </div>
       </div>
 
+      {subject && <div className="mb-5"><SyllabusImport board={syllabus} subject={subject} /></div>}
+
       {/* Category-scoped content */}
       {subject && (
         <CategoryPanel
@@ -136,6 +139,8 @@ export default function AdminPlaceholder() {
           removePastPaper={removePastPaper}
         />
       )}
+
+      <div className="mt-5"><FlagQueue /></div>
     </div>
   );
 }

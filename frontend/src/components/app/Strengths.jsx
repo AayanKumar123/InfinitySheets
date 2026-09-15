@@ -79,6 +79,26 @@ export default function Strengths() {
 
   // Subject-scoped worksheets — when a subject is selected, thresholds and
   // the predicted grade are computed off ONLY that subject's data.
+  // Knowledge gaps ("didn't know") vs technique slips (misread / careless /
+  // time) — different fixes, so they are shown apart.
+  const reasonSplit = useMemo(() => {
+    const counts = { misread: 0, careless: 0, unknown: 0, time: 0 };
+    ws.forEach((w) => Object.values(w.reasons || {}).forEach((r) => { if (r in counts) counts[r] += 1; }));
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (!total) return null;
+    const rows = [
+      { key: 'unknown', label: "Didn't know", n: counts.unknown, cls: 'bg-rose-500' },
+      { key: 'misread', label: 'Misread', n: counts.misread, cls: 'bg-amber-400' },
+      { key: 'careless', label: 'Careless slip', n: counts.careless, cls: 'bg-orange-400' },
+      { key: 'time', label: 'Ran out of time', n: counts.time, cls: 'bg-sky-400' },
+    ];
+    const technique = counts.misread + counts.careless + counts.time;
+    const text = counts.unknown > technique
+      ? `Mostly knowledge gaps (${Math.round((counts.unknown / total) * 100)}%): revisit the topic overviews and worked solutions before doing more sheets.`
+      : `Mostly technique (${Math.round((technique / total) * 100)}%): you know the content — practise reading the command word twice, checking units, and using the pace coach.`;
+    return { total, rows, text };
+  }, [ws]);
+
   const subjectWs = useMemo(
     () => (subject === 'all' ? ws : ws.filter((w) => w.subject === subject)),
     [ws, subject]
@@ -338,6 +358,20 @@ export default function Strengths() {
           </div>
         )}
       </div>
+
+      {reasonSplit && (
+        <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5" data-testid="reason-breakdown">
+          <div className="eyebrow-muted mb-1">Why you lose marks</div>
+          <div className="text-[13px] text-slate-600 mb-3">From the reasons you tagged on {reasonSplit.total} missed question{reasonSplit.total === 1 ? '' : 's'}.</div>
+          <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+            {reasonSplit.rows.map((r) => r.n > 0 && <div key={r.key} className={r.cls} style={{ width: `${(r.n / reasonSplit.total) * 100}%` }} title={`${r.label}: ${r.n}`} />)}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-slate-700">
+            {reasonSplit.rows.map((r) => <span key={r.key} className="inline-flex items-center gap-1.5"><span className={`w-2.5 h-2.5 rounded-sm ${r.cls}`} /> {r.label} · {r.n}</span>)}
+          </div>
+          <div className="text-[12.5px] text-slate-700 mt-3">{reasonSplit.text}</div>
+        </div>
+      )}
 
       <AdSlot slot="strengths" size="compact" />
 

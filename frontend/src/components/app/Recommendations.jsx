@@ -8,6 +8,7 @@ import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStre
 import { subjectBoards, boardName, activeWorksheets } from '../../lib/subjects';
 import AiChat from './ai/AiChat';
 import DiagnosisPanel from './ai/DiagnosisPanel';
+import StudyPlan from './StudyPlan';
 
 export default function Recommendations({ go }) {
   const { state } = useApp();
@@ -134,6 +135,7 @@ export default function Recommendations({ go }) {
     return (
       <div className="flex flex-col gap-5 max-w-[900px]">
       {coachPanel}
+      <StudyPlan weaknesses={weaknesses} go={go} />
       <AdSlot slot="smart-learning" size="compact" />
       <div className="relative rounded-2xl border border-dashed border-[color:var(--color-border)] bg-white overflow-hidden min-h-[360px]">
         <EmptyStateScene variant="lab" className="absolute inset-0" />
@@ -151,6 +153,8 @@ export default function Recommendations({ go }) {
     <div className="flex flex-col gap-5 max-w-[1180px]">
       {/* The coach leads the page — it can answer about everything below it. */}
       {coachPanel}
+
+      <StudyPlan weaknesses={weaknesses} go={go} />
 
       <AdSlot slot="smart-learning" size="compact" />
 
