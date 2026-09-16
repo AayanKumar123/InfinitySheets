@@ -3,7 +3,7 @@ import { CalendarDays, Loader2, RefreshCw, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 import { buildStudyPlan, isAiEnabled } from '../../lib/ai';
-import { enrolledSubjects } from '../../lib/subjects';
+import { enrolledSubjects, primaryTrack, subjectBoards } from '../../lib/subjects';
 import { track } from '../../lib/analytics';
 
 // AI study plan for the week: weakest topics first, spaced reviews later,
@@ -21,7 +21,8 @@ export default function StudyPlan({ weaknesses = [], go }) {
     try {
       const weak = [...weaknesses].sort((a, b) => a.acc - b.acc).slice(0, 6).map((t) => ({ subject: t.subject, topic: t.topic, accuracy: t.acc }));
       const p = await buildStudyPlan({
-        board: state.user?.examTrack,
+        board: primaryTrack(state.courses, state.user?.examTrack),
+        boards: subjectBoards(state.courses, primaryTrack(state.courses, state.user?.examTrack)),
         examDate: state.settings?.examDate,
         frequency: state.settings?.frequency,
         weeklyGoal: state.settings?.weeklyGoal,

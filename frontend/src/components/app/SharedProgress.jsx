@@ -12,6 +12,11 @@ export default function SharedProgress({ token }) {
     fetchSharedProgress(token).then(setData).catch(() => setData(null));
   }, [token]);
 
+  const boardOf = useMemo(() => {
+    const m = {};
+    (data?.courses || []).forEach((c) => (c.subjects || []).forEach((e) => { const n = typeof e === 'string' ? e : e?.subject; if (n && !m[n]) m[n] = c.exam; }));
+    return (s) => m[s] || data?.examTrack;
+  }, [data]);
   const bySubject = useMemo(() => {
     if (!data) return [];
     const m = {};
@@ -65,10 +70,10 @@ export default function SharedProgress({ token }) {
           <div className="text-[15px] font-semibold text-slate-900 mb-3 inline-flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-600" /> By subject</div>
           {bySubject.length === 0 ? <div className="text-[13px] text-slate-500">No worksheets yet.</div> : (
             <div className="grid sm:grid-cols-2 gap-2.5">
-              {bySubject.map((s) => { const g = formatGrade(s.predicted, data.examTrack); return (
+              {bySubject.map((s) => { const g = formatGrade(s.predicted, boardOf(s.subject)); return (
                 <div key={s.subject} className="rounded-xl border border-[color:var(--color-border)] px-4 py-3">
                   <div className="flex items-center justify-between"><div className="text-[14px] font-semibold text-slate-900">{s.subject}</div><div className={`text-[13px] font-semibold ${g.tone === 'good' ? 'text-emerald-700' : g.tone === 'ok' ? 'text-amber-700' : 'text-rose-700'}`}>{g.label}</div></div>
-                  <div className="text-[12px] text-slate-500 mt-0.5">{s.sheets.length} sheets · {s.accuracy}% accuracy · {g.sub}</div>
+                  <div className="text-[12px] text-slate-500 mt-0.5">{boardOf(s.subject) || ''} · {s.sheets.length} sheets · {s.accuracy}% accuracy · {g.sub}</div>
                   <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2"><div className="h-full bg-violet-500" style={{ width: `${s.accuracy}%` }} /></div>
                 </div>
               ); })}

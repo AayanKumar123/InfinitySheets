@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
 import { SUBJECT_INFO } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName, activeWorksheets } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, activeWorksheets, primaryTrack } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
@@ -156,7 +156,7 @@ export default function Dashboard({ go }) {
   const { state, clearDraftWorksheet, updateSettings, updateCourse } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
   // Only subjects still in the student's courses count towards the dashboard.
-  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, primaryTrack(state.courses, state.user?.examTrack)), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
   const draft = state.draftWorksheet;
   const resumeDraft = () => {
     try { window.sessionStorage.setItem('resume_ws_draft', '1'); } catch (_) { /* ignore */ }
@@ -188,7 +188,7 @@ export default function Dashboard({ go }) {
   // ---------------------------------------------------------------------------
   // Per-subject predicted grade + optional IB total.
   // ---------------------------------------------------------------------------
-  const examTrack = state.user?.examTrack || 'CBSE';
+  const examTrack = primaryTrack(state.courses, state.user?.examTrack);
   // Each subject's board comes from the course it belongs to (falling back to
   // the student's exam track). Predicted grades are then computed and shown
   // per board, never mixed across boards.
@@ -332,7 +332,7 @@ export default function Dashboard({ go }) {
 
   // The student's subjects, matching what Start Studying shows. Each card
   // deep-links into that subject's overview (#study?subject=...).
-  const studyTrack = state.user?.examTrack || 'SSLC';
+  const studyTrack = primaryTrack(state.courses, state.user?.examTrack);
   const mySubjects = useMemo(
     () => enrolledSubjects(state.courses, state.user?.subjects, studyTrack),
     [state.courses, state.user, studyTrack],

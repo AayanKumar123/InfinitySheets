@@ -73,9 +73,13 @@ let webpackConfig = {
   eslint: {
     configure: {
       extends: ["plugin:react-hooks/recommended"],
+      env: { browser: true, es2021: true, node: true },
       rules: {
         "react-hooks/rules-of-hooks": "error",
         "react-hooks/exhaustive-deps": "warn",
+        // An identifier that was never imported is a runtime crash, not a
+        // warning: fail the build on it (this caught nothing before).
+        "no-undef": "error",
       },
     },
   },

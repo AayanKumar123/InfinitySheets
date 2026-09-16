@@ -1,3 +1,4 @@
+import { primaryTrack } from '../../lib/subjects';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Shield, Plus, Trash2, FileText, Sparkles, Filter, Upload, Link2, X, Loader2, Check, FlaskConical, ClipboardCheck, PenTool } from 'lucide-react';
@@ -53,7 +54,7 @@ const cleanScheme = (scheme) => (Array.isArray(scheme) ? scheme : [])
 
 export default function AdminPlaceholder() {
   const { state, addPastPaper, removePastPaper, seedTestPerformance } = useApp();
-  const defaultSyllabus = state.user?.examTrack || 'CBSE';
+  const defaultSyllabus = primaryTrack(state.courses, state.user?.examTrack);
   const [syllabus, setSyllabus] = useState(defaultSyllabus);
   const [subject, setSubject] = useState(() => (SUBJECTS[defaultSyllabus] || [])[0] || '');
 

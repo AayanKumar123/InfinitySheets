@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ExternalLink, Sparkles, RefreshCw, Loader2, FileText, Link2, Settings as SettingsIcon } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { syllabusLink } from '../../data/syllabus';
-import { subjectBoards, boardName } from '../../lib/subjects';
+import { subjectBoards, boardName, primaryTrack } from '../../lib/subjects';
 import { topicOverview, isAiEnabled } from '../../lib/ai';
 import { topicLinks } from '../../data/topicLinks';
 import CreateWorksheetButton from './CreateWorksheetButton';
@@ -16,7 +16,7 @@ import AiChat, { MarkdownLite } from './ai/AiChat';
  */
 export default function TopicOverview({ subject, topic, go }) {
   const { state } = useApp();
-  const examTrack = state.user?.examTrack || 'CBSE';
+  const examTrack = primaryTrack(state.courses, state.user?.examTrack);
   const boards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
   const board = boards[subject]?.board || examTrack;
   const ibLevel = boards[subject]?.ibLevel;

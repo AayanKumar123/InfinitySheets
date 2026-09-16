@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
-import { enrolledSubjects, questionsForSubject, syllabusTopicNames } from '../../lib/subjects';
+import { enrolledSubjects, questionsForSubject, syllabusTopicNames, primaryTrack } from '../../lib/subjects';
 import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck, Printer, Play, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -403,7 +403,7 @@ function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerTy
 export default function Worksheets({ go }) {
   const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet, tagMistakeReason } = useApp();
   const tagReason = (sheetId, i, reason) => { tagMistakeReason(sheetId, i, reason); if (reason) trackEvent('mistake_tagged', { reason }); };
-  const track = state.user?.examTrack || 'SSLC';
+  const track = primaryTrack(state.courses, state.user?.examTrack);
   const examMinutes = EXAM_DURATIONS[track] || 60;
 
   const customSubjectTopics = useMemo(() => {

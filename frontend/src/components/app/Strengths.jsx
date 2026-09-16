@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Filter, SlidersHorizontal, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
 import AdSlot from '../ads/AdSlot';
 import { useApp } from '../../context/AppContext';
-import { activeWorksheets } from '../../lib/subjects';
+import { activeWorksheets, primaryTrack, boardFor } from '../../lib/subjects';
 import EmptyStateScene from '../decor/EmptyStateScene';
 import { useStrengthsWeaknesses } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, TONE_CLASSES } from '../../lib/predictedGrade';
@@ -45,7 +45,7 @@ function savePrefs(prefs) {
 export default function Strengths() {
   const { state } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
-  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, primaryTrack(state.courses, state.user?.examTrack)), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
 
   // Hydrate persisted UI prefs on mount
   const initial = useMemo(() => loadPrefs() || {}, []);
@@ -125,12 +125,14 @@ export default function Strengths() {
   // Predicted grade for the selected subject. Only shown when the student has
   // picked a specific subject — per product spec: "predicted grade is only for
   // individual subjects, not overall".
-  const examTrack = state.user?.examTrack || 'CBSE';
+  const examTrack = primaryTrack(state.courses, state.user?.examTrack);
+  // The selected subject's own board (IB Maths stays IB even on a CBSE account).
+  const subjectBoard = useMemo(() => (isSubjectMode ? boardFor(subject, state.courses, state.user?.examTrack) : examTrack), [isSubjectMode, subject, state.courses, state.user?.examTrack, examTrack]);
   const predicted = useMemo(() => {
     if (!isSubjectMode || subjectWs.length === 0) return null;
     const score = predictedScore(subjectWs);
-    return { score, ...formatGrade(score, examTrack) };
-  }, [isSubjectMode, subjectWs, examTrack]);
+    return { score, ...formatGrade(score, subjectBoard) };
+  }, [isSubjectMode, subjectWs, subjectBoard]);
 
   // If subject filter references a subject that no longer exists (e.g., after
   // reset demo), silently fall back to "all".
@@ -234,7 +236,7 @@ export default function Strengths() {
         <PredictedGradeBanner
           subject={subject}
           predicted={predicted}
-          examTrack={examTrack}
+          examTrack={subjectBoard}
           attempts={subjectWs.length}
         />
       )}

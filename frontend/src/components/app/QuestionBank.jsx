@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SUBJECT_INFO } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName, questionsForSubject } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, questionsForSubject, primaryTrack } from '../../lib/subjects';
 import { BookOpen, Eye, EyeOff, Sparkles, Library, ChevronRight, Search, ArrowLeft, ArrowRight, ExternalLink, FileText } from 'lucide-react';
 import { syllabusLink } from '../../data/syllabus';
 import { textbook } from '../../lib/notation';
@@ -16,7 +16,7 @@ import CreateWorksheetButton from './CreateWorksheetButton';
 
 export default function QuestionBank({ go, subjectParam }) {
   const { state } = useApp();
-  const track = state.user?.examTrack || 'SSLC';
+  const track = primaryTrack(state.courses, state.user?.examTrack);
 
   // Exact same subject list as "My subjects" (Dashboard / Start Studying).
   const chosenSubjects = useMemo(

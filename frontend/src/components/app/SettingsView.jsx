@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { toast } from 'sonner';
 import { User, Sliders, Accessibility, GraduationCap, AlertTriangle, Save, RotateCcw, Trash2, Sun, Moon, Keyboard, BookOpen, Calendar, Bot } from 'lucide-react';
 import { EXAM_TRACKS, SUBJECTS } from '../../data/mock';
+import { primaryTrack, enrolledSubjects } from '../../lib/subjects';
 import { RemindersSection, ShareSection } from './NotifyShareSettings';
 import { PrivacySection, ThemeModeToggle } from './PrivacyExportSettings';
 
@@ -32,7 +33,7 @@ export default function SettingsView() {
       <PrivacySection />
       <AccessibilitySection settings={state.settings} updateSettings={updateSettings} theme={state.theme} toggleTheme={toggleTheme} />
 
-      <SetupSection user={state.user} settings={state.settings} restartOnboarding={restartOnboarding} />
+      <SetupSection user={state.user} courses={state.courses} settings={state.settings} restartOnboarding={restartOnboarding} />
 
       <DangerZone
         resetProgress={resetProgress}
@@ -251,11 +252,12 @@ function AccessibilitySection({ settings, updateSettings, theme, toggleTheme }) 
 // Setup — mirrors the onboarding wizard choices
 // --------------------------------------------------------------------------
 
-function SetupSection({ user, settings, restartOnboarding }) {
-  const trackId = user?.examTrack || '';
+function SetupSection({ user, courses, settings, restartOnboarding }) {
+  // Reflects the courses actually taken, not just the onboarding pick.
+  const trackId = (courses || []).length ? primaryTrack(courses, user?.examTrack) : (user?.examTrack || '');
   const track = useMemo(() => EXAM_TRACKS.find((t) => t.id === trackId), [trackId]);
   const trackSubjects = useMemo(() => SUBJECTS[trackId] || [], [trackId]);
-  const picked = user?.subjects || [];
+  const picked = enrolledSubjects(courses, user?.subjects, trackId);
 
   const redo = () => {
     restartOnboarding();
@@ -266,7 +268,7 @@ function SetupSection({ user, settings, restartOnboarding }) {
   return (
     <Section title="Setup" icon={GraduationCap} subtitle="Your exam track and subjects from the initial setup.">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ReadonlyRow label="Exam track" value={track ? track.name : (trackId || 'Not set')} icon={GraduationCap} />
+        <ReadonlyRow label={(courses || []).length > 1 ? "Main exam track" : "Exam track"} value={track ? track.name : (trackId || 'Not set')} icon={GraduationCap} />
         <ReadonlyRow label="Study frequency" value={settings?.frequency || 'Not set'} icon={Calendar} />
         <ReadonlyRow label="Weekly goal" value={settings?.weeklyGoal ? `${settings.weeklyGoal} questions` : 'Not set'} />
         <ReadonlyRow label="Default difficulty" value={settings?.defaultDifficulty || 'Not set'} />

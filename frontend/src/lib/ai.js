@@ -328,13 +328,14 @@ export async function workedSolution({ q, given, board, ibLevel, subject }) {
  * A week-long study plan from the student's data. Resolves to
  * { summary, days: [{ day, date, tasks: [{ subject, topic, minutes, what }] }] }.
  */
-export async function buildStudyPlan({ board, examDate, frequency, weeklyGoal, weakTopics, subjects, startDate }) {
+export async function buildStudyPlan({ board, boards = {}, examDate, frequency, weeklyGoal, weakTopics, subjects, startDate }) {
   const content = [
+    Object.keys(boards).length ? `Board per subject: ${Object.entries(boards).map(([s, b]) => `${s} (${b.board}${b.ibLevel ? ' ' + b.ibLevel : ''})`).join(', ')}.` : '',
     `Today is ${startDate}. Exam date: ${examDate || 'not set'}. Study frequency the student chose: ${frequency || '3-4 per week'}. Weekly question goal: ${weeklyGoal || 50}.`,
     `Subjects: ${(subjects || []).join(', ') || '(none yet)'}.`,
     `Weakest topics (subject · topic · accuracy%): ${(weakTopics || []).map((t) => `${t.subject} · ${t.topic} · ${t.accuracy}%`).join('; ') || '(no data yet — spread evenly)'}.`,
     'Plan the next 7 days starting today.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
   const text = await askAi({ mode: 'plan', context: { board }, messages: [{ role: 'user', content }] });
   const parsed = parseJsonReply(text);
   const days = (parsed.days || []).slice(0, 7).map((d) => ({

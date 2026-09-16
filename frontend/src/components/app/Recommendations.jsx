@@ -5,7 +5,7 @@ import EmptyStateScene from '../decor/EmptyStateScene';
 import AdSlot from '../ads/AdSlot';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
-import { subjectBoards, boardName, activeWorksheets } from '../../lib/subjects';
+import { subjectBoards, boardName, activeWorksheets, primaryTrack } from '../../lib/subjects';
 import AiChat from './ai/AiChat';
 import DiagnosisPanel from './ai/DiagnosisPanel';
 import StudyPlan from './StudyPlan';
@@ -13,7 +13,7 @@ import StudyPlan from './StudyPlan';
 export default function Recommendations({ go }) {
   const { state } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
-  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack || 'CBSE'), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
+  const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, primaryTrack(state.courses, state.user?.examTrack)), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
 
   const swOverrides = useSavedSwOverrides();
   const {
@@ -27,10 +27,11 @@ export default function Recommendations({ go }) {
 
   // What the AI coach knows about this student: boards, exam date, weakest and
   // strongest topics. Sent as a hidden first message, never stored anywhere.
-  const examTrack = state.user?.examTrack || 'CBSE';
+  const examTrack = primaryTrack(state.courses, state.user?.examTrack);
   const boards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
   const coach = useMemo(() => {
-    const boardList = Array.from(new Set([...Object.values(boards).map((b) => b.board), examTrack]));
+    const boardList = Array.from(new Set(Object.values(boards).map((b) => b.board)));
+    if (!boardList.length) boardList.push(examTrack);
     const weak = [...weaknesses].sort((a, b) => a.acc - b.acc).slice(0, 6).map((t) => `${t.topic} (${t.subject}, ${t.acc}%)`);
     const strong = [...(strengths || [])].sort((a, b) => b.acc - a.acc).slice(0, 3).map((t) => `${t.topic} (${t.subject}, ${t.acc}%)`);
     const subjects = Array.from(new Set(ws.map((w) => w.subject)));

@@ -30,6 +30,23 @@ export function enrolledSubjects(courses, userSubjects, track) {
   return fromUser;
 }
 
+// The board that best describes the student right now: the most common
+// board across their courses (first course wins a tie), else what they
+// picked at onboarding. Used for every "fallback" so a student whose courses
+// are all IB never sees the onboarding default (CBSE / SSLC) anywhere.
+export function primaryTrack(courses, fallback) {
+  const counts = new Map();
+  (courses || []).forEach((c) => { if (c?.exam) counts.set(c.exam, (counts.get(c.exam) || 0) + 1); });
+  let best = null;
+  for (const [board, n] of counts) if (!best || n > best.n) best = { board, n };
+  return best ? best.board : (fallback || 'CBSE');
+}
+
+// The board for one subject: its course's board, else the primary track.
+export function boardFor(subject, courses, fallback) {
+  return subjectBoards(courses, primaryTrack(courses, fallback))[subject]?.board || primaryTrack(courses, fallback);
+}
+
 // Map<subjectName, { board, ibLevel }> so each subject can show which board /
 // IB level it belongs to. Courses carry their own `exam` board, so a student
 // taking IGCSE Physics and IB Economics gets the right board on each subject.

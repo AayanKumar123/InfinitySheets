@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Stethoscope, Loader2, RefreshCw, Settings as SettingsIcon, ChevronDown } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
 import { diagnoseWorksheet, isAiEnabled } from '../../../lib/ai';
-import { subjectBoards } from '../../../lib/subjects';
+import { subjectBoards, primaryTrack } from '../../../lib/subjects';
 import { MarkdownLite } from './AiChat';
 
 /**
@@ -21,7 +21,7 @@ export default function DiagnosisPanel({ sheet, autoRun = false, compact = false
   const live = (state.worksheets || []).find((w) => w.id === sheet?.id) || sheet;
   const saved = live?.diagnosis || null;
 
-  const examTrack = state.user?.examTrack || 'CBSE';
+  const examTrack = primaryTrack(state.courses, state.user?.examTrack);
   // The sheet's own board wins (it survives the subject being removed later).
   const board = useMemo(() => live?.board || subjectBoards(state.courses, examTrack)[live?.subject]?.board || examTrack, [state.courses, examTrack, live?.subject, live?.board]);
   const ibLevel = useMemo(() => live?.ibLevel || subjectBoards(state.courses, examTrack)[live?.subject]?.ibLevel, [state.courses, examTrack, live?.subject, live?.ibLevel]);

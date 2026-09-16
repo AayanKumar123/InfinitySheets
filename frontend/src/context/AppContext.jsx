@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { SUBJECTS, TOPICS } from '../data/mock';
 import { SEED_PAST_PAPERS } from '../data/pastPapers';
-import { enrolledSubjects } from '../lib/subjects';
+import { enrolledSubjects, primaryTrack } from '../lib/subjects';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as store from '../lib/dataStore';
 import { computeBadges, BADGES } from '../lib/badges';
@@ -130,8 +130,9 @@ export function AppProvider({ children }) {
 
     try {
       const loadedState = await store.loadAll(userId, authUser);
-      setState((s) => ({ ...defaultState, theme: s.theme, draftWorksheet: s.draftWorksheet, ...loadedState }));
+      setState((s) => withTrack({ ...defaultState, theme: s.theme, draftWorksheet: s.draftWorksheet, ...loadedState }, loadedState.courses));
       setSyncStatus('saved');
+      setTimeout(syncTrack, 0);
       identify(userId);
     } catch (e) {
       logError('loadAll', e);
@@ -178,7 +179,7 @@ export function AppProvider({ children }) {
     // Never keep a stale real (non-demo) user from a previous session until
     // Supabase confirms the session; demo users stay as-is.
     if (demoLocal) {
-      setState(hydrated);
+      setState(withTrack(hydrated, hydrated.courses));
       setLoaded(true);
     } else {
       setState({ ...hydrated, user: null });
@@ -473,10 +474,25 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings({ ...stateRef.current, tutorialDone: false }, uid()), 'restartTutorial');
   }, []);
 
+  // The account's exam track follows the courses: the most common board
+  // wins, so an IB-only student never sees the onboarding default (CBSE)
+  // as a fallback anywhere.
+  const withTrack = (s, courses) => {
+    if (!s.user) return s;
+    const track = primaryTrack(courses, s.user.examTrack);
+    return track === s.user.examTrack ? s : { ...s, user: { ...s.user, examTrack: track } };
+  };
+  const syncTrack = () => {
+    const u = stateRef.current.user;
+    const track = primaryTrack(stateRef.current.courses, u?.examTrack);
+    if (u && track !== u.examTrack) bg(() => store.upsertProfile(uid(), { examTrack: track }), 'syncTrack');
+  };
+
   const addCourse = useCallback((course) => {
     const full = { id: `c_${Date.now()}`, addedAt: new Date().toISOString(), ...course };
-    setState((s) => ({ ...s, courses: [full, ...s.courses] }));
+    setState((s) => withTrack({ ...s, courses: [full, ...s.courses] }, [full, ...s.courses]));
     bg(() => store.upsertCourse(full, uid()), 'addCourse');
+    setTimeout(syncTrack, 0);
   }, []);
   // Subjects the student still has after a course changes. Keeps
   // `user.subjects` (the fallback list) from resurrecting deleted subjects.
@@ -494,9 +510,10 @@ export function AppProvider({ children }) {
   const removeCourse = useCallback((id) => {
     setState((s) => {
       const courses = s.courses.filter((c) => c.id !== id);
-      return { ...s, courses, user: s.user ? { ...s.user, subjects: subjectsStillTaken(courses, s.user.subjects) } : s.user };
+      return withTrack({ ...s, courses, user: s.user ? { ...s.user, subjects: subjectsStillTaken(courses, s.user.subjects) } : s.user }, courses);
     });
     bg(() => store.deleteCourse(id, uid()), 'removeCourse');
+    setTimeout(syncTrack, 0);
   }, []);
   const updateCourse = useCallback((id, patch) => {
     let updated = null;
@@ -510,9 +527,10 @@ export function AppProvider({ children }) {
       const user = s.user && patch && patch.subjects
         ? { ...s.user, subjects: subjectsStillTaken(courses, s.user.subjects) }
         : s.user;
-      return { ...s, courses, user };
+      return withTrack({ ...s, courses, user }, courses);
     });
     bg(() => updated && store.upsertCourse(updated, uid()), 'updateCourse');
+    setTimeout(syncTrack, 0);
   }, []);
 
   // Fabricate a realistic body of study data (Admin -> "Create test performance").

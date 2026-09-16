@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SUBJECTS, SUBJECT_INFO, EXAM_TRACKS } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName, tracksOffering, defaultBoardFor } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, tracksOffering, defaultBoardFor, primaryTrack } from '../../lib/subjects';
 
 import { BookOpen, ArrowRight, Search, Plus, X, Trash2, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
@@ -39,7 +39,7 @@ const ALL_SUBJECTS = buildAllSubjects();
 
 export default function StartStudying({ go, subjectParam }) {
   const { state, updateCourse, addCourse, removeCourse } = useApp();
-  const track = state.user?.examTrack || 'SSLC';
+  const track = primaryTrack(state.courses, state.user?.examTrack);
   const courses = state.courses;
   const userSubjects = state.user?.subjects;
   const list = useMemo(() => enrolledSubjects(courses, userSubjects, track), [courses, userSubjects, track]);
