@@ -14,6 +14,8 @@ import { recommendedTopics } from '../../lib/studyStats';
 import { TOPICS } from '../../data/mock';
 import AdSlot from '../ads/AdSlot';
 import Badges from './Badges';
+import { DailyChallengeCard, FocusTimer } from './DashboardExtras';
+import MasteryCard from './MasteryCard';
 
 
 const SUBJECT_TONE_BADGE = {
@@ -491,6 +493,13 @@ export default function Dashboard({ go }) {
         <div className="lg:col-span-2"><StreakHeatmap worksheets={ws} streak={state.streak} /></div>
         <StreakProjectionCard worksheets={ws} subjects={mySubjects} boards={mySubjectBoards} streak={state.streak} />
       </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <DailyChallengeCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
+        <FocusTimer />
+      </div>
+
+      <MasteryCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
 
       <Badges compact />
 

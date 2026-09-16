@@ -21,7 +21,8 @@ import { adaptiveDifficulty } from '../../lib/adaptive';
 import { presetFor, presetMarks, simulationScore } from '../../lib/examPresets';
 import { workedSolution } from '../../lib/ai';
 import { track as trackEvent } from '../../lib/analytics';
-import { Brain, Wand2, BookOpenCheck } from 'lucide-react';
+import { Brain, Wand2, BookOpenCheck, MessageCircleQuestion, Zap } from 'lucide-react';
+import AiChat from './ai/AiChat';
 
 // Confidence the student attaches to each answer; compared with the result
 // afterwards to show calibration (over/under-confidence).
@@ -446,6 +447,11 @@ export default function Worksheets({ go }) {
 
   const preselect = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_subject') : null;
   const preselectTopic = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_topic') : null;
+  // "Today's 5" from the dashboard: fixed topics, five questions, tagged so
+  // the dashboard knows it was done.
+  const [challengePick] = useState(() => {
+    try { const raw = window.sessionStorage.getItem('preselect_challenge'); window.sessionStorage.removeItem('preselect_challenge'); return raw ? JSON.parse(raw) : null; } catch (_) { return null; }
+  });
 
   const [subject, setSubject] = useState(() => {
     if (preselect && chosenSubjects.includes(preselect)) return preselect;
@@ -453,6 +459,7 @@ export default function Worksheets({ go }) {
   });
   const topicsList = topicsForSubject(subject);
   const [topics, setTopics] = useState(() => {
+    if (challengePick?.topics?.length) return challengePick.topics.filter((t) => topicsList.includes(t)).length ? challengePick.topics.filter((t) => topicsList.includes(t)) : [topicsList[0]].filter(Boolean);
     if (preselectTopic && topicsList.includes(preselectTopic)) return [preselectTopic];
     return topicsList.length ? [topicsList[0]] : [];
   });
@@ -467,7 +474,7 @@ export default function Worksheets({ go }) {
     [state.pastPapers, subject, state.courses, track, state.flaggedQuestionIds],
   );
   const [difficulty, setDifficulty] = useState('Medium');
-  const [duration, setDuration] = useState(examMinutes);
+  const [duration, setDuration] = useState(challengePick ? 15 : examMinutes);
   const [pastPapers, setPastPapers] = useState(false);
   const [aiGenerated, setAiGenerated] = useState(true);
 
@@ -516,7 +523,6 @@ export default function Worksheets({ go }) {
 
   // --- In-progress draft plumbing ------------------------------------------
   const draftIdRef = useRef(null);
-  const skipTopicResetRef = useRef(false);
   // Always-fresh snapshot of the take-stage state for saving on navigate-away.
   const liveRef = useRef({});
   liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime, working, flags, examMode, paceCoach, examExits, confidence, simulation: simulation ? simMeta : null };
@@ -573,8 +579,12 @@ export default function Worksheets({ go }) {
     savedAt: new Date().toISOString(),
   });
 
+  // Reset the topic pick only when the subject actually changes — never on
+  // mount (a preselected topic would be lost; StrictMode mounts twice).
+  const prevSubjectRef = useRef(subject);
   useEffect(() => {
-    if (skipTopicResetRef.current) { skipTopicResetRef.current = false; return; }
+    if (prevSubjectRef.current === subject) return;
+    prevSubjectRef.current = subject;
     const t = topicsForSubject(subject);
     setTopics(t.length ? [t[0]] : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -591,7 +601,7 @@ export default function Worksheets({ go }) {
     try { wantResume = window.sessionStorage.getItem('resume_ws_draft'); } catch (_) { /* ignore */ }
     if (wantResume && state.draftWorksheet) {
       const d = state.draftWorksheet;
-      skipTopicResetRef.current = true;
+      prevSubjectRef.current = d.subject;
       draftIdRef.current = d.id;
       setSubject(d.subject);
       setTopics(d.topics || []);
@@ -923,6 +933,7 @@ export default function Worksheets({ go }) {
       working: stripFullImages(working),
       flags,
       confidence,
+      challenge: challengePick?.key || undefined,
       simulation: simulation ? simMeta : null,
       examMode,
       // Remembered on the sheet so history / diagnosis still know the board
@@ -1452,6 +1463,7 @@ export default function Worksheets({ go }) {
                         })}
                       </div>
                     )}
+                    {!ok && !isDrawing && aiOn && <AskRow q={q} given={given} board={boardForSubject} ibLevel={ibLevelForSubject} subject={subject} idx={i} />}
                     {!ok && !isDrawing && <SolutionRow sheet={result} idx={i} q={q} given={given} board={boardForSubject} ibLevel={ibLevelForSubject} subject={subject} enabled={aiOn} onSolved={(text) => { const live = (state.worksheets || []).find((x) => x.id === result.id) || result; updateWorksheet(result.id, { solutions: { ...(live.solutions || {}), [i]: text } }); }} />}
                     {(result.marking?.[i] || (!isMCQ && Array.isArray(q.markScheme) && q.markScheme.length > 0)) && (
                       <AiMarkRow sheet={result} idx={i} q={q} given={given} working={w} board={boardForSubject} subject={subject} enabled={aiOn} onMarked={(m) => { const live = (state.worksheets || []).find((x) => x.id === result.id) || result; updateWorksheet(result.id, { marking: { ...(live.marking || {}), [i]: m } }); }} />
@@ -1478,6 +1490,11 @@ export default function Worksheets({ go }) {
   return (
     <div className="max-w-[820px]">
       <p className="text-[14px] text-zinc-500 mb-6">Create targeted practice. Choose a subject you&apos;re studying, pick one or more topics, and dial in the format.</p>
+      {challengePick && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-[13px] text-slate-700 flex flex-wrap items-center gap-2" data-testid="ws-challenge-pick">
+          <Zap className="w-4 h-4 text-amber-600" /> <span className="font-semibold text-amber-900">Today's 5:</span> {challengePick.subject} · {challengePick.topics.join(' & ')}. Five questions, about 5 minutes — press Create to start.
+        </div>
+      )}
       {paperPick && paperPick.ids?.length > 0 && (
         <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-[13px] text-slate-700 flex flex-wrap items-center gap-2" data-testid="ws-paper-pick">
           <FileText className="w-4 h-4 text-emerald-700" /> <span className="font-semibold text-emerald-800">Attempting a past paper:</span> {paperPick.label || `${paperPick.ids.length} questions`}. Press Create to start it exactly as printed.
@@ -1729,6 +1746,27 @@ function AiMarkRow({ sheet, idx, q, given, working, board, subject, enabled, onM
         <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 hover:text-violet-900 disabled:opacity-60" data-testid={`mark-${idx}`}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />} Mark against the scheme{markSchemeText(q.markScheme) ? '' : ' (model answer)'}
         </button>
+      )}
+    </div>
+  );
+}
+
+// "Ask about this question": a chat primed with the question, the accepted
+// answer and what the student put, so follow-ups need no copy-pasting.
+function AskRow({ q, given, board, ibLevel, subject, idx }) {
+  const [open, setOpen] = useState(false);
+  const accepted = q.answerType === 'Multiple choice' && Array.isArray(q.options) ? q.options[q.a] : (q.typedAnswer || q.examAnswer || (q.examKeywords || []).join(', '));
+  const student = q.answerType === 'Multiple choice' ? (typeof given === 'number' && given >= 0 ? q.options?.[given] : '(no answer)') : (given || '(blank)');
+  const primer = `We are discussing one question the student got wrong.\nQuestion: ${q.q}\nCorrect answer: ${accepted}\nStudent's answer: ${student}\nAnswer their follow-up questions about this question only, briefly, in the exam's terms.`;
+  return (
+    <div className="mt-2">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 hover:text-violet-900" data-testid={`ask-${idx}`}>
+        <MessageCircleQuestion className="w-4 h-4" /> {open ? 'Hide chat' : 'Ask about this question'}
+      </button>
+      {open && (
+        <div className="mt-2">
+          <AiChat title="About this question" context={{ board, ibLevel, subject, topic: q._topic || q.topic }} primer={primer} intro="Ask me anything about this question — why the answer is what it is, what the examiner wanted, or how to spot it next time." suggestions={['Why is my answer wrong?', 'Explain the correct answer step by step', 'How would the examiner mark this?']} placeholder="Ask about this question…" testid={`ask-chat-${idx}`} />
+        </div>
       )}
     </div>
   );

@@ -24,6 +24,8 @@ import TopHeader from './shell/TopHeader';
 import { toast } from 'sonner';
 import Flashcards from './Flashcards';
 import Groups from './Groups';
+import ConsentGate from './ConsentGate';
+import CommandPalette from './CommandPalette';
 import { pageview } from '../../lib/analytics';
 import { maybeRemind } from '../../lib/offline';
 import { dueReviews } from '../../lib/spacedRepetition';
@@ -171,7 +173,18 @@ export default function AppShell({ hash }) {
   }, [state.settings?.pushReminders, state.settings?.reminderHour, state.worksheets, state.lastStudyDate, state.streak]);
   const isDark = state.theme === 'dark';
   const showOnboarding = !state.onboardingDone;
-  const showTutorial = state.onboardingDone && !state.tutorialDone;
+  const showConsent = state.onboardingDone && !state.consent;
+  const showTutorial = state.onboardingDone && !!state.consent && !state.tutorialDone;
+
+  // Ctrl/⌘ K command palette.
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen((v) => !v); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const resetDemo = () => {
     resetProgress();
@@ -238,6 +251,7 @@ export default function AppShell({ hash }) {
           onNewWorksheet={() => go('worksheets')}
           sidebarOpen={sidebarOpen && !isMobile}
           onOpenSidebar={() => setSidebarOpen(true)}
+          onOpenPalette={() => setPaletteOpen(true)}
           syncStatus={syncStatus}
           isDemo={!!state.user?.isDemo}
         />
@@ -247,7 +261,9 @@ export default function AppShell({ hash }) {
       </main>
 
       {showOnboarding && <CourseWizard mode="onboarding" />}
+      {showConsent && <ConsentGate />}
       {showTutorial && <TutorialOverlay />}
+      <CommandPalette nav={NAV} go={go} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

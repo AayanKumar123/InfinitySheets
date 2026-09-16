@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, PanelLeftOpen } from 'lucide-react';
+import { Moon, Sun, PanelLeftOpen, Search } from 'lucide-react';
 import CreateWorksheetButton from '../CreateWorksheetButton';
 import SyncBadge from './SyncBadge';
 
@@ -9,7 +9,7 @@ import SyncBadge from './SyncBadge';
  * page-scoped action (currently only rendered on the dashboard route).
  * When the sidebar is collapsed, a chevron re-opener appears on the left.
  */
-export default function TopHeader({ title, activeKey, isDark, courseCount, onToggleTheme, onNewWorksheet, sidebarOpen, onOpenSidebar, syncStatus, isDemo }) {
+export default function TopHeader({ title, activeKey, isDark, courseCount, onToggleTheme, onNewWorksheet, sidebarOpen, onOpenSidebar, onOpenPalette, syncStatus, isDemo }) {
   return (
     <header className="px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 pb-2 flex items-start justify-between gap-3 border-b border-[color:var(--color-border)] bg-white" data-testid="top-header">
       <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
@@ -28,6 +28,11 @@ export default function TopHeader({ title, activeKey, isDark, courseCount, onTog
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {onOpenPalette && (
+          <button type="button" onClick={onOpenPalette} data-testid="header-search" title="Search (Ctrl+K)" className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-[color:var(--color-border)] text-[12px] text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors">
+            <Search className="w-3.5 h-3.5" /> Search <kbd className="text-[10px] px-1 rounded bg-slate-100 border border-slate-200">⌘K</kbd>
+          </button>
+        )}
         <SyncBadge status={syncStatus} isDemo={isDemo} />
         <button
           onClick={onToggleTheme}

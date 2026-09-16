@@ -16,12 +16,24 @@ const SECTIONS = [
     p: 'We never sell your personal information, and we never share your email address with anyone for marketing. Waitlist emails are used for exactly one thing: telling you about the InfinitySheets launch.',
   },
   {
+    h: 'AI helpers (Google Gemini)',
+    p: 'Several features — original practice questions, marking against a scheme, worked solutions, the study coach and topic overviews — are powered by Google Gemini. While the AI is switched on, the questions you answer, your typed answers and any photos of working you upload are sent to Google to produce those answers. We never send your name, email address or account identifiers, the requests are made through our own server (your device never talks to Google directly), and under the API terms we use Google does not use this data to train its models. You can switch every AI feature off in Settings → Privacy & your data, and nothing is sent while it is off.',
+  },
+  {
+    h: 'Children',
+    p: 'InfinitySheets is built for school students. When you first use the app we ask for your age band. If you are under 13, the AI helpers stay off unless a parent or guardian confirms they are OK with it, and study groups only ever show first names. Parents can ask us to see or delete a child\'s data at any time using the address on the landing page.',
+  },
+  {
+    h: 'Study groups and shared links',
+    p: 'If you join a study group, other members see your first name, how many questions you answered this week, your accuracy and your streak — never your answers or email. A "share progress" link shows a teacher or parent your scores and topics only; you can revoke it in Settings at any time.',
+  },
+  {
     h: 'Ads',
     p: 'InfinitySheets is free and may be supported by ads. Ad providers may use cookies or similar technologies subject to their own policies; we will keep this page updated with the specific providers before any ads go live.',
   },
   {
     h: 'Cookies & sessions',
-    p: 'Signed-in sessions use secure httpOnly cookies for authentication only. We do not use tracking cookies of our own.',
+    p: 'Signed-in sessions use secure httpOnly cookies for authentication only. We do not use tracking cookies of our own. If product analytics are enabled we record which features are used under a hashed account id, never your name or email, and you can download or delete everything from Settings.',
   },
   {
     h: 'Your choices',

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Layers, RotateCcw, ChevronRight } from 'lucide-react';
+import { Layers, RotateCcw, ChevronRight, Printer } from 'lucide-react';
+import { exportFlashcardsPdf } from '../../lib/exportData';
+import { track } from '../../lib/analytics';
 import { useApp } from '../../context/AppContext';
 import { buildDeck } from '../../lib/flashcards';
 import { enrolledSubjects } from '../../lib/subjects';
@@ -35,6 +37,11 @@ export default function Flashcards({ go }) {
           {onlyDue ? 'Due today' : 'Whole deck'}
         </button>
         <span className="text-[12.5px] text-slate-500">{queue.length} card{queue.length === 1 ? '' : 's'} {onlyDue ? 'due' : 'in deck'} · {deck.length} total · {state.flashcards?.reviewed || 0} reviewed</span>
+        {deck.length > 0 && (
+          <button type="button" onClick={() => { exportFlashcardsPdf(deck, `${subject || 'All subjects'} flashcards`); track('flashcards_printed', { n: deck.length }); }} className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] ml-auto" data-testid="fc-print">
+            <Printer className="w-3.5 h-3.5" /> Print deck (PDF)
+          </button>
+        )}
       </div>
 
       {!card ? (

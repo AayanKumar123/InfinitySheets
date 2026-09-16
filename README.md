@@ -156,3 +156,19 @@ frontend bundle).
 Database changes for this wave: `supabase/migrations/0008_next_wave.sql`
 (applied to the project). Edge functions: `ai-chat` v17 (new modes
 `solution`, `plan`, `syllabus`), `weekly-digest` v1.
+
+### Wave 2 (same branch)
+
+| Feature | Where | Notes |
+|---|---|---|
+| Age band + AI consent gate | Once, after onboarding; editable in Settings → *Privacy & your data* | Under-13s need a parent's OK before the AI is on; `state.consent` saved with settings. Privacy page now has *AI helpers*, *Children* and *Study groups* sections. |
+| Download my data | Settings → *Privacy & your data* | Full JSON export, or worksheets as CSV. `lib/exportData.js`. |
+| Command palette | **Ctrl/⌘ K** or the header *Search* button | Pages, subjects, topics (→ overview) and "Worksheet on …". |
+| Today's 5 | Dashboard | Daily 5-question sheet on the weakest topics, deterministic per day, with its own run counter. `lib/dailyChallenge.js`; sheets carry `challenge: 'YYYY-MM-DD'`. |
+| Focus timer | Dashboard | 25/5, 45/10, 15/3 blocks; sessions logged to `focusSessions`. |
+| Topic mastery | Dashboard card | Not started → Novice → Learning → Solid → Mastered from accuracy × evidence × recency. `lib/mastery.js`. |
+| Ask about this question | Result screen, wrong answers | Chat primed with the question, correct answer and the student's answer. |
+| Print flashcards | Flashcards → *Print deck (PDF)* | Double-sided A4, mirrored backs. |
+| Follow device theme | Settings → Accessibility | `themeMode: 'system'` mirrors `prefers-color-scheme`. |
+
+Fix: a topic preselected from the Syllabus Bank / study plan / Today's 5 was reset to the subject's first topic on mount (StrictMode double-effect); the reset now only fires on a real subject change.

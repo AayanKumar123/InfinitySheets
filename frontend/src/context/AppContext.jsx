@@ -55,6 +55,11 @@ const defaultState = {
   badges: {},
   syllabusTopics: [],
   flaggedQuestionIds: [],
+  // Wave 2: age band + AI consent (asked once), focus-timer sessions, and
+  // whether the theme follows the OS.
+  consent: null,
+  focusSessions: [],
+  themeMode: 'manual',
   questionsToday: 0,
   goalDate: null,
   // In-progress worksheet the student left mid-way (null when none). Lets them
@@ -222,8 +227,21 @@ export function AppProvider({ children }) {
   }, [state.theme]);
 
   const toggleTheme = useCallback(() => {
-    setState((s) => ({ ...s, theme: s.theme === 'dark' ? 'light' : 'dark' }));
+    setState((s) => ({ ...s, theme: s.theme === 'dark' ? 'light' : 'dark', themeMode: 'manual' }));
   }, []);
+
+  // "Follow system": mirror prefers-color-scheme while it is on.
+  const setThemeMode = useCallback((mode) => {
+    setState((s) => ({ ...s, themeMode: mode }));
+  }, []);
+  useEffect(() => {
+    if (state.themeMode !== 'system' || typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => setState((s) => (s.theme === (mql.matches ? 'dark' : 'light') ? s : { ...s, theme: mql.matches ? 'dark' : 'light' }));
+    apply();
+    if (mql.addEventListener) mql.addEventListener('change', apply); else mql.addListener(apply);
+    return () => { if (mql.removeEventListener) mql.removeEventListener('change', apply); else mql.removeListener(apply); };
+  }, [state.themeMode]);
 
   const startDemo = useCallback(() => {
     isDemoLocalRef.current = true;
@@ -681,6 +699,19 @@ export function AppProvider({ children }) {
     bg(() => mistake && store.upsertMistakes([mistake], uid()), 'tagReason/mistake');
   }, []);
 
+  // Consent gate: age band + AI choice. Under-13 without a parent's OK
+  // forces the AI off; the student can revisit this in Settings.
+  const recordConsent = useCallback(({ ageBand, aiConsent, parentConsent }) => {
+    const consent = { ageBand, aiConsent: !!aiConsent, parentConsent, at: new Date().toISOString() };
+    setState((s) => ({ ...s, consent, settings: { ...s.settings, aiEnabled: !!aiConsent } }));
+    bg(() => store.upsertSettings({ ...stateRef.current, consent, settings: { ...stateRef.current.settings, aiEnabled: !!aiConsent } }, uid()), 'consent');
+  }, []);
+
+  const logFocusSession = useCallback((session) => {
+    setState((s) => ({ ...s, focusSessions: [...(s.focusSessions || []).slice(-199), session] }));
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'focus');
+  }, []);
+
   const setSyllabusTopics = useCallback((rows) => {
     setState((s) => ({ ...s, syllabusTopics: rows }));
   }, []);
@@ -696,7 +727,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason,
+    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -708,7 +739,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason,
+    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
