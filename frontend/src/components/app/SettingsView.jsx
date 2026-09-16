@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { User, Sliders, Accessibility, GraduationCap, AlertTriangle, Save, RotateCcw, Trash2, Sun, Moon, Keyboard, BookOpen, Calendar, Bot } from 'lucide-react';
 import { EXAM_TRACKS, SUBJECTS } from '../../data/mock';
 import { primaryTrack, enrolledSubjects } from '../../lib/subjects';
-import { RemindersSection, ShareSection } from './NotifyShareSettings';
+import { RemindersSection } from './ReminderSettings';
 import { PrivacySection, ThemeModeToggle } from './PrivacyExportSettings';
 
 const GOALS = [5, 10, 20];
@@ -29,7 +29,6 @@ export default function SettingsView() {
 
       <AiSection settings={state.settings} updateSettings={updateSettings} />
       <RemindersSection />
-      <ShareSection />
       <PrivacySection />
       <AccessibilitySection settings={state.settings} updateSettings={updateSettings} theme={state.theme} toggleTheme={toggleTheme} />
 

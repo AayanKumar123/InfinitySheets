@@ -1,35 +1,6 @@
-// Offline mode + study reminders (features 8 and 16).
-//
-// Offline: the service worker in public/sw.js caches the app shell so the
-// site opens with no network; the student's data is already on the device
-// (AppContext mirrors state to localStorage) so worksheets can be taken and
-// are pushed to Supabase when the browser comes back online.
-//
-// Reminders: local Notifications (no push server needed). A daily check at
-// the chosen hour fires when reviews are due or the streak is about to
-// break; the service worker shows it so it survives a backgrounded tab.
-
-const isProd = process.env.NODE_ENV === 'production';
-
-export function registerServiceWorker() {
-  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-  // CRA's dev server serves sw.js but hot reloading fights with it — prod only.
-  if (!isProd) return;
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => null);
-  });
-}
-
-/** Subscribe to connectivity changes: cb(isOnline). Returns unsubscribe. */
-export function watchOnline(cb) {
-  if (typeof window === 'undefined') return () => {};
-  const on = () => cb(true);
-  const off = () => cb(false);
-  window.addEventListener('online', on);
-  window.addEventListener('offline', off);
-  cb(navigator.onLine !== false);
-  return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
-}
+// Study reminders: local Notifications (no push server needed). A daily
+// check at the chosen hour fires when reviews are due or the streak is
+// about to break.
 
 export const notificationsSupported = () => typeof window !== 'undefined' && 'Notification' in window;
 
@@ -39,12 +10,10 @@ export async function requestNotificationPermission() {
   try { return await Notification.requestPermission(); } catch (e) { return 'denied'; }
 }
 
-/** Show a reminder now (via the SW when active, else a page Notification). */
+/** Show a reminder now. */
 export async function showReminder({ title, body, route = 'dashboard', tag = 'study-reminder' }) {
   if (!notificationsSupported() || Notification.permission !== 'granted') return false;
   try {
-    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
-    if (reg?.active) { reg.active.postMessage({ type: 'notify', title, body, route, tag }); return true; }
     const n = new Notification(title, { body, icon: '/icon-192.png', tag });
     n.onclick = () => { window.focus(); window.location.hash = `#${route}`; };
     return true;

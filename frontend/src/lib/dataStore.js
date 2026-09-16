@@ -340,28 +340,6 @@ export async function flaggedQuestionIds() {
   return (data || []).map((r) => (typeof r === 'string' ? r : r.flagged_question_ids || r.question_id)).filter(Boolean);
 }
 
-// Read-only progress shares.
-export async function listShares(userId) {
-  const { data, error } = await supabase.from('progress_shares').select('*').eq('user_id', userId).is('revoked_at', null).order('created_at', { ascending: false });
-  if (error) throw error;
-  return data || [];
-}
-export async function createShare(label, userId) {
-  const token = Array.from(crypto.getRandomValues(new Uint8Array(18))).map((b) => b.toString(16).padStart(2, '0')).join('');
-  const { data, error } = await supabase.from('progress_shares').insert({ token, user_id: userId, label: label || null }).select().single();
-  if (error) throw error;
-  return data;
-}
-export async function revokeShare(token) {
-  const { error } = await supabase.from('progress_shares').update({ revoked_at: nowISO() }).eq('token', token);
-  if (error) throw error;
-}
-export async function fetchSharedProgress(token) {
-  const { data, error } = await supabase.rpc('shared_progress', { p_token: token });
-  if (error) throw error;
-  return data;
-}
-
 // Study groups.
 export async function myGroups() {
   const { data, error } = await supabase.from('study_groups').select('*').order('created_at', { ascending: false });

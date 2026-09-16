@@ -51,7 +51,7 @@ const STEPS = [
     eyebrow: 'Step 5',
     title: 'Build a worksheet',
     body: 'Pick subject, topics, answer type, difficulty and duration. AI writes original in-syllabus questions; tick past papers to mix in real ones. Exam mode locks the screen; Pace coach budgets your time per question.',
-    bullets: ['Adaptive difficulty and full exam simulations', 'Rate your confidence, tag why you missed a question, get the worked solution', 'Missed questions come back as spaced reviews'],
+    bullets: ['Adaptive difficulty and full exam simulations', 'Tag why you missed a question (optional), get the worked solution', 'Missed questions come back as spaced reviews'],
   },
   {
     route: 'history',
@@ -99,15 +99,15 @@ const STEPS = [
     eyebrow: 'Step 11',
     title: 'Study Groups',
     body: 'Create a group for your class and share the 8-character code. The weekly leaderboard shows first names, questions answered, accuracy and streak — never answers or emails.',
-    bullets: ['Join with a code', 'Weekly leaderboard', 'Share a read-only progress link with a teacher from Settings'],
+    bullets: ['Join with a code', 'This week in your group — no rankings', 'First names only'],
   },
   {
     route: 'settings',
     target: 'settings',
     eyebrow: 'Step 12',
     title: 'Settings',
-    body: 'Goals, difficulty, keyboard shortcuts, light or dark mode, daily reminders, the weekly email digest, share links for a teacher or parent, and one switch that turns every AI assistant off.',
-    bullets: ['Reminders and weekly digest', 'Share progress read-only', 'AI on / off, theme and shortcuts'],
+    body: 'Goals, difficulty, keyboard shortcuts, light or dark mode, daily reminders, the weekly email digest, your privacy choices and a copy of your data, and one switch that turns every AI assistant off.',
+    bullets: ['Reminders and weekly digest', 'Privacy & download my data', 'AI on / off, theme and shortcuts'],
   },
 ];
 

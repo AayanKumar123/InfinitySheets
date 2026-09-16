@@ -8,9 +8,7 @@ import { Cloud, CloudOff, Check, Loader2, MonitorSmartphone } from 'lucide-react
  */
 export default function SyncBadge({ status, isDemo }) {
   let cfg;
-  if (status === 'offline') {
-    cfg = { icon: CloudOff, text: 'Offline · saved on this device', cls: 'text-slate-600 bg-slate-100 border-slate-300', spin: false };
-  } else if (isDemo) {
+  if (isDemo) {
     cfg = { icon: MonitorSmartphone, text: 'Demo · this device', cls: 'text-slate-500 bg-slate-100 border-slate-200', spin: false };
   } else if (status === 'saving') {
     cfg = { icon: Loader2, text: 'Saving…', cls: 'text-blue-600 bg-blue-50 border-blue-200', spin: true };

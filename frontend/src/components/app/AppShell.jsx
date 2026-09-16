@@ -27,7 +27,7 @@ import Groups from './Groups';
 import ConsentGate from './ConsentGate';
 import CommandPalette from './CommandPalette';
 import { pageview } from '../../lib/analytics';
-import { maybeRemind } from '../../lib/offline';
+import { maybeRemind } from '../../lib/reminders';
 import { dueReviews } from '../../lib/spacedRepetition';
 
 const BASE_NAV = [

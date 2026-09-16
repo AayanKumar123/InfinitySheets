@@ -21,12 +21,9 @@ import { adaptiveDifficulty } from '../../lib/adaptive';
 import { presetFor, presetMarks, simulationScore } from '../../lib/examPresets';
 import { workedSolution } from '../../lib/ai';
 import { track as trackEvent } from '../../lib/analytics';
-import { Brain, Wand2, BookOpenCheck, MessageCircleQuestion, Zap } from 'lucide-react';
+import { Wand2, BookOpenCheck, MessageCircleQuestion, Zap } from 'lucide-react';
 import AiChat from './ai/AiChat';
 
-// Confidence the student attaches to each answer; compared with the result
-// afterwards to show calibration (over/under-confidence).
-const CONFIDENCE = [['sure', 'Sure'], ['unsure', 'Unsure'], ['guess', 'Guess']];
 // Why a question was missed — tagged on the result screen.
 export const MISTAKE_REASONS = [['misread', 'Misread'], ['careless', 'Careless slip'], ['unknown', "Didn't know"], ['time', 'Ran out of time']];
 
@@ -483,7 +480,6 @@ export default function Worksheets({ go }) {
   const [answers, setAnswers] = useState([]); // holds number (MCQ index) or string (typed/exam)
   const [working, setWorking] = useState([]); // per-question { images, transcript } (photo of working)
   const [flags, setFlags] = useState([]);     // per-question "come back to this"
-  const [confidence, setConfidence] = useState([]); // per-question sure | unsure | guess
   const [adaptive, setAdaptive] = useState(false);   // difficulty picked from recent accuracy
   const [simulation, setSimulation] = useState(false); // full exam paper structure
   const [current, setCurrent] = useState(0);
@@ -525,7 +521,7 @@ export default function Worksheets({ go }) {
   const draftIdRef = useRef(null);
   // Always-fresh snapshot of the take-stage state for saving on navigate-away.
   const liveRef = useRef({});
-  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime, working, flags, examMode, paceCoach, examExits, confidence, simulation: simulation ? simMeta : null };
+  liveRef.current = { stage, subject, topics, answerType, difficulty, duration, questions, answers, current, timeLeft, pastPapers, aiGenerated, startTime, working, flags, examMode, paceCoach, examExits, simulation: simulation ? simMeta : null };
 
   // Per-question telemetry for the worksheet analysis: how long each question
   // had the student's attention (tab visible), how many times it was visited,
@@ -571,7 +567,6 @@ export default function Worksheets({ go }) {
     telemetry: telemetryRef.current.data,
     working: stripFullImages(d.working),
     flags: d.flags,
-    confidence: d.confidence,
     simulation: d.simulation,
     examMode: d.examMode,
     paceCoach: d.paceCoach,
@@ -614,7 +609,6 @@ export default function Worksheets({ go }) {
       setAnswers(d.answers || []);
       setWorking(d.working || []);
       setFlags(d.flags || []);
-      setConfidence(d.confidence || []);
       setSimulation(!!d.simulation);
       setExamMode(!!d.examMode);
       setPaceCoach(!!d.paceCoach);
@@ -774,7 +768,6 @@ export default function Worksheets({ go }) {
     setAnswers(qs.map((q) => (q.answerType === 'Multiple choice' ? -1 : '')));
     setWorking(new Array(qs.length).fill(undefined));
     setFlags(new Array(qs.length).fill(false));
-    setConfidence(new Array(qs.length).fill(null));
     trackEvent('worksheet_started', { subject, answerType, difficulty: effDifficulty, count: qs.length, examMode, simulation, adaptive, paper: !!paperPick });
     setExamExits(0);
     setExamLocked(false);
@@ -932,7 +925,6 @@ export default function Worksheets({ go }) {
       answers,
       working: stripFullImages(working),
       flags,
-      confidence,
       challenge: challengePick?.key || undefined,
       simulation: simulation ? simMeta : null,
       examMode,
@@ -1262,17 +1254,6 @@ export default function Worksheets({ go }) {
               )}
             </div>
           )}
-
-          {/* How sure are you? Compared with the result for calibration. */}
-          <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="ws-confidence">
-            <span className="text-[11.5px] text-slate-500 inline-flex items-center gap-1"><Brain className="w-3.5 h-3.5" /> How sure are you?</span>
-            {CONFIDENCE.map(([k, label]) => (
-              <button key={k} type="button" onClick={() => setConfidence((prev) => { const c = [...prev]; c[current] = c[current] === k ? null : k; return c; })}
-                className={`px-2.5 py-1 rounded-md text-[12px] font-medium border transition-colors ${confidence[current] === k ? (k === 'sure' ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : k === 'unsure' ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-rose-300 bg-rose-50 text-rose-800') : 'border-zinc-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
 
           {/* Photo of working — the answer itself for drawing questions,
               optional supporting evidence for everything else. */}

@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Bell, Mail, Share2, Copy, Trash2, Loader2, Users } from 'lucide-react';
+import React from 'react';
+import { Bell, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 import * as store from '../../lib/dataStore';
-import { notificationsSupported, requestNotificationPermission, showReminder } from '../../lib/offline';
+import { notificationsSupported, requestNotificationPermission, showReminder } from '../../lib/reminders';
 import { track } from '../../lib/analytics';
 
-// Settings sections for the next-wave features: study reminders (local
-// notifications), the weekly email digest opt-in, and read-only share links
-// for a teacher or parent.
+// Settings section for study reminders (local notifications) and the
+// weekly email digest opt-in.
 function Section({ title, icon: Icon, subtitle, children }) {
   return (
     <section className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5">
@@ -76,58 +75,6 @@ export function RemindersSection() {
           label={<span className="inline-flex items-center gap-1.5"><Mail className="w-4 h-4 text-slate-600" /> Weekly email digest</span>}
           hint={isReal ? 'Every Monday: questions answered, accuracy, streak, weakest topic and what to do this week. Unsubscribe here any time.' : 'Available on a real account (the demo has no email address).'} />
       </div>
-    </Section>
-  );
-}
-
-export function ShareSection() {
-  const { state } = useApp();
-  const isReal = !!(state.user && !state.user.isDemo && state.user.id);
-  const [shares, setShares] = useState([]);
-  const [label, setLabel] = useState('');
-  const [busy, setBusy] = useState(false);
-  const load = useCallback(() => { if (isReal) store.listShares(state.user.id).then(setShares).catch(() => null); }, [isReal, state.user?.id]);
-  useEffect(() => { load(); }, [load]);
-  const linkFor = (t) => `${window.location.origin}${window.location.pathname}#shared?token=${t}`;
-  const create = async () => {
-    setBusy(true);
-    try {
-      const row = await store.createShare(label.trim() || null, state.user.id);
-      setLabel('');
-      await navigator.clipboard?.writeText(linkFor(row.token)).catch(() => null);
-      toast.success('Link created and copied');
-      track('share_created');
-      load();
-    } catch (e) { toast.error(e.message || 'Could not create the link'); }
-    finally { setBusy(false); }
-  };
-  const revoke = async (t) => {
-    try { await store.revokeShare(t); toast.success('Link revoked'); load(); }
-    catch (e) { toast.error(e.message || 'Could not revoke'); }
-  };
-  return (
-    <Section title="Share progress" icon={Share2} subtitle="A read-only page for a teacher or parent: scores, streak and weak topics — never your answers or email.">
-      {!isReal ? <div className="text-[13px] text-slate-500">Sign up to create share links.</div> : (
-        <div>
-          <div className="flex flex-wrap gap-2 mb-3">
-            <input className="input-base flex-1 min-w-[200px]" placeholder="Who is this for? (e.g. Mum, Mr Rao)" value={label} onChange={(e) => setLabel(e.target.value)} data-testid="share-label" />
-            <button onClick={create} disabled={busy} className="btn-violet inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13.5px] font-medium disabled:opacity-60" data-testid="share-create">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />} Create link</button>
-          </div>
-          {shares.length === 0 ? <div className="text-[12.5px] text-slate-500">No active links.</div> : (
-            <ul className="divide-y divide-[color:var(--color-border)]" data-testid="share-list">
-              {shares.map((sh) => (
-                <li key={sh.token} className="flex items-center justify-between gap-3 py-2 text-[13px]">
-                  <span className="min-w-0 truncate"><span className="font-medium text-slate-800">{sh.label || 'Untitled link'}</span> <span className="text-slate-400">· {new Date(sh.created_at).toLocaleDateString()}</span></span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => navigator.clipboard?.writeText(linkFor(sh.token)).then(() => toast.success('Link copied')).catch(() => toast(linkFor(sh.token)))} className="btn-outline-dark inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px]"><Copy className="w-3.5 h-3.5" /> Copy</button>
-                    <button onClick={() => revoke(sh.token)} className="text-slate-400 hover:text-rose-600" title="Revoke"><Trash2 className="w-4 h-4" /></button>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
     </Section>
   );
 }

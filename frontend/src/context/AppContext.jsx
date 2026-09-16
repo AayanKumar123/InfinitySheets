@@ -8,7 +8,6 @@ import * as store from '../lib/dataStore';
 import { computeBadges, BADGES } from '../lib/badges';
 import { markCard } from '../lib/flashcards';
 import { initAnalytics, identify, track } from '../lib/analytics';
-import { registerServiceWorker, watchOnline } from '../lib/offline';
 import { toast } from 'sonner';
 
 // Study data now lives in Supabase (Postgres + RLS) when the user is signed in
@@ -151,15 +150,8 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  // Offline shell + analytics provider (both no-ops when not configured).
-  useEffect(() => {
-    registerServiceWorker();
-    initAnalytics();
-    return watchOnline((online) => {
-      if (!online) setSyncStatus('offline');
-      else setSyncStatus((cur) => (cur === 'offline' ? (canSync() ? 'saved' : 'idle') : cur));
-    });
-  }, []);
+  // Analytics provider (a no-op until a key is configured).
+  useEffect(() => { initAnalytics(); }, []);
 
   // Hydrate local (theme + demo) then wire Supabase auth lifecycle.
   useEffect(() => {

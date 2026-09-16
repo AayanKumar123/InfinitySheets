@@ -24,8 +24,8 @@ const SECTIONS = [
     p: 'InfinitySheets is built for school students. When you first use the app we ask for your age band. If you are under 13, the AI helpers stay off unless a parent or guardian confirms they are OK with it, and study groups only ever show first names. Parents can ask us to see or delete a child\'s data at any time using the address on the landing page.',
   },
   {
-    h: 'Study groups and shared links',
-    p: 'If you join a study group, other members see your first name, how many questions you answered this week, your accuracy and your streak — never your answers or email. A "share progress" link shows a teacher or parent your scores and topics only; you can revoke it in Settings at any time.',
+    h: 'Study groups',
+    p: 'If you join a study group, other members see your first name, how many worksheets and questions you did this week and your streak — never your answers, scores or email. Groups have no rankings.',
   },
   {
     h: 'Ads',
