@@ -6,7 +6,7 @@ import { enrolledSubjects, primaryTrack } from '../lib/subjects';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as store from '../lib/dataStore';
 import { computeBadges, BADGES } from '../lib/badges';
-import { rateCard } from '../lib/flashcards';
+import { markCard } from '../lib/flashcards';
 import { initAnalytics, identify, track } from '../lib/analytics';
 import { registerServiceWorker, watchOnline } from '../lib/offline';
 import { toast } from 'sonner';
@@ -693,14 +693,23 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings(stateRef.current, uid()), 'flashcards/explain');
   }, []);
 
-  const rateFlashcard = useCallback((key, rating) => {
+  // "I knew it" / "I didn't know it" on one card.
+  const markFlashcard = useCallback((key, knew) => {
     setState((s) => {
       const cur = s.flashcards || { cards: {}, reviewed: 0 };
-      const cards = { ...(cur.cards || {}), [key]: rateCard(cur.cards?.[key], rating) };
-      return { ...s, flashcards: { cards, reviewed: (cur.reviewed || 0) + 1 } };
+      const cards = { ...(cur.cards || {}), [key]: markCard(cur.cards?.[key], knew) };
+      return { ...s, flashcards: { ...cur, cards, reviewed: (cur.reviewed || 0) + 1 } };
     });
-    track('flashcard_rated', { rating });
     bg(() => store.upsertSettings(stateRef.current, uid()), 'flashcards');
+  }, []);
+
+  // Concept deck the AI wrote for a topic — kept for good.
+  const saveFlashcardDeck = useCallback((subject, topic, cards) => {
+    setState((s) => {
+      const cur = s.flashcards || { cards: {}, reviewed: 0 };
+      return { ...s, flashcards: { ...cur, decks: { ...(cur.decks || {}), [`${subject}|${topic}`]: { cards, createdAt: new Date().toISOString() } } } };
+    });
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'flashcards/deck');
   }, []);
 
   const setStudyPlan = useCallback((plan) => {
@@ -771,7 +780,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -783,7 +792,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

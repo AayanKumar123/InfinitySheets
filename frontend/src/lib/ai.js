@@ -359,3 +359,16 @@ export async function extractSyllabusTopics({ file, board, subject }) {
   return (parsed.topics || []).map((t) => ({ name: String(t.name || '').trim().slice(0, 80), summary: String(t.summary || '').trim().slice(0, 240) }))
     .filter((t) => t.name && !seen.has(t.name.toLowerCase()) && seen.add(t.name.toLowerCase()));
 }
+
+/**
+ * Concept flashcards for one topic, SaveMyExams-style: a term / question on
+ * the front, a short exact answer on the back. Resolves to [{ front, back }].
+ */
+export async function generateFlashcards({ board, subject, topic, count = 12 }) {
+  const content = `Write ${count} revision flashcards for the topic "${topic}" in ${subject} (${board}). Cover the definitions, formulas, laws, key facts and common exam traps a student must know for this topic — not practice questions. Front: one term, question or prompt (under 20 words). Back: the exact answer or definition in the words the mark scheme rewards (under 40 words, textbook Unicode notation). Reply as {"cards": [{"front": string, "back": string}]}.`;
+  const text = await askAi({ mode: 'flashcards', context: { board, subject, topic }, messages: [{ role: 'user', content }] });
+  const parsed = parseJsonReply(text);
+  const cards = (parsed.cards || []).map((c) => ({ front: String(c.front || '').trim(), back: String(c.back || '').trim() })).filter((c) => c.front && c.back).slice(0, 30);
+  if (!cards.length) throw new Error('The AI returned no cards');
+  return cards;
+}

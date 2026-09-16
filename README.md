@@ -139,7 +139,7 @@ frontend bundle).
 | 3 | Mistake-reason tagging | Result screen → *Why?* chips on wrong answers | Saved on the sheet (`reasons`) and the mistake row; Strengths & Weaknesses shows *Why you lose marks* (knowledge vs technique). |
 | 4 | Exam simulation | Builder → *Exam simulation* | `lib/examPresets.js` has a paper structure per board (sections, counts, marks, time, negative marking for JEE/NEET). One AI call per section; result converts marks → board grade. |
 | 5 | Worked solutions | Result screen → *Show me the working* | `ai-chat` mode `solution`; cached on the sheet (`solutions[i]`). |
-| 6 | Flashcards | Sidebar → Flashcards | Deck from mistakes; Again/Hard/Good/Easy drive the 1-3-7-14-day intervals. Progress in `user_settings.data.flashcards`. |
+| 6 | Flashcards | Sidebar → Flashcards | SaveMyExams-style: subject → topic → concept deck (AI-written once per topic, `ai-chat` mode `flashcards`, cached) plus the student's missed questions; **I knew it / I didn't know it** only. Unknowns re-queue in the session; known cards rest 1→3→7→14→30 days. Progress in `user_settings.data.flashcards`. |
 | 7 | Weekly email digest — **needs config** | Settings → *Reminders & digest* | Edge function `weekly-digest` + `supabase/setup/weekly_digest_cron.sql`. Secrets: `DIGEST_SECRET`, `RESEND_API_KEY`, `DIGEST_FROM`, `APP_URL`. Without `RESEND_API_KEY` it dry-runs. |
 | 8 | Push reminders | Settings → *Daily study reminder* | Local Notifications via the service worker (`public/sw.js`), once a day at the chosen hour when reviews are due / streak at risk. No push server needed. |
 | 9 | AI study plan | Smart Learning → *This week's plan* | `ai-chat` mode `plan`; tasks tick off and open the builder pre-filled. |
@@ -180,4 +180,4 @@ Fix: a topic preselected from the Syllabus Bank / study plan / Today's 5 was res
 - **Flashcards explain the concept**: on the answer side, *Explain the concept I missed* asks the AI for the idea, the one rule and the trap; cached per card.
 - **Study groups are not competitive**: no rank column, alphabetical, your own row highlighted — "what the group did this week", not a leaderboard.
 - **Study plan shows the exam countdown** and plans back from that date.
-
+- **Study groups in the demo**: a sample group with made-up classmates so new visitors see the feature; real groups need an account.

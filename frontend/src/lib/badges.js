@@ -20,7 +20,7 @@ export const BADGES = [
   { id: 'all-subjects', name: 'All-rounder', emoji: '🌍', how: 'Practise 3 different subjects' },
   { id: 'weekly-goal', name: 'Goal getter', emoji: '🏁', how: 'Hit your weekly question goal' },
   { id: 'comeback', name: 'Comeback', emoji: '📈', how: 'Improve a topic by 20+ points' },
-  { id: 'flashcards', name: 'Card shark', emoji: '🃏', how: 'Review 20 flashcards' },
+  { id: 'flashcards', name: 'Card shark', emoji: '🃏', how: 'Go through 20 flashcards' },
 ];
 
 const DAY = 24 * 60 * 60 * 1000;

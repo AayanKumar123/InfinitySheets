@@ -1,6 +1,6 @@
 // InfinitySheets AI — one Gemini-backed endpoint for every assistant in the app.
 //
-//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark' | 'generate' | 'extract' | 'assess' | 'solution' | 'plan' | 'syllabus', context, messages, files? }
+//   POST { mode: 'overview' | 'chat' | 'recommend' | 'diagnose' | 'transcribe' | 'mark' | 'generate' | 'extract' | 'assess' | 'solution' | 'plan' | 'syllabus' | 'flashcards', context, messages, files? }
 //   → { text, model }
 //
 // The Gemini key lives ONLY here, as a project secret (Dashboard → Edge
@@ -86,6 +86,9 @@ You write a fully worked model solution for ONE question the student got wrong. 
     return `${base}
 
 You build a study plan from the student's performance data and exam date. Reply with a single JSON object and nothing else: {"summary": "one sentence", "days": [{"day": "Mon", "date": "YYYY-MM-DD", "tasks": [{"subject": string, "topic": string, "minutes": integer, "what": "one specific action"}]}]}. Weakest topics first, spaced repetition of earlier ones later in the week, never more than 3 tasks per day, and respect the student's stated frequency.`;
+  }
+  if (mode === "flashcards") {
+    return `${base}\n\nYou write revision flashcards for this exam: the definitions, formulas, laws, facts and traps a student must know for a topic, phrased exactly as the mark scheme rewards. Never write practice questions. Reply with a single JSON object and nothing else.`;
   }
   if (mode === "syllabus") {
     return `You read an official syllabus / specification PDF for ${boardLabel(board)}${level} ${ctx.subject || ""} and list its teachable topics. Reply with a single JSON object and nothing else: {"topics": [{"name": "short topic title as the syllabus names it", "summary": "one line of what is assessed"}]}. Merge sub-points into 15-40 topics, in syllabus order. Skip assessment objectives, administration and appendices.`;
@@ -204,8 +207,8 @@ async function cacheBumpHit(id: string) {
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
-const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark", "generate", "extract", "assess", "solution", "plan", "syllabus"]);
-const JSON_MODES = new Set(["mark", "generate", "extract", "assess", "plan", "syllabus"]);
+const MODES = new Set(["overview", "chat", "recommend", "diagnose", "transcribe", "mark", "generate", "extract", "assess", "solution", "plan", "syllabus", "flashcards"]);
+const JSON_MODES = new Set(["mark", "generate", "extract", "assess", "plan", "syllabus", "flashcards"]);
 const FILE_MODES = new Set(["transcribe", "extract", "assess", "syllabus"]);
 // Inline files: photos and PDFs. Gemini reads both natively.
 type FileIn = { mimeType: string; data: string; label?: string };

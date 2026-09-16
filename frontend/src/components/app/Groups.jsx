@@ -5,6 +5,16 @@ import { useApp } from '../../context/AppContext';
 import * as store from '../../lib/dataStore';
 import { track } from '../../lib/analytics';
 
+// Demo: a sample group with made-up classmates so the page is not a dead
+// end for a new visitor. Nothing is sent anywhere.
+const DEMO_GROUP = { id: 'g_demo', code: 'DEMO2345', name: '10B Physics (sample)', school: 'Sample School' };
+const DEMO_BOARD = [
+  { name: 'Aarav', me: false, questions: 42, sheets: 5, streak: 3 },
+  { name: 'Demo', me: true, questions: 36, sheets: 4, streak: 5 },
+  { name: 'Meera', me: false, questions: 58, sheets: 6, streak: 7 },
+  { name: 'Rohan', me: false, questions: 12, sheets: 2, streak: 1 },
+];
+
 // Study groups: create one, share the 8-character code, join with a code, see
 // what the group did this week. Deliberately NOT a leaderboard: no ranks,
 // alphabetical order, everyone's own row highlighted — it is there to make
@@ -22,7 +32,7 @@ export default function Groups() {
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!isReal) return;
+    if (!isReal) { setGroups([DEMO_GROUP]); setActive(DEMO_GROUP); setLoading(false); return; }
     setLoading(true);
     try {
       const list = await store.myGroups();
@@ -34,10 +44,12 @@ export default function Groups() {
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     if (!active) { setBoard([]); return; }
+    if (!isReal) { setBoard(DEMO_BOARD); return; }
     store.groupLeaderboard(active.id).then((rows) => setBoard([...rows].sort((a, b) => String(a.name).localeCompare(String(b.name))))).catch(() => setBoard([]));
-  }, [active]);
+  }, [active, isReal]);
 
   const create = async () => {
+    if (!isReal) { toast('Sign up to create a real group — this one is a sample'); return; }
     if (!name.trim()) { toast.error('Give the group a name'); return; }
     setBusy(true);
     try {
@@ -50,6 +62,7 @@ export default function Groups() {
     finally { setBusy(false); }
   };
   const join = async () => {
+    if (!isReal) { toast('Sign up to join a real group — this one is a sample'); return; }
     if (!code.trim()) return;
     setBusy(true);
     try {
@@ -63,26 +76,20 @@ export default function Groups() {
     finally { setBusy(false); }
   };
   const leave = async (g) => {
+    if (!isReal) { toast('Sample group — nothing to leave'); return; }
     if (!window.confirm(`Leave ${g.name}?`)) return;
     try { await store.leaveGroup(g.id, state.user.id); toast.success('Left the group'); await refresh(); }
     catch (e) { toast.error(e.message || 'Could not leave'); }
   };
   const copy = (c) => { navigator.clipboard?.writeText(c).then(() => toast.success('Code copied')).catch(() => toast(c)); };
 
-  if (!isReal) {
-    return (
-      <div className="max-w-[820px]">
-        <div className="rounded-2xl border border-dashed border-[color:var(--color-border)] p-10 text-center bg-slate-50/50" data-testid="groups-demo">
-          <Users className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-          <div className="text-[15px] font-semibold text-slate-800">Study groups need an account</div>
-          <div className="text-[13px] text-slate-500 mt-1">Sign up, then create a group for your class and share its code. You will see what the group did this week — first names only, no rankings.</div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-[1000px] flex flex-col gap-5">
+      {!isReal && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50/60 px-4 py-3 text-[13px] text-slate-700 inline-flex items-center gap-2" data-testid="groups-demo">
+          <Users className="w-4 h-4 text-blue-600" /> This is a sample group so you can see how it works. Sign up to create a real one for your class and share its code.
+        </div>
+      )}
       <p className="text-[14px] text-zinc-500">Practise with your class. Groups show first names and this week's activity — no rankings, no scores against each other, never answers or emails.</p>
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5">
