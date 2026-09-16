@@ -126,7 +126,7 @@ uvicorn server:app --host 0.0.0.0 --port 8001
 
 ---
 
-## Next-wave features (branch `feature/next-wave`)
+## Next-wave features (merged to `main`)
 
 Everything below ships in the app; the three marked **needs config** work
 end-to-end once the owner adds the listed keys (nothing is exposed in the
@@ -157,7 +157,7 @@ Database changes for this wave: `supabase/migrations/0008_next_wave.sql`
 (applied to the project). Edge functions: `ai-chat` v17 (new modes
 `solution`, `plan`, `syllabus`), `weekly-digest` v1.
 
-### Wave 2 (same branch)
+### Wave 2
 
 | Feature | Where | Notes |
 |---|---|---|
