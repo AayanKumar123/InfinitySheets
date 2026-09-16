@@ -98,7 +98,7 @@ const STEPS = [
     target: 'groups',
     eyebrow: 'Step 11',
     title: 'Study Groups',
-    body: 'Create a group for your class and share the 6-letter code. The weekly leaderboard shows first names, questions answered, accuracy and streak — never answers or emails.',
+    body: 'Create a group for your class and share the 8-character code. The weekly leaderboard shows first names, questions answered, accuracy and streak — never answers or emails.',
     bullets: ['Join with a code', 'Weekly leaderboard', 'Share a read-only progress link with a teacher from Settings'],
   },
   {

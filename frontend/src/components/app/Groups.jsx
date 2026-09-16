@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import * as store from '../../lib/dataStore';
 import { track } from '../../lib/analytics';
 
-// Study groups: create one, share the 6-letter code, join with a code, see
+// Study groups: create one, share the 8-character code, join with a code, see
 // the weekly leaderboard (first names only, questions answered this week).
 export default function Groups() {
   const { state } = useApp();
@@ -91,8 +91,8 @@ export default function Groups() {
         </div>
         <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5">
           <div className="text-[14px] font-semibold text-slate-900 inline-flex items-center gap-2 mb-3"><LogIn className="w-4 h-4 text-emerald-600" /> Join with a code</div>
-          <input className="input-base w-full mb-3 uppercase tracking-widest" placeholder="ABC123" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} data-testid="group-code" />
-          <button onClick={join} disabled={busy || code.length < 6} className="btn-outline-dark px-4 py-2 rounded-lg text-[13.5px] font-medium disabled:opacity-60" data-testid="group-join">Join</button>
+          <input className="input-base w-full mb-3 uppercase tracking-widest" placeholder="ABCD2345" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} data-testid="group-code" />
+          <button onClick={join} disabled={busy || code.length < 8} className="btn-outline-dark px-4 py-2 rounded-lg text-[13.5px] font-medium disabled:opacity-60" data-testid="group-join">Join</button>
         </div>
       </div>
 

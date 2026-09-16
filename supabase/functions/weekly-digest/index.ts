@@ -19,6 +19,16 @@ type Sheet = { user_id: string; subject: string; topic: string; total: number; c
 
 function env(name: string) { return Deno.env.get(name) || ""; }
 
+// Constant-time comparison of two secrets (compares SHA-256 digests).
+async function sameSecret(a: string, b: string) {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([crypto.subtle.digest("SHA-256", enc.encode(a)), crypto.subtle.digest("SHA-256", enc.encode(b))]);
+  const x = new Uint8Array(ha), y = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
+
 function digestFor(name: string, sheets: Sheet[], streak: number, appUrl: string) {
   const total = sheets.reduce((s, w) => s + (w.total || 0), 0);
   const correct = sheets.reduce((s, w) => s + (w.correct || 0), 0);
@@ -57,7 +67,7 @@ function digestFor(name: string, sheets: Sheet[], streak: number, appUrl: string
 
 Deno.serve(async (req: Request) => {
   const secret = env("DIGEST_SECRET");
-  if (!secret || req.headers.get("x-digest-secret") !== secret) {
+  if (!secret || !(await sameSecret(req.headers.get("x-digest-secret") || "", secret))) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
   }
   const dry = new URL(req.url).searchParams.get("dry") === "1" || !env("RESEND_API_KEY");
@@ -73,19 +83,22 @@ Deno.serve(async (req: Request) => {
   for (const row of optIn || []) {
     // At most one digest per 6 days per student, whatever the schedule does.
     if (row.digest_sent_at && Date.now() - new Date(row.digest_sent_at).getTime() < 6 * 24 * 3600 * 1000) continue;
-    const { data: profile } = await supabase.from("profiles").select("email, name").eq("id", row.user_id).maybeSingle();
-    if (!profile?.email) continue;
+    // The address comes from auth (verified), never from the editable profile.
+    const { data: au } = await supabase.auth.admin.getUserById(row.user_id);
+    const email = au?.user?.email;
+    if (!email || !au?.user?.email_confirmed_at) continue;
+    const { data: profile } = await supabase.from("profiles").select("name").eq("id", row.user_id).maybeSingle();
     const { data: sheets } = await supabase.from("worksheets").select("user_id, subject, topic, total, correct, score, created_at, questions, data").eq("user_id", row.user_id).gte("created_at", since);
-    const d = digestFor(profile.name, (sheets || []) as Sheet[], row.streak || 0, appUrl);
-    if (dry) { results.push({ to: profile.email, subject: d.subject, preview: d.text.slice(0, 200) }); continue; }
+    const d = digestFor(profile?.name || "", (sheets || []) as Sheet[], row.streak || 0, appUrl);
+    if (dry) { results.push({ to: email, subject: d.subject, preview: d.text.slice(0, 200) }); continue; }
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${env("RESEND_API_KEY")}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [profile.email], subject: d.subject, text: d.text, html: d.html }),
+      body: JSON.stringify({ from, to: [email], subject: d.subject, text: d.text, html: d.html }),
     });
     const ok = res.ok;
     if (ok) await supabase.from("user_settings").update({ digest_sent_at: new Date().toISOString() }).eq("user_id", row.user_id);
-    results.push({ to: profile.email, ok, status: res.status });
+    results.push({ to: email, ok, status: res.status });
   }
   return new Response(JSON.stringify({ dry, sent: results.length, results }), { headers: { "Content-Type": "application/json" } });
 });
