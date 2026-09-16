@@ -291,7 +291,8 @@ export function AppProvider({ children }) {
     isDemoLocalRef.current = false;
     bootstrappedRef.current = authUser.id;
     try {
-      await store.upsertProfile(authUser.id, { name, examTrack, subjects: subjects || [], email: cleanEmail });
+      // email is owned by auth (a trigger rejects client-side changes), so it is not sent here.
+      await store.upsertProfile(authUser.id, { name, examTrack, subjects: subjects || [] });
     } catch (e) { logError('register/profile', e); }
     await bootstrapCore(authUser);
     setLoaded(true);
