@@ -1451,9 +1451,9 @@ export default function Worksheets({ go }) {
                         <WorkingCapture value={w} onChange={() => {}} question={q} readOnly required={isDrawing} testid={`result-working-${i}`} />
                       </div>
                     )}
-                    {!ok && (
+                    {!ok && state.settings?.askMistakeReason !== false && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid={`reason-${i}`}>
-                        <span className="text-[11px] text-slate-500">Why?</span>
+                        <span className="text-[11px] text-slate-500">Why? <span className="text-slate-400">(optional)</span></span>
                         {MISTAKE_REASONS.map(([k, label]) => {
                           const live = (state.worksheets || []).find((x) => x.id === result.id) || result;
                           const sel = live.reasons?.[i] === k;

@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Layers, RotateCcw, ChevronRight, Printer } from 'lucide-react';
+import { Layers, RotateCcw, ChevronRight, Printer, Lightbulb, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { askAi, isAiEnabled } from '../../lib/ai';
+import { boardFor } from '../../lib/subjects';
 import { exportFlashcardsPdf } from '../../lib/exportData';
 import { track } from '../../lib/analytics';
 import { useApp } from '../../context/AppContext';
@@ -10,7 +13,9 @@ import AdSlot from '../ads/AdSlot';
 // Flashcards built from the mistake list: front = question, back = accepted
 // answer. Ratings drive spaced intervals (see lib/flashcards.js).
 export default function Flashcards({ go }) {
-  const { state, rateFlashcard } = useApp();
+  const { state, rateFlashcard, saveFlashcardExplanation } = useApp();
+  const [explaining, setExplaining] = useState(false);
+  const aiOn = isAiEnabled(state);
   const subjects = useMemo(() => enrolledSubjects(state.courses, state.user?.subjects, state.user?.examTrack), [state.courses, state.user?.subjects, state.user?.examTrack]);
   const [subject, setSubject] = useState('');
   const [flipped, setFlipped] = useState(false);
@@ -18,6 +23,20 @@ export default function Flashcards({ go }) {
   const deck = useMemo(() => buildDeck(state.mistakes, state.flashcards?.cards || {}, { subject: subject || undefined }), [state.mistakes, state.flashcards, subject]);
   const queue = useMemo(() => (onlyDue ? deck.filter((c) => c.dueNow) : deck), [deck, onlyDue]);
   const card = queue[0];
+
+  const explain = async () => {
+    if (!card || explaining) return;
+    setExplaining(true);
+    try {
+      const board = boardFor(card.subject, state.courses, state.user?.examTrack);
+      const content = `The student missed this question and has it as a flashcard.\nQuestion: ${card.front}\nAccepted answer: ${card.back}\nExplain the underlying concept in under 120 words, as a tutor would: what the idea is, the one rule to remember, and the trap that makes students get it wrong. Plain text, no headings.`;
+      const text = await askAi({ mode: 'chat', context: { board, subject: card.subject, topic: card.topic }, messages: [{ role: 'user', content }] });
+      saveFlashcardExplanation(card.key, text);
+      track('flashcard_explained');
+    } catch (e) { toast.error(e.message || 'Could not explain this card'); }
+    finally { setExplaining(false); }
+  };
+  const explanation = card ? state.flashcards?.explanations?.[card.key] : null;
 
   const rate = (rating) => {
     if (!card) return;
@@ -61,6 +80,15 @@ export default function Flashcards({ go }) {
             <div className="text-[17px] font-medium text-slate-900 leading-snug whitespace-pre-wrap">{flipped ? card.back : card.front}</div>
             {!flipped && <div className="text-[12px] text-slate-500 mt-4 inline-flex items-center gap-1"><RotateCcw className="w-3.5 h-3.5" /> Tap to reveal the answer</div>}
           </button>
+          {flipped && (
+            <div className="mt-3" data-testid="fc-explain">
+              {explanation ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-[13px] text-slate-800 leading-relaxed"><div className="text-[10.5px] uppercase tracking-wide text-amber-700 mb-1 inline-flex items-center gap-1"><Lightbulb className="w-3.5 h-3.5" /> The concept</div>{explanation}</div>
+              ) : aiOn ? (
+                <button onClick={explain} disabled={explaining} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-amber-700 hover:text-amber-900 disabled:opacity-60" data-testid="fc-explain-btn">{explaining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lightbulb className="w-4 h-4" />} Explain the concept I missed</button>
+              ) : null}
+            </div>
+          )}
           {flipped && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" data-testid="fc-rate">
               <button onClick={() => rate('again')} className="px-3 py-2.5 rounded-lg border border-rose-300 bg-rose-50 text-rose-800 text-[13px] font-semibold">Again <span className="block text-[10.5px] font-normal">today</span></button>

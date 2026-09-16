@@ -148,7 +148,7 @@ frontend bundle).
 | 12 | Question quality flags | Any question → *Report*; Admin → *Reported questions* | `public.question_flags`; 3+ open flags hide a bank question from new sheets (`flagged_question_ids()`). |
 | 13 | Past-paper library browser | Syllabus Bank → year / answer-type filters → *Attempt the YYYY paper* | Runs the filtered questions as one worksheet in printed order. Filters appear once uploaded papers carry a `year`. |
 | 14 | Teacher / parent share | Settings → *Share progress* → link `#shared?token=…` | `public.progress_shares` + `shared_progress()` returns scores/topics only — never answers or email. Revocable. |
-| 15 | Study groups | Sidebar → Study Groups | `study_groups` / `group_members`, 8-character join code (10 failed tries/hour), weekly leaderboard (`group_leaderboard()`, first names only). Real accounts only. |
+| 15 | Study groups | Sidebar → Study Groups | `study_groups` / `group_members`, 8-character join code (10 failed tries/hour), weekly *activity* view (`group_leaderboard()`, first names only, **no ranks** — alphabetical). Real accounts only. |
 | 16 | Offline mode | automatic | `public/sw.js` caches the app shell (production builds); data is already mirrored to localStorage; header shows *Offline · saved on this device* and re-syncs on `online`. |
 | 17 | Google sign-in — **needs config** | Log in / Sign up → *Continue with Google* | Code is in place (`apiGoogleAuth`); follow step 4 of the dashboard setup above. |
 | 18 | Analytics events — **needs config** | `lib/analytics.js` | Set `REACT_APP_POSTHOG_KEY` (+ optional `REACT_APP_POSTHOG_HOST`) or `REACT_APP_PLAUSIBLE_DOMAIN`. Events: `worksheet_started/completed`, `badge_unlocked`, `flashcard_rated`, `study_plan_generated`, `question_flagged`, `solution_requested`, `mistake_tagged`, `share_created`, `group_created/joined`, `pageview`. No-op (dev console only) without a key. |
@@ -172,3 +172,12 @@ Database changes for this wave: `supabase/migrations/0008_next_wave.sql`
 | Follow device theme | Settings → Accessibility | `themeMode: 'system'` mirrors `prefers-color-scheme`. |
 
 Fix: a topic preselected from the Syllabus Bank / study plan / Today's 5 was reset to the subject's first topic on mount (StrictMode double-effect); the reset now only fires on a real subject change.
+
+### Wave 3
+
+- **Demo opens pre-loaded**: Try Demo → an IGCSE course (Mathematics, Physics) with 18 seeded worksheets and a 5-day streak, then the consent question, then the tutorial on a populated dashboard. *Reset demo* wipes it.
+- **Mistake-reason chips are optional**: Settings → Accessibility → *Ask why I missed a question* (default on; chips are labelled "optional").
+- **Flashcards explain the concept**: on the answer side, *Explain the concept I missed* asks the AI for the idea, the one rule and the trap; cached per card.
+- **Study groups are not competitive**: no rank column, alphabetical, your own row highlighted — "what the group did this week", not a leaderboard.
+- **Study plan shows the exam countdown** and plans back from that date.
+

@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Users, Plus, LogIn, Copy, Loader2, Trophy, LogOut } from 'lucide-react';
+import { Users, Plus, LogIn, Copy, Loader2, Activity, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 import * as store from '../../lib/dataStore';
 import { track } from '../../lib/analytics';
 
 // Study groups: create one, share the 8-character code, join with a code, see
-// the weekly leaderboard (first names only, questions answered this week).
+// what the group did this week. Deliberately NOT a leaderboard: no ranks,
+// alphabetical order, everyone's own row highlighted — it is there to make
+// studying feel shared, not to make anyone feel behind.
 export default function Groups() {
   const { state } = useApp();
   const isReal = !!(state.user && !state.user.isDemo && state.user.id);
@@ -32,7 +34,7 @@ export default function Groups() {
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     if (!active) { setBoard([]); return; }
-    store.groupLeaderboard(active.id).then(setBoard).catch(() => setBoard([]));
+    store.groupLeaderboard(active.id).then((rows) => setBoard([...rows].sort((a, b) => String(a.name).localeCompare(String(b.name))))).catch(() => setBoard([]));
   }, [active]);
 
   const create = async () => {
@@ -73,7 +75,7 @@ export default function Groups() {
         <div className="rounded-2xl border border-dashed border-[color:var(--color-border)] p-10 text-center bg-slate-50/50" data-testid="groups-demo">
           <Users className="w-8 h-8 text-slate-400 mx-auto mb-2" />
           <div className="text-[15px] font-semibold text-slate-800">Study groups need an account</div>
-          <div className="text-[13px] text-slate-500 mt-1">Sign up, then create a group for your class and share its code. The leaderboard shows questions answered this week — first names only.</div>
+          <div className="text-[13px] text-slate-500 mt-1">Sign up, then create a group for your class and share its code. You will see what the group did this week — first names only, no rankings.</div>
         </div>
       </div>
     );
@@ -81,7 +83,7 @@ export default function Groups() {
 
   return (
     <div className="max-w-[1000px] flex flex-col gap-5">
-      <p className="text-[14px] text-zinc-500">Practise with your class. Groups only ever show first names, this week's question count, accuracy and streak — never answers or emails.</p>
+      <p className="text-[14px] text-zinc-500">Practise with your class. Groups show first names and this week's activity — no rankings, no scores against each other, never answers or emails.</p>
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5">
           <div className="text-[14px] font-semibold text-slate-900 inline-flex items-center gap-2 mb-3"><Plus className="w-4 h-4 text-violet-600" /> Create a group</div>
@@ -111,7 +113,7 @@ export default function Groups() {
           {active && (
             <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5" data-testid="leaderboard">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div className="text-[15px] font-semibold text-slate-900 inline-flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-500" /> {active.name} · this week</div>
+                <div className="text-[15px] font-semibold text-slate-900 inline-flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-600" /> {active.name} · this week</div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => copy(active.code)} className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px]"><Copy className="w-3.5 h-3.5" /> {active.code}</button>
                   <button onClick={() => leave(active)} className="text-slate-400 hover:text-rose-600 inline-flex items-center gap-1 text-[12.5px]"><LogOut className="w-3.5 h-3.5" /> Leave</button>
@@ -119,13 +121,13 @@ export default function Groups() {
               </div>
               {board.length === 0 ? <div className="text-[13px] text-slate-500">No activity this week yet.</div> : (
                 <table className="w-full text-[13px]">
-                  <thead><tr className="text-[11px] uppercase tracking-wide text-slate-500 text-left"><th className="py-1.5">#</th><th>Name</th><th className="text-right">Questions</th><th className="text-right">Sheets</th><th className="text-right">Accuracy</th><th className="text-right">Streak</th></tr></thead>
+                  <thead><tr className="text-[11px] uppercase tracking-wide text-slate-500 text-left"><th className="py-1.5">Name</th><th className="text-right">Questions</th><th className="text-right">Sheets</th><th className="text-right">Streak</th></tr></thead>
                   <tbody>
                     {board.map((r, i) => (
                       <tr key={i} className={`border-t border-[color:var(--color-border)] ${r.me ? 'bg-violet-50/60 font-semibold' : ''}`}>
-                        <td className="py-2">{i + 1}</td><td>{r.name}{r.me ? ' (you)' : ''}</td>
+                        <td className="py-2">{r.name}{r.me ? ' (you)' : ''}</td>
                         <td className="text-right tabular-nums">{r.questions}</td><td className="text-right tabular-nums">{r.sheets}</td>
-                        <td className="text-right tabular-nums">{r.accuracy == null ? '—' : `${r.accuracy}%`}</td><td className="text-right tabular-nums">{r.streak}🔥</td>
+                        <td className="text-right tabular-nums">{r.streak}🔥</td>
                       </tr>
                     ))}
                   </tbody>

@@ -44,6 +44,7 @@ const defaultState = {
     keyboardShortcuts: true,
     sound: true,
     aiEnabled: true,
+    askMistakeReason: true,
     digestEmail: false,
     pushReminders: false,
     reminderHour: 18,
@@ -244,15 +245,30 @@ export function AppProvider({ children }) {
     return () => { if (mql.removeEventListener) mql.removeEventListener('change', apply); else mql.removeListener(apply); };
   }, [state.themeMode]);
 
+  // The demo is a new visitor's first look, so it opens pre-loaded: a sample
+  // course with two subjects and a few weeks of realistic worksheet history.
+  // "Reset demo" wipes it; everything stays on this device.
+  const DEMO_COURSE = { id: 'c_demo', name: 'IGCSE Term', exam: 'IGCSE', subjects: [{ subject: 'Mathematics' }, { subject: 'Physics' }], status: 'Active', target: 'A' };
+  const seedRef = useRef(null);
   const startDemo = useCallback(() => {
     isDemoLocalRef.current = true;
     setSyncStatus('local');
-    setState((s) => ({
-      ...s,
-      user: { name: 'Demo Student', email: 'demo@infinitysheets.app', examTrack: 'CBSE', isDemo: true, subjects: [] },
-      onboardingDone: true,
-    }));
+    let fresh = false;
+    setState((s) => {
+      fresh = !(s.courses || []).length && !(s.worksheets || []).length;
+      const courses = fresh ? [{ ...DEMO_COURSE, addedAt: new Date().toISOString() }] : s.courses;
+      return {
+        ...s,
+        user: { name: 'Demo Student', email: 'demo@infinitysheets.app', examTrack: primaryTrack(courses, 'IGCSE'), isDemo: true, subjects: ['Mathematics', 'Physics'] },
+        courses,
+        onboardingDone: true,
+        demoSeeded: fresh ? true : s.demoSeeded,
+      };
+    });
     setLoaded(true);
+    // Seed after the course is in state (seedTestPerformance reads stateRef).
+    setTimeout(() => { if (fresh) seedRef.current?.(); }, 50);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Functional update: the wizard calls addCourse immediately before this,
@@ -601,6 +617,8 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings(next, uid()), 'seed/settings');
   }, []);
 
+  seedRef.current = seedTestPerformance;
+
   // ---- past papers --------------------------------------------------------
   const refreshPastPapers = useCallback(async () => {
     try {
@@ -666,6 +684,14 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings({ ...stateRef.current, badges }, uid()), 'badges');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, state.worksheets, state.streak, state.flashcards?.reviewed]);
+
+  const saveFlashcardExplanation = useCallback((key, text) => {
+    setState((s) => {
+      const cur = s.flashcards || { cards: {}, reviewed: 0 };
+      return { ...s, flashcards: { ...cur, explanations: { ...(cur.explanations || {}), [key]: text } } };
+    });
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'flashcards/explain');
+  }, []);
 
   const rateFlashcard = useCallback((key, rating) => {
     setState((s) => {
@@ -745,7 +771,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode,
+    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -757,7 +783,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode,
+    rateFlashcard, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

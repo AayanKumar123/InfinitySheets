@@ -14,6 +14,7 @@ export default function StudyPlan({ weaknesses = [], go }) {
   const plan = state.studyPlan;
   const aiOn = isAiEnabled(state);
   const subjects = useMemo(() => enrolledSubjects(state.courses, state.user?.subjects, state.user?.examTrack), [state.courses, state.user?.subjects, state.user?.examTrack]);
+  const daysToExam = state.settings?.examDate ? Math.ceil((new Date(state.settings.examDate).getTime() - Date.now()) / 86400000) : null;
   const stale = plan?.createdAt && Date.now() - new Date(plan.createdAt).getTime() > 7 * 24 * 60 * 60 * 1000;
 
   const generate = async () => {
@@ -47,6 +48,7 @@ export default function StudyPlan({ weaknesses = [], go }) {
           <div className="eyebrow-muted mb-0.5">This week's plan</div>
           <div className="text-[15px] font-semibold text-slate-900 inline-flex items-center gap-2"><CalendarDays className="w-4 h-4 text-violet-600" /> {plan ? `${done}/${total} tasks done` : 'Let the AI plan your week'}</div>
           {plan?.summary && <div className="text-[12.5px] text-slate-600 mt-1">{plan.summary}</div>}
+          {daysToExam != null && daysToExam >= 0 && <div className="text-[12px] text-violet-700 mt-1">{daysToExam} day{daysToExam === 1 ? '' : 's'} to your exam — the plan works back from that date.</div>}
           {stale && <div className="text-[11.5px] text-amber-700 mt-1">This plan is over a week old — regenerate it for the coming week.</div>}
         </div>
         {aiOn ? (

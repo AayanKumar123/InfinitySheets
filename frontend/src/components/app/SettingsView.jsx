@@ -221,6 +221,13 @@ function AccessibilitySection({ settings, updateSettings, theme, toggleTheme }) 
     <Section title="Accessibility" icon={Accessibility} subtitle="Interaction and display options that make the app work better for you.">
       <div className="flex flex-col gap-4">
         <Toggle
+          checked={settings.askMistakeReason !== false}
+          onChange={(v) => { updateSettings({ askMistakeReason: v }); toast.success(v ? 'You will be asked why you missed a question' : 'Mistake-reason chips hidden'); }}
+          label="Ask why I missed a question"
+          hint="Optional chips on the result screen (Misread / Careless / Didn't know / Ran out of time). They feed the 'Why you lose marks' breakdown. Turn off to keep results uncluttered."
+          testid="pref-reasons"
+        />
+        <Toggle
           checked={settings.keyboardShortcuts !== false}
           onChange={(v) => { updateSettings({ keyboardShortcuts: v }); toast.success(v ? 'Keyboard shortcuts enabled' : 'Keyboard shortcuts disabled'); }}
           label={<span className="inline-flex items-center gap-1.5"><Keyboard className="w-4 h-4 text-slate-600" /> Keyboard shortcuts on worksheets</span>}
