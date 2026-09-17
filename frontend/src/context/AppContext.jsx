@@ -59,6 +59,7 @@ const defaultState = {
   // whether the theme follows the OS.
   consent: null,
   themeMode: 'manual',
+  focusSessions: [],
   questionsToday: 0,
   goalDate: null,
   // In-progress worksheet the student left mid-way (null when none). Lets them
@@ -746,6 +747,11 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings({ ...stateRef.current, consent, settings: { ...stateRef.current.settings, aiEnabled: !!aiConsent } }, uid()), 'consent');
   }, []);
 
+  const logFocusSession = useCallback((session) => {
+    setState((s) => ({ ...s, focusSessions: [...(s.focusSessions || []).slice(-199), session] }));
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'focus');
+  }, []);
+
   const setSyllabusTopics = useCallback((rows) => {
     setState((s) => ({ ...s, syllabusTopics: rows }));
   }, []);
@@ -761,7 +767,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -773,7 +779,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

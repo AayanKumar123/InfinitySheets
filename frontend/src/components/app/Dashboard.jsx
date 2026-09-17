@@ -14,7 +14,7 @@ import { recommendedTopics } from '../../lib/studyStats';
 import { TOPICS } from '../../data/mock';
 import AdSlot from '../ads/AdSlot';
 import Badges from './Badges';
-import { DailyChallengeCard } from './DashboardExtras';
+import { DailyChallengeCard, PomodoroTimer } from './DashboardExtras';
 import MasteryCard from './MasteryCard';
 
 
@@ -256,13 +256,18 @@ export default function Dashboard({ go }) {
     (state.courses || []).forEach((c) => {
       const subs = Array.isArray(c.subjects) ? c.subjects : [{ subject: c.subject, examDate: c.examDate }];
       subs.forEach((s) => {
-        if (!s.examDate) return;
-        flat.push({
-          name: s.subject,
-          courseName: c.name,
-          subject: s.subject,
-          date: s.examDate,
-          days: Math.max(0, Math.ceil((new Date(s.examDate + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24))),
+        // Several exams per subject (Paper 1, Paper 2, mock); older data has
+        // a single examDate.
+        const exams = Array.isArray(s.exams) && s.exams.length ? s.exams : (s.examDate ? [{ name: 'Exam', date: s.examDate }] : []);
+        exams.forEach((ex) => {
+          if (!ex.date) return;
+          flat.push({
+            name: exams.length > 1 || (ex.name && ex.name !== 'Exam') ? `${s.subject} · ${ex.name}` : s.subject,
+            courseName: c.name,
+            subject: s.subject,
+            date: ex.date,
+            days: Math.max(0, Math.ceil((new Date(ex.date + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24))),
+          });
         });
       });
     });
@@ -445,6 +450,7 @@ export default function Dashboard({ go }) {
 
       <div className="grid lg:grid-cols-2 gap-4">
         <DailyChallengeCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
+        <PomodoroTimer />
       </div>
 
       <MasteryCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />

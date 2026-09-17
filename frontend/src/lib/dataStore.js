@@ -122,7 +122,7 @@ export function settingsToRow(state, userId) {
     onboarding_done: state.onboardingDone ?? false,
     tutorial_done: state.tutorialDone ?? false,
     // Small per-user blobs that do not deserve their own table.
-    data: { flashcards: state.flashcards || null, studyPlan: state.studyPlan || null, badges: state.badges || null, reminderHour: s.reminderHour ?? 18, askMistakeReason: s.askMistakeReason !== false, aiEnabled: s.aiEnabled !== false, consent: state.consent || null },
+    data: { flashcards: state.flashcards || null, studyPlan: state.studyPlan || null, badges: state.badges || null, reminderHour: s.reminderHour ?? 18, askMistakeReason: s.askMistakeReason !== false, aiEnabled: s.aiEnabled !== false, consent: state.consent || null, focusSessions: state.focusSessions || [] },
     updated_at: nowISO(),
   };
 }
@@ -134,6 +134,7 @@ export function rowToSettingsState(row) {
     studyPlan: extra.studyPlan || null,
     badges: extra.badges || {},
     consent: extra.consent || null,
+    focusSessions: Array.isArray(extra.focusSessions) ? extra.focusSessions : [],
     settings: {
       reminderHour: typeof extra.reminderHour === 'number' ? extra.reminderHour : 18,
       askMistakeReason: extra.askMistakeReason !== false,
