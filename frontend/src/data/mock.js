@@ -5,23 +5,25 @@
 export const EXAM_TRACKS = [
   { id: 'AP', name: 'AP', title: 'College-level depth', desc: 'Advanced Placement practice across calculus, sciences, and English with free-response technique.' },
   { id: 'ASA', name: 'AS & A Level', title: 'Advanced subject depth', desc: 'Focused preparation for Cambridge advanced-level mathematics, sciences, and economics.' },
-  { id: 'CBSE', name: 'CBSE', title: 'NCERT-aligned revision', desc: 'Topic practice across mathematics, sciences, and English for CBSE assessments.' },
+  { id: 'CBSE10', name: 'CBSE Class 10', title: 'NCERT-aligned board revision', desc: 'Mathematics, Science, Social Science and languages for the Class 10 board exam.' },
+  { id: 'CBSE', name: 'CBSE Class 12', title: 'NCERT-aligned senior secondary', desc: 'Science, commerce and humanities streams for the Class 12 board exam.' },
   { id: 'IB', name: 'IB', title: 'Concept and analysis practice', desc: 'Practice for IB mathematics, sciences, economics, and English coursework.' },
   { id: 'ICSE', name: 'ICSE', title: 'Detailed subject practice', desc: 'Broad, rigorous preparation including science, English, and computer applications.' },
   { id: 'IGCSE', name: 'IGCSE', title: 'International exam technique', desc: 'Cambridge-style subject practice with structured and application-focused questions.' },
+  { id: 'ISC', name: 'ISC', title: 'CISCE Class 12', desc: 'Science, commerce and humanities practice for the ISC Class 12 examination.' },
   { id: 'JEE', name: 'JEE', title: 'Concept-heavy problem solving', desc: 'Physics, chemistry, and maths sheets built around difficult multi-step questions.' },
   { id: 'LSAT', name: 'LSAT', title: 'Logic under time pressure', desc: 'Logical reasoning and reading comprehension drills with pacing-focused feedback.' },
   { id: 'NEET', name: 'NEET', title: 'High-volume recall and accuracy', desc: 'Biology-heavy revision plus chemistry and physics practice.' },
   { id: 'SAT', name: 'SAT', title: 'Timed reasoning practice', desc: 'Reading, writing, and math sets with pacing-focused feedback.' },
-  { id: 'SSLC', name: 'SSLC', title: 'State syllabus mastery', desc: 'Mathematics, science, social science, and English practice for secondary-level exams.' },
 ];
 
 // Default duration (in minutes) of the actual exam for each track. Used as the
 // default value for the worksheet duration slider.
 export const EXAM_DURATIONS = {
   AP: 180,
-  SSLC: 150,
+  CBSE10: 180,
   CBSE: 180,
+  ISC: 180,
   ICSE: 150,
   IGCSE: 120,
   ASA: 90,
@@ -37,7 +39,7 @@ export const FEATURES = [
   { title: 'Targeted Worksheets', desc: 'Practice exactly what you need, instead of repeating what you already know.', icon: 'Target', tone: 'accent' },
   { title: 'Scores & Predicted Grades', desc: 'An accurate score after every session, plus a predicted grade—especially handy for IGCSE and IB, where predictions shape university applications.', icon: 'LineChart', tone: 'primary' },
   { title: 'Custom Feedback & Advice', desc: 'Personalized feedback on every worksheet and clear advice on what to do next—like a tutor reviewing every session.', icon: 'Lightbulb', tone: 'success' },
-  { title: 'A Huge Question Bank', desc: 'SSLC, CBSE, ICSE, IGCSE, A Levels, IB, SAT, JEE, NEET and more—including exams with barely any practice-paper support.', icon: 'BookOpen', tone: 'primary' },
+  { title: 'A Huge Question Bank', desc: 'CBSE, ICSE, ISC, IGCSE, A Levels, IB, SAT, JEE, NEET and more—including exams with barely any practice-paper support.', icon: 'BookOpen', tone: 'primary' },
   { title: 'Fresh Questions, Free', desc: 'AI does one job here: generating new exam-style questions. For courses like IB or CLAT, where practice material sits behind paywalls, you get an endless supply at no cost.', icon: 'Brain', tone: 'secondary' },
 ];
 
@@ -72,9 +74,10 @@ export const TESTIMONIALS = [
 
 // Subjects per exam track
 export const SUBJECTS = {
-  SSLC: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'English', 'Computer Science', 'Hindi', 'Kannada', 'Malayalam', 'Tamil', 'Science', 'Sanskrit', 'Urdu'],
+  CBSE10: ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Sanskrit', 'Computer Applications', 'Information Technology', 'Physical Education', 'Home Science', 'Painting', 'Music'],
   CBSE: ['Mathematics', 'Applied Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'History', 'Geography', 'Political Science', 'Economics', 'English', 'Hindi', 'Computer Science', 'Informatics Practices', 'Accountancy', 'Business Studies', 'Psychology', 'Sociology', 'Physical Education', 'Legal Studies', 'Sanskrit', 'Urdu', 'Home Science', 'Entrepreneurship', 'Biotechnology', 'Engineering Graphics', 'Painting', 'Music'],
   ICSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Applications', 'Computer Science', 'English', 'Hindi', 'History', 'Geography', 'Political Science', 'Economics', 'Commercial Studies', 'Accounts', 'Business Studies', 'Psychology', 'Sociology', 'Environmental Science', 'Physical Education', 'Sanskrit', 'Home Science', 'Art', 'Environmental Applications', 'Technical Drawing'],
+  ISC: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'English', 'Hindi', 'History', 'Geography', 'Political Science', 'Economics', 'Commerce', 'Accounts', 'Business Studies', 'Psychology', 'Sociology', 'Environmental Science', 'Physical Education', 'Home Science', 'Art', 'Legal Studies', 'Mass Media & Communication'],
   IGCSE: ['Mathematics', 'Additional Mathematics', 'Physics', 'Chemistry', 'Biology', 'Combined Science', 'Economics', 'Accounting', 'Business Studies', 'English', 'English Literature', 'Computer Science', 'ICT', 'History', 'Geography', 'Sociology', 'Environmental Management', 'Global Perspectives', 'Design & Technology', 'Art & Design', 'Physical Education', 'Travel & Tourism', 'French', 'Spanish', 'Hindi', 'Physical Science', 'Co-ordinated Sciences', 'Drama', 'Music', 'Food & Nutrition', 'Agriculture', 'German', 'Mandarin Chinese', 'Arabic', 'Enterprise', 'Marine Science'],
   ASA: ['Mathematics', 'Further Maths', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Accounting', 'Business Studies', 'Computer Science', 'Psychology', 'Sociology', 'English Literature', 'History', 'Geography', 'Law', 'Media Studies', 'Global Perspectives', 'Environmental Management', 'Design & Technology', 'Art & Design', 'Physical Education', 'French', 'Spanish', 'German', 'Italian', 'Music', 'Drama', 'Classical Studies', 'Divinity', 'Thinking Skills', 'Marine Science', 'Information Technology'],
   IB: ['Mathematics AA', 'Mathematics AI', 'Physics', 'Chemistry', 'Biology', 'Environmental Systems', 'Sports, Exercise & Health Science', 'Design Technology', 'Computer Science', 'Economics', 'Business Management', 'Psychology', 'History', 'Geography', 'Global Politics', 'Philosophy', 'Digital Society', 'English', 'English Language & Literature', 'Spanish B', 'French B', 'Hindi B', 'Chinese B', 'Visual Arts', 'Theatre', 'Music', 'Spanish A', 'German B', 'Japanese B', 'Arabic B', 'Film', 'Dance', 'Social & Cultural Anthropology', 'World Religions', 'Classical Languages', 'Literature & Performance'],
@@ -87,6 +90,10 @@ export const SUBJECTS = {
 };
 
 export const TOPICS = {
+  'Science': ['Chemical Reactions', 'Acids, Bases and Salts', 'Metals and Non-metals', 'Life Processes', 'Control and Coordination', 'Light', 'Electricity', 'Magnetic Effects of Current', 'Our Environment'],
+  'Information Technology': ['Digital Documentation', 'Spreadsheets', 'Databases', 'Web Basics', 'Digital Safety'],
+  'Commerce': ['Business Environment', 'Trade', 'Banking', 'Insurance', 'Marketing', 'Consumer Protection'],
+  'Mass Media & Communication': ['Media Theory', 'Print Media', 'Broadcast Media', 'Digital Media', 'Advertising'],
   'Computer Science': ['Programming Basics', 'Data Structures', 'Algorithms', 'Databases', 'Networks'],
   'Business Studies': ['Business Objectives', 'Marketing', 'Finance & Accounts', 'People in Business', 'Operations'],
   'Business Management': ['Business Organisation', 'Human Resources', 'Marketing', 'Finance & Accounts', 'Operations Management'],

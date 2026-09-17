@@ -4,9 +4,10 @@
 // search so the student always lands on the official source.
 
 export const BOARD_SYLLABUS = {
+  CBSE10: { name: 'CBSE Academic — Secondary curriculum (Class 9-10)', url: 'https://cbseacademic.nic.in/curriculum_2026.html', domain: 'cbseacademic.nic.in' },
   CBSE: { name: 'CBSE Academic — Curriculum', url: 'https://cbseacademic.nic.in/curriculum_2026.html', domain: 'cbseacademic.nic.in' },
   ICSE: { name: 'CISCE — Regulations & Syllabuses', url: 'https://cisce.org/publications/', domain: 'cisce.org' },
-  SSLC: { name: 'KSEAB — Karnataka SSLC', url: 'https://kseab.karnataka.gov.in/', domain: 'kseab.karnataka.gov.in' },
+  ISC: { name: 'CISCE — ISC Regulations & Syllabuses', url: 'https://cisce.org/publications/', domain: 'cisce.org' },
   IGCSE: { name: 'Cambridge IGCSE — Subjects', url: 'https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-upper-secondary/cambridge-igcse/subjects/', domain: 'cambridgeinternational.org' },
   ASA: { name: 'Cambridge International AS & A Level — Subjects', url: 'https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-advanced/cambridge-international-as-and-a-levels/subjects/', domain: 'cambridgeinternational.org' },
   IB: { name: 'IB Diploma Programme — Curriculum', url: 'https://www.ibo.org/programmes/diploma-programme/curriculum/', domain: 'ibo.org' },
@@ -162,7 +163,7 @@ export const SUBJECT_SYLLABUS = {
  */
 export function syllabusLink(board, subject) {
   const b = (board || '').toUpperCase();
-  const info = BOARD_SYLLABUS[b] || BOARD_SYLLABUS.CBSE;
+  const info = BOARD_SYLLABUS[b] || BOARD_SYLLABUS[{ CBSE10: 'CBSE', ISC: 'ICSE' }[b]] || BOARD_SYLLABUS.CBSE;
   const exact = SUBJECT_SYLLABUS[b]?.[subject];
   const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`site:${info.domain} ${subject} syllabus`)}`;
   return {

@@ -122,7 +122,7 @@ export function settingsToRow(state, userId) {
     onboarding_done: state.onboardingDone ?? false,
     tutorial_done: state.tutorialDone ?? false,
     // Small per-user blobs that do not deserve their own table.
-    data: { flashcards: state.flashcards || null, studyPlan: state.studyPlan || null, badges: state.badges || null, reminderHour: s.reminderHour ?? 18, askMistakeReason: s.askMistakeReason !== false, aiEnabled: s.aiEnabled !== false, consent: state.consent || null, focusSessions: state.focusSessions || [] },
+    data: { flashcards: state.flashcards || null, studyPlan: state.studyPlan || null, badges: state.badges || null, reminderHour: s.reminderHour ?? 18, askMistakeReason: s.askMistakeReason !== false, glass: typeof s.glass === 'number' ? s.glass : 50, glassOff: !!s.glassOff, dashboardCards: s.dashboardCards || null, aiEnabled: s.aiEnabled !== false, consent: state.consent || null, focusSessions: state.focusSessions || [] },
     updated_at: nowISO(),
   };
 }
@@ -138,6 +138,9 @@ export function rowToSettingsState(row) {
     settings: {
       reminderHour: typeof extra.reminderHour === 'number' ? extra.reminderHour : 18,
       askMistakeReason: extra.askMistakeReason !== false,
+      glass: typeof extra.glass === 'number' ? extra.glass : 50,
+      glassOff: !!extra.glassOff,
+      dashboardCards: extra.dashboardCards || null,
       aiEnabled: extra.aiEnabled !== false,
       dailyGoal: row.daily_goal ?? 10,
       weeklyGoal: row.weekly_goal ?? 50,

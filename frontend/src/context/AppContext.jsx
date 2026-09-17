@@ -44,6 +44,8 @@ const defaultState = {
     sound: true,
     aiEnabled: true,
     askMistakeReason: true,
+    glass: 50,
+    glassOff: false,
     digestEmail: false,
     pushReminders: false,
     reminderHour: 18,
@@ -213,6 +215,21 @@ export function AppProvider({ children }) {
     catch (err) { logError('persist', err); }
   }, [state, loaded]);
 
+  // Liquid glass: the slider sets blur + opacity; "off" makes every surface
+  // solid. 50 reproduces the stock look exactly.
+  useEffect(() => {
+    const root = document.documentElement;
+    const i = Math.max(0, Math.min(100, Number(state.settings?.glass ?? 50)));
+    const dark = state.theme === 'dark';
+    const base = dark ? 0.86 : 0.84;
+    const alpha = i <= 50 ? base + ((50 - i) / 50) * (1 - base) : base - ((i - 50) / 50) * 0.26;
+    const off = !!state.settings?.glassOff;
+    root.style.setProperty('--glass-alpha', off ? '1' : alpha.toFixed(3));
+    root.style.setProperty('--glass-alpha-strong', off ? '1' : Math.min(1, alpha + 0.1).toFixed(3));
+    root.style.setProperty('--glass-blur', off ? '0px' : `${Math.round(30 * (i / 50) * 10) / 10}px`);
+    root.classList.toggle('no-glass', off);
+  }, [state.settings?.glass, state.settings?.glassOff, state.theme]);
+
   // Theme class on <html>
   useEffect(() => {
     const root = document.documentElement;
@@ -288,7 +305,7 @@ export function AppProvider({ children }) {
   // Legacy local helpers kept for API compatibility (used nowhere critical).
   const signup = useCallback((user) => setState((s) => ({ ...s, user })), []);
   const login = useCallback((email) => {
-    setState((s) => (s.user && s.user.email === email ? s : { ...s, user: s.user || { name: email.split('@')[0], email, examTrack: 'SSLC' } }));
+    setState((s) => (s.user && s.user.email === email ? s : { ...s, user: s.user || { name: email.split('@')[0], email, examTrack: 'CBSE' } }));
   }, []);
   // Leaving the demo keeps its progress on this device (so re-entering the
   // demo resumes it) but remembers that the data is the demo's, so a real

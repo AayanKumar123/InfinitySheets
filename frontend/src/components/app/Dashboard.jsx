@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
@@ -297,51 +297,10 @@ export default function Dashboard({ go }) {
   );
   const openSubject = (s) => { window.location.hash = `#study?subject=${encodeURIComponent(s)}`; };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">{greeting}</h2>
-        <p className="text-[14px] text-slate-500 mt-1">Here is your study overview.</p>
-      </div>
-
-      {draft && (draft.questions || []).length > 0 && (
-        <div
-          className="rounded-xl border border-amber-300 bg-amber-50 p-5 flex flex-wrap items-center justify-between gap-4"
-          data-testid="dashboard-continue-worksheet"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <PlayCircle className="w-6 h-6" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-amber-700">Unfinished worksheet</div>
-              <div className="text-[15px] font-semibold text-slate-900 truncate">
-                Continue {draft.subject}{draft.topics && draft.topics.length ? ` · ${draft.topics.join(', ')}` : ''}
-              </div>
-              <div className="text-[12px] text-slate-500 mt-0.5">
-                {draft.answered || 0} of {draft.total || (draft.questions || []).length} answered
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => clearDraftWorksheet()}
-              data-testid="dashboard-discard-worksheet"
-              className="px-3.5 py-2 rounded-lg text-[13px] font-medium border border-[color:var(--color-border)] bg-white hover:bg-slate-100 text-slate-700 transition-colors"
-            >
-              Discard
-            </button>
-            <button
-              onClick={resumeDraft}
-              data-testid="dashboard-resume-worksheet"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-amber-600 hover:opacity-95 transition-opacity"
-            >
-              <PlayCircle className="w-5 h-5" /> Continue
-            </button>
-          </div>
-        </div>
-      )}
-
+  // ---- Card manager (Samsung Health style): show / hide / reorder ----------
+  const CARDS = [
+    { id: 'stats', label: 'Days, grade, diagnosis, goal', node: (
+      <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <DaysStat days={examCountdown} subLabel={examLabel} onEdit={() => go('settings')} />
         <PredictedScoreMini
@@ -371,7 +330,10 @@ export default function Dashboard({ go }) {
           <div className="text-[11px] text-slate-500 mt-1">{progressPct >= 100 ? 'Goal reached this week' : `${weeklyGoal - questionsThisWeek} to go · last 7 days`}</div>
         </div>
       </div>
-
+      </>
+    ) },
+    { id: 'subjects', label: 'My subjects', node: (
+      <>
       {mySubjects.length > 0 && (
         <div data-testid="dashboard-my-subjects">
           <div className="flex items-center justify-between mb-3 gap-3">
@@ -435,28 +397,44 @@ export default function Dashboard({ go }) {
           </div>
         </div>
       )}
-
-      <AdSlot slot="dashboard-bottom" />
-
+      </>
+    ) },
+    { id: 'week', label: 'This week + reviews due', node: (
+      <>
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2"><WeeklySummaryCard worksheets={ws} /></div>
         <ReviewDueTile worksheets={ws} onStart={() => go('worksheets')} />
       </div>
-
+      </>
+    ) },
+    { id: 'streak', label: 'Study streak + projection', node: (
+      <>
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2"><StreakHeatmap worksheets={ws} streak={state.streak} /></div>
         <StreakProjectionCard worksheets={ws} subjects={mySubjects} boards={mySubjectBoards} streak={state.streak} />
       </div>
-
+      </>
+    ) },
+    { id: 'today', label: "Today's 5 + Pomodoro timer", node: (
+      <>
       <div className="grid lg:grid-cols-2 gap-4">
         <DailyChallengeCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
         <PomodoroTimer />
       </div>
-
+      </>
+    ) },
+    { id: 'mastery', label: 'Topic mastery', node: (
+      <>
       <MasteryCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
-
+      </>
+    ) },
+    { id: 'badges', label: 'Badges', node: (
+      <>
       <Badges compact />
-
+      </>
+    ) },
+    { id: 'exams', label: 'Worksheets completed + upcoming exams', node: (
+      <>
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white" data-testid="worksheets-completed">
           <div className="eyebrow-muted mb-2">Worksheets completed</div>
@@ -485,7 +463,10 @@ export default function Dashboard({ go }) {
           )}
         </div>
       </div>
-
+      </>
+    ) },
+    { id: 'performance', label: 'Performance preview', node: (
+      <>
       {perSubjectGrades.length > 0 && (
         <div
           role="button"
@@ -522,7 +503,10 @@ export default function Dashboard({ go }) {
           </div>
         </div>
       )}
-
+      </>
+    ) },
+    { id: 'strengths', label: 'Strong and weak topics', node: (
+      <>
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="rounded-xl border border-zinc-200 p-5">
           <div className="flex items-center justify-between mb-3">
@@ -575,12 +559,130 @@ export default function Dashboard({ go }) {
           )}
         </div>
       </div>
+      </>
+    ) },
+  ];
+  const cardPrefs = Array.isArray(state.settings?.dashboardCards) ? state.settings.dashboardCards : null;
+  const orderedCards = useMemo(() => {
+    if (!cardPrefs) return CARDS;
+    const byId = new Map(CARDS.map((c) => [c.id, c]));
+    const seen = new Set();
+    const out = [];
+    cardPrefs.forEach((p) => { const c = byId.get(p.id); if (c && !seen.has(p.id)) { seen.add(p.id); if (p.on !== false) out.push(c); } });
+    CARDS.forEach((c) => { if (!seen.has(c.id)) out.push(c); });   // cards added since the prefs were saved
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardPrefs, CARDS.map((c) => c.id).join('|')]);
+  const [manageOpen, setManageOpen] = useState(false);
+  const prefsList = (() => {
+    const byId = new Map(CARDS.map((c) => [c.id, c]));
+    const base = cardPrefs ? cardPrefs.filter((p) => byId.has(p.id)) : CARDS.map((c) => ({ id: c.id, on: true }));
+    CARDS.forEach((c) => { if (!base.some((p) => p.id === c.id)) base.push({ id: c.id, on: true }); });
+    return base;
+  })();
+  const savePrefs = (list) => updateSettings({ dashboardCards: list });
+  const toggleCard = (id) => savePrefs(prefsList.map((p) => (p.id === id ? { ...p, on: p.on === false } : p)));
+  const moveCard = (id, dir) => {
+    const i = prefsList.findIndex((p) => p.id === id); const j = i + dir;
+    if (i < 0 || j < 0 || j >= prefsList.length) return;
+    const next = [...prefsList]; [next[i], next[j]] = [next[j], next[i]]; savePrefs(next);
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">{greeting}</h2>
+        <p className="text-[14px] text-slate-500 mt-1">Here is your study overview.</p>
+      </div>
+      <div className="-mt-3 flex items-center justify-end">
+        <button type="button" onClick={() => setManageOpen((v) => !v)} className="btn-outline-dark inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12.5px] font-medium" data-testid="manage-cards">
+          <SlidersHorizontal className="w-4 h-4" /> Manage cards
+        </button>
+      </div>
+      {manageOpen && (
+        <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-4" data-testid="manage-cards-panel">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-[14px] font-semibold text-slate-900">Dashboard cards</div>
+              <div className="text-[12px] text-slate-500">Choose which cards show and the order they appear in.</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => savePrefs(null)} className="text-[12px] text-slate-500 hover:text-slate-800">Reset</button>
+              <button type="button" onClick={() => setManageOpen(false)} className="btn-outline-dark px-3 py-1.5 rounded-lg text-[12.5px] font-medium">Done</button>
+            </div>
+          </div>
+          <ul className="divide-y divide-[color:var(--color-border)]">
+            {prefsList.map((p, i) => {
+              const c = CARDS.find((x) => x.id === p.id);
+              const on = p.on !== false;
+              return (
+                <li key={p.id} className="py-2 flex items-center gap-3">
+                  <button type="button" role="switch" aria-checked={on} aria-label={`Show ${c?.label}`} onClick={() => toggleCard(p.id)} className={`w-9 h-5 rounded-full relative shrink-0 transition-colors ${on ? 'bg-blue-600' : 'bg-slate-300'}`} data-testid={`card-toggle-${p.id}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
+                  </button>
+                  <span className={`flex-1 text-[13px] ${on ? 'text-slate-800' : 'text-slate-400'}`}>{c?.label}</span>
+                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => moveCard(p.id, -1)} className="w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center" data-testid={`card-up-${p.id}`}><ChevronUp className="w-4 h-4" /></button>
+                  <button type="button" aria-label="Move down" disabled={i === prefsList.length - 1} onClick={() => moveCard(p.id, 1)} className="w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center" data-testid={`card-down-${p.id}`}><ChevronDown className="w-4 h-4" /></button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {draft && (draft.questions || []).length > 0 && (
+        <div
+          className="rounded-xl border border-amber-300 bg-amber-50 p-5 flex flex-wrap items-center justify-between gap-4"
+          data-testid="dashboard-continue-worksheet"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <PlayCircle className="w-6 h-6" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-amber-700">Unfinished worksheet</div>
+              <div className="text-[15px] font-semibold text-slate-900 truncate">
+                Continue {draft.subject}{draft.topics && draft.topics.length ? ` · ${draft.topics.join(', ')}` : ''}
+              </div>
+              <div className="text-[12px] text-slate-500 mt-0.5">
+                {draft.answered || 0} of {draft.total || (draft.questions || []).length} answered
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => clearDraftWorksheet()}
+              data-testid="dashboard-discard-worksheet"
+              className="px-3.5 py-2 rounded-lg text-[13px] font-medium border border-[color:var(--color-border)] bg-white hover:bg-slate-100 text-slate-700 transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={resumeDraft}
+              data-testid="dashboard-resume-worksheet"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold text-white bg-amber-600 hover:opacity-95 transition-opacity"
+            >
+              <PlayCircle className="w-5 h-5" /> Continue
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cards, in the student's order; hidden ones are skipped. The ad slot
+          and the action row are fixed. */}
+      {orderedCards.map((c) => (
+        <React.Fragment key={c.id}>
+          {c.node}
+          {c.id === 'subjects' && (
+      <AdSlot slot="dashboard-bottom" />
+          )}
+        </React.Fragment>
+      ))}
 
       <div className="flex items-center gap-3">
         <CreateWorksheetButton onClick={() => go('worksheets')} className="px-5 py-2.5" />
         <button onClick={() => go('study')} className="btn-outline-dark px-5 py-2.5 rounded-lg text-[14px] font-medium">Browse subjects</button>
       </div>
-
       <ComplaintButton user={state.user} />
     </div>
   );

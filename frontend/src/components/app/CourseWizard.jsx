@@ -34,7 +34,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const isOnboarding = mode === 'onboarding';
 
   const [step, setStep] = useState(0);
-  const [examTrack, setExamTrack] = useState(state.user?.examTrack || 'SSLC');
+  const [examTrack, setExamTrack] = useState(state.user?.examTrack || 'CBSE');
   const trackSubjects = useMemo(() => SUBJECTS[examTrack] || [], [examTrack]);
   const [picked, setPicked] = useState([]); // [subject, ...]
   const [ibLevels, setIbLevels] = useState({}); // { subject: 'HL' | 'SL' }

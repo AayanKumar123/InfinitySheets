@@ -19,7 +19,7 @@ const FAQS = [
   },
   {
     q: 'Which exams are covered?',
-    a: 'AP, AS & A Level, CBSE, IB, ICSE, IGCSE, JEE, LSAT, NEET, SAT, and SSLC—each with subject-specific question banks. This especially helps courses like AP or IB, where practice material is usually locked behind paywalls.',
+    a: 'AP, AS & A Level, CBSE (Class 10 and 12), IB, ICSE, ISC, IGCSE, JEE, LSAT, NEET, and SAT—each with subject-specific question banks. This especially helps courses like AP or IB, where practice material is usually locked behind paywalls.',
   },
   {
     q: 'How accurate are the predicted grades?',

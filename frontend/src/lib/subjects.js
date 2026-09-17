@@ -13,6 +13,10 @@ import { SUBJECTS, EXAM_TRACKS } from '../data/mock';
 
 export const boardName = (id) => EXAM_TRACKS.find((t) => t.id === id)?.name || id;
 
+// Variants of one examining body share resources and examiner notes:
+// CBSE Class 10 (CBSE10) sits under CBSE, ISC under CISCE alongside ICSE.
+export const boardFamily = (id) => ({ CBSE10: 'CBSE', ISC: 'ICSE' }[id] || id);
+
 // The ordered, de-duplicated list of subject names the student is taking.
 export function enrolledSubjects(courses, userSubjects, track) {
   const trackSubs = SUBJECTS[track] || [];
@@ -33,7 +37,7 @@ export function enrolledSubjects(courses, userSubjects, track) {
 // The board that best describes the student right now: the most common
 // board across their courses (first course wins a tie), else what they
 // picked at onboarding. Used for every "fallback" so a student whose courses
-// are all IB never sees the onboarding default (CBSE / SSLC) anywhere.
+// are all IB never sees the onboarding default (CBSE) anywhere.
 export function primaryTrack(courses, fallback) {
   const counts = new Map();
   (courses || []).forEach((c) => { if (c?.exam) counts.set(c.exam, (counts.get(c.exam) || 0) + 1); });

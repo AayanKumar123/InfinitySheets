@@ -860,16 +860,23 @@ html.dark .text-white { color: #fff !important; }
    ===================================================================== */
 :root {
   /* Opaque enough that text behind a card never shows through text on it;
-     the blur + ambient gradient still give the frosted depth. */
-  --glass-bg: rgba(255, 255, 255, 0.84);
-  --glass-bg-strong: rgba(255, 255, 255, 0.94);
+     the blur + ambient gradient still give the frosted depth.
+     --glass-alpha / --glass-alpha-strong / --glass-blur are set from the
+     Settings slider (AppContext); these are the defaults = the stock look. */
+  --glass-alpha: 0.84;
+  --glass-alpha-strong: 0.94;
+  --glass-blur: 30px;
+  --glass-bg: rgba(255, 255, 255, var(--glass-alpha));
+  --glass-bg-strong: rgba(255, 255, 255, var(--glass-alpha-strong));
   --glass-border: rgba(255, 255, 255, 0.7);
   --glass-shadow: 0 10px 40px -18px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --glass-hi: rgba(255, 255, 255, 0.55);
 }
 html.dark {
-  --glass-bg: rgba(23, 23, 23, 0.86);
-  --glass-bg-strong: rgba(23, 23, 23, 0.95);
+  --glass-alpha: 0.86;
+  --glass-alpha-strong: 0.95;
+  --glass-bg: rgba(23, 23, 23, var(--glass-alpha));
+  --glass-bg-strong: rgba(23, 23, 23, var(--glass-alpha-strong));
   --glass-border: rgba(255, 255, 255, 0.06);
   --glass-shadow: none;
   --glass-hi: rgba(255, 255, 255, 0.05);
@@ -898,8 +905,8 @@ header[data-testid="top-header"],
 .fixed .bg-white.rounded-3xl,
 [role="dialog"] .bg-white {
   background-color: var(--glass-bg) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(160%);
-  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   border-color: var(--glass-border) !important;
   box-shadow: var(--glass-shadow);
 }
@@ -933,8 +940,8 @@ main button.rounded-xl.border.bg-white:active, main button.card-soft:active { tr
 .btn-violet { box-shadow: 0 6px 18px -8px rgba(124, 58, 237, 0.55); }
 .btn-outline-dark {
   background-color: var(--glass-bg-strong) !important;
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.55));
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.55));
 }
 .input-base { border-radius: 0.75rem; background-color: var(--glass-hi); }
 html.dark .input-base { background-color: rgba(255, 255, 255, 0.05); }
@@ -942,18 +949,24 @@ html.dark .input-base { background-color: rgba(255, 255, 255, 0.05); }
 /* Toasts */
 [data-sonner-toast] {
   background: var(--glass-bg-strong) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.6)) saturate(160%);
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.6)) saturate(160%);
   border: 1px solid var(--glass-border) !important;
   border-radius: 1rem !important;
   color: var(--color-text) !important;
 }
 
-/* Reduced transparency (accessibility) → solid surfaces */
+/* Reduced transparency (accessibility) → solid surfaces. The same rules
+   apply when the student turns liquid glass off in Settings (html.no-glass). */
 @media (prefers-reduced-transparency: reduce) {
-  :root { --glass-bg: var(--color-card); --glass-bg-strong: var(--color-card); }
-  html.dark { --glass-bg: var(--color-card); --glass-bg-strong: var(--color-card); }
+  :root { --glass-bg: var(--color-card); --glass-bg-strong: var(--color-card); --glass-blur: 0px; }
+  html.dark { --glass-bg: var(--color-card); --glass-bg-strong: var(--color-card); --glass-blur: 0px; }
 }
+html.no-glass, html.no-glass.dark {
+  --glass-bg: var(--color-card); --glass-bg-strong: var(--color-card); --glass-blur: 0px; --glass-hi: var(--color-bg-2);
+}
+html.no-glass .section-bg { background-image: none !important; }
+html.no-glass .liquid-glass, html.no-glass .liquid-glass-clear { background: var(--color-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* Danger-zone copy in Settings used rose-600/80 — unreadable on the dark rose tint. */
 html.dark [class*="text-rose-600/"], html.dark [class*="text-rose-700/"] { color: #fda4af !important; }

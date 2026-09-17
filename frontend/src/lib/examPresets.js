@@ -11,7 +11,13 @@ const TYPED = 'Typed response';
 const EXAM = 'Exam style';
 
 export const EXAM_PRESETS = {
-  CBSE: { name: 'CBSE board paper (Class 10/12 pattern)', minutes: 180, sections: [
+  CBSE10: { name: 'CBSE Class 10 board paper', minutes: 180, sections: [
+    { name: 'Section A · objective', type: MCQ, count: 20, marksEach: 1 },
+    { name: 'Section B · very short answer', type: TYPED, count: 5, marksEach: 2 },
+    { name: 'Section C · short answer', type: EXAM, count: 6, marksEach: 3 },
+    { name: 'Section D · long answer', type: EXAM, count: 4, marksEach: 5 },
+  ] },
+  CBSE: { name: 'CBSE Class 12 board paper', minutes: 180, sections: [
     { name: 'Section A · objective', type: MCQ, count: 12, marksEach: 1 },
     { name: 'Section B · very short answer', type: TYPED, count: 5, marksEach: 2 },
     { name: 'Section C · short answer', type: EXAM, count: 4, marksEach: 3 },
@@ -22,10 +28,10 @@ export const EXAM_PRESETS = {
     { name: 'Section A · short answer', type: TYPED, count: 5, marksEach: 2 },
     { name: 'Section B · structured', type: EXAM, count: 4, marksEach: 4 },
   ] },
-  SSLC: { name: 'SSLC paper', minutes: 150, sections: [
-    { name: 'Part I · objective', type: MCQ, count: 10, marksEach: 1 },
-    { name: 'Part II · short answer', type: TYPED, count: 6, marksEach: 2 },
-    { name: 'Part III · long answer', type: EXAM, count: 3, marksEach: 5 },
+  ISC: { name: 'ISC Class 12 paper', minutes: 180, sections: [
+    { name: 'Section A · short answer', type: TYPED, count: 8, marksEach: 2 },
+    { name: 'Section B · structured', type: EXAM, count: 5, marksEach: 4 },
+    { name: 'Section C · long answer', type: EXAM, count: 3, marksEach: 6 },
   ] },
   IGCSE: { name: 'IGCSE · Paper 2 + Paper 4 style', minutes: 120, sections: [
     { name: 'Paper 2 · multiple choice', type: MCQ, count: 12, marksEach: 1 },
@@ -60,7 +66,8 @@ export const EXAM_PRESETS = {
 };
 
 export function presetFor(board) {
-  return EXAM_PRESETS[(board || '').toUpperCase()] || EXAM_PRESETS.CBSE;
+  const b = (board || '').toUpperCase();
+  return EXAM_PRESETS[b] || EXAM_PRESETS[{ CBSE10: 'CBSE', ISC: 'ICSE' }[b]] || EXAM_PRESETS.CBSE;
 }
 
 /** Total marks on a preset. */

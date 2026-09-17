@@ -88,7 +88,7 @@ export const RESOURCE_TRACKS = [
   },
   {
     id: 'ICSE',
-    name: 'ICSE / ISC (CISCE)',
+    name: 'ICSE (CISCE Class 10)',
     short: 'ICSE',
     groups: [
       {
@@ -111,9 +111,33 @@ export const RESOURCE_TRACKS = [
     ],
   },
   {
-    id: 'CBSE',
-    name: 'CBSE',
-    short: 'CBSE',
+    id: 'ISC',
+    name: 'ISC (CISCE Class 12)',
+    short: 'ISC',
+    groups: [
+      {
+        label: 'Official',
+        links: [
+          { title: 'CISCE — ICSE Class X specimen papers', desc: 'Official specimen question papers.', url: 'https://cisceboard.org/icse_X_Specimen_Question_Papers.html' },
+          { title: 'CISCE — ISC Class XII specimen papers', desc: 'Official specimen question papers.', url: 'https://cisceboard.org/isc_XII_Specimen_Question_Papers.html' },
+          { title: 'cisce.org', desc: 'Official portal — syllabus, circulars, and papers.', url: 'https://cisce.org/' },
+        ],
+      },
+      {
+        label: 'Solved previous-year papers',
+        links: [
+          { title: 'SelfStudys — CISCE PYQs', desc: 'Solved previous-year question papers.', url: 'https://www.selfstudys.com/books/cisce-previous-year-question-paper' },
+          { title: 'AglaSem — CISCE papers', desc: 'Question paper collection.', url: 'https://schools.aglasem.com/cisce-question-papers/' },
+          { title: 'ICSEonline', desc: 'ICSE resources and papers.', url: 'https://www.icseonline.com/' },
+          { title: 'Physics Wallah — ISC Class 12 PYQs', desc: 'Subject-wise previous-year papers.', url: 'https://www.pw.live/school-prep/exams/isc-class-12-previous-year-question-papers' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'CBSE10',
+    name: 'CBSE Class 10',
+    short: 'CBSE 10',
     groups: [
       {
         label: 'Official',
@@ -134,34 +158,24 @@ export const RESOURCE_TRACKS = [
     ],
   },
   {
-    id: 'SSLC',
-    name: 'SSLC (state boards)',
-    short: 'SSLC',
+    id: 'CBSE',
+    name: 'CBSE Class 12',
+    short: 'CBSE 12',
     groups: [
       {
-        label: 'Karnataka (KSEAB)',
+        label: 'Official',
         links: [
-          { title: 'KSEAB — SSLC question papers', desc: 'Official question paper archive.', url: 'https://kseab.karnataka.gov.in/new-page/SSLC%20QUESTION%20PAPERS/en' },
-          { title: 'KSEEB — model papers 2025-26', desc: 'Official model question papers with keys.', url: 'https://kseeb.karnataka.gov.in/QP2026/SSLC2025-26MODEL_QP' },
-          { title: 'KSEEB — 2025 Exam-1 papers', desc: 'Official exam papers.', url: 'https://kseeb.karnataka.gov.in/QP/SSLC2025_EXAM1_QP' },
-          { title: 'Physics Wallah — Karnataka SSLC', desc: 'Solved previous-year papers.', url: 'https://www.pw.live/state-prep/exams/karnataka-sslc-previous-year-question-paper' },
+          { title: 'CBSE Academic — sample paper archive', desc: 'Official sample question papers with marking schemes.', url: 'https://cbseacademic.nic.in/sqp_archive.html' },
+          { title: 'cbse.gov.in — question papers', desc: 'Official previous-year question papers.', url: 'https://www.cbse.gov.in/cbsenew/question-paper.html' },
+          { title: 'cbse.gov.in — sample papers', desc: 'Official sample papers.', url: 'https://www.cbse.gov.in/cbsenew/samplepaper.html' },
+          { title: 'CBSE Academic — curriculum & syllabus', desc: 'Official curriculum, syllabus, and portions.', url: 'https://cbseacademic.nic.in/' },
+          { title: 'NCERT — textbooks', desc: 'Free official NCERT textbook PDFs.', url: 'https://ncert.nic.in/textbook.php' },
         ],
       },
       {
-        label: 'Kerala (Pareeksha Bhavan)',
+        label: 'Aggregated papers',
         links: [
-          { title: 'pareekshabhavan.kerala.gov.in', desc: 'Official portal.', url: 'https://pareekshabhavan.kerala.gov.in/' },
-          { title: 'Careers360 — Kerala SSLC papers', desc: 'Compiled previous-year papers.', url: 'https://school.careers360.com/boards/kerala-pareeksha-bhavan/kerala-sslc-question-papers' },
-          { title: 'Physics Wallah — Kerala SSLC', desc: 'Solved previous-year papers.', url: 'https://www.pw.live/school-prep/exams/kerala-sslc-previous-year-question-papers' },
-        ],
-      },
-      {
-        label: 'Tamil Nadu (DGE)',
-        links: [
-          { title: 'dge.tn.gov.in — SSLC', desc: 'Official SSLC page.', url: 'https://www.dge.tn.gov.in/sslc.html' },
-          { title: 'TNDGE — question bank', desc: 'Official question bank.', url: 'https://apply1.tndge.org/dge-notification/questbank' },
-          { title: 'TNDGE — sample papers', desc: 'Official sample papers.', url: 'https://apply1.tndge.org/dge-notification/samques' },
-          { title: 'Shiksha — TN 10th papers', desc: 'Compiled previous-year papers.', url: 'https://www.shiksha.com/boards/tamilnadu-10th-board-question-papers' },
+          { title: 'Shiksha — CBSE question papers', desc: 'Compiled previous-year question papers.', url: 'https://www.shiksha.com/boards/cbse-board-question-papers' },
         ],
       },
     ],

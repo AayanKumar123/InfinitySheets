@@ -22,6 +22,14 @@ export const PAST_PAPER_SOURCES = {
   ICSE: [
     { title: 'CISCE — Publications & specimen papers', official: true, url: 'https://www.cisce.org/publications.aspx' },
   ],
+  ISC: [
+    { title: 'CISCE — ISC Class XII specimen question papers', official: true, url: 'https://cisceboard.org/isc_XII_Specimen_Question_Papers.html' },
+    { title: 'CISCE — Publications & specimen papers', official: true, url: 'https://www.cisce.org/publications.aspx' },
+  ],
+  CBSE10: [
+    { title: 'CBSE — Previous Years’ Question Papers', official: true, url: 'https://www.cbse.gov.in/cbsenew/question-paper.html' },
+    { title: 'CBSE Academic — Class X sample papers with marking schemes', official: true, url: 'https://cbseacademic.nic.in/SQP_CLASSX_2025-26.html' },
+  ],
   IGCSE: [
     { title: 'Cambridge International — IGCSE subject pages', official: true, url: 'https://www.cambridgeinternational.org/programmes-and-qualifications/cambridge-upper-secondary/cambridge-igcse/subjects/' },
     { title: 'PapaCambridge — IGCSE archive', official: false, url: 'https://pastpapers.papacambridge.com/papers/caie/igcse' },
@@ -50,12 +58,6 @@ export const PAST_PAPER_SOURCES = {
   ],
   NEET: [
     { title: 'NTA — NEET (UG) official site', official: true, url: 'https://neet.nta.nic.in/' },
-  ],
-  SSLC: [
-    { title: 'KSEAB — Karnataka SSLC question papers', official: true, url: 'https://kseab.karnataka.gov.in/new-page/SSLC%20QUESTION%20PAPERS/en' },
-    { title: 'KSEEB — 2025-26 model question papers', official: true, url: 'https://kseeb.karnataka.gov.in/QP2026/SSLC2025-26MODEL_QP' },
-    { title: 'Pareeksha Bhavan — Kerala SSLC', official: true, url: 'https://pareekshabhavan.kerala.gov.in/' },
-    { title: 'TNDGE — Tamil Nadu SSLC question bank', official: true, url: 'https://apply1.tndge.org/dge-notification/questbank' },
   ],
 };
 
@@ -130,13 +132,6 @@ const SEED_QUESTIONS_V1 = [
 // Second batch — one or more questions for every subject the wizard can
 // enrol a learner in, so "Past paper questions" is never empty for a track.
 const SEED_QUESTIONS_V2 = [
-  // ---- SSLC ----
-  pp('SSLC', 'Mathematics', 'Algebra', 'The sum of the first 20 terms of the arithmetic progression 3, 7, 11, … is:', ['800', '820', '840', '860'], 1),
-  pp('SSLC', 'Physics', 'Optics', 'A concave mirror forms a real, inverted image the same size as the object when the object is placed at:', ['The focus', 'The centre of curvature', 'Infinity', 'Between pole and focus'], 1),
-  pp('SSLC', 'Chemistry', 'Inorganic', 'Which gas is evolved when dilute hydrochloric acid reacts with zinc granules?', ['Oxygen', 'Chlorine', 'Hydrogen', 'Carbon dioxide'], 2, 'Easy'),
-  pp('SSLC', 'Biology', 'Human Physiology', 'The part of the nephron where most reabsorption of glucose takes place is the:', ['Glomerulus', 'Proximal convoluted tubule', 'Loop of Henle', 'Collecting duct'], 1),
-  pp('SSLC', 'Social Science', 'Civics', 'The Fundamental Rights of Indian citizens are listed in which Part of the Constitution?', ['Part II', 'Part III', 'Part IV', 'Part V'], 1, 'Easy'),
-  pp('SSLC', 'English', 'Grammar', 'Choose the correctly punctuated sentence:', ['She said, "I will come tomorrow."', 'She said "I will come tomorrow".', 'She said, I will come tomorrow.', 'She said: "I will come tomorrow"'], 0, 'Easy'),
   // ---- CBSE ----
   pp('CBSE', 'Mathematics', 'Probability', 'Two dice are rolled. The probability that the sum is 9 is:', ['1/6', '1/9', '1/12', '5/36'], 1),
   pp('CBSE', 'Chemistry', 'Organic', 'Which of the following undergoes SN1 substitution fastest?', ['CH₃Cl', 'CH₃CH₂Cl', '(CH₃)₂CHCl', '(CH₃)₃CCl'], 3),
@@ -254,10 +249,6 @@ export const SEED_PAPER_LINKS = [
   paper('NEET', 'NEET', 'NEET — code-wise official papers 2015 onwards', 2025, 'https://medicine.careers360.com/articles/neet-question-paper'),
   paper('LSAT', 'LSAT', 'LawHub — free official LSAT PrepTests', 2025, 'https://app.lawhub.org/library/fulltests'),
   paper('LSAT', 'LSAT', 'LSAC — official LSAT practice tests', 2025, 'https://www.lsac.org/lsat/prepare/official-lsat-practice-tests'),
-  paper('SSLC', 'Mathematics', 'Karnataka SSLC — official question papers (KSEAB)', 2025, 'https://kseab.karnataka.gov.in/new-page/SSLC%20QUESTION%20PAPERS/en'),
-  paper('SSLC', 'Physics', 'Karnataka SSLC — 2025-26 model question papers with keys', 2025, 'https://kseeb.karnataka.gov.in/QP2026/SSLC2025-26MODEL_QP'),
-  paper('SSLC', 'Social Science', 'Tamil Nadu SSLC — official question bank (TNDGE)', 2025, 'https://apply1.tndge.org/dge-notification/questbank'),
-  paper('SSLC', 'English', 'Kerala SSLC — Pareeksha Bhavan official portal', 2025, 'https://pareekshabhavan.kerala.gov.in/'),
 ];
 
 export const SEED_QUESTIONS = [...SEED_QUESTIONS_V1, ...SEED_QUESTIONS_V2];

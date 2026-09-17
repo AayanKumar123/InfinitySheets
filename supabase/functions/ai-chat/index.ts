@@ -38,9 +38,10 @@ const BOARD_NOTES: Record<string, string> = {
   IGCSE: "Cambridge IGCSE. Mark schemes award one mark per required point; use Cambridge command words precisely (state, describe, explain, calculate, compare, evaluate, suggest). Quote the exact phrasing examiners accept (e.g. 'rate of reaction increases because particles collide more frequently with more energy'). Mention typical marks per question part and the assessment objectives (AO1 knowledge, AO2 handling information, AO3 experimental skills).",
   ASA: "Cambridge International AS & A Level. Answers are marked against detailed mark schemes with specific creditworthy points; level-of-response marking for extended answers. Use command words exactly and be explicit about required working, units, significant figures, and evaluation for the top band.",
   IB: "IB Diploma Programme. Refer to the subject guide's assessment objectives and markbands, IB command terms (define, outline, describe, explain, discuss, evaluate, to what extent), paper structure (Paper 1/2/3), and HL vs SL differences. For essays, describe what each markband criterion requires. Be explicit about what a 7 looks like versus a 5.",
-  CBSE: "CBSE (India), NCERT-aligned. Marking follows step marking with specific keywords from the NCERT textbook; competency-based and case-study questions are increasing. State the exact NCERT phrasing examiners look for, the mark weightage of the topic, and typical question types (1-mark MCQ/assertion-reason, 2/3-mark short answers, 5-mark long answers).",
+  CBSE10: "CBSE Class 10 board examination (India), NCERT-aligned. Step marking with NCERT keywords; competency-based and case-study questions are a large share. Note the paper pattern (20 one-mark MCQ/assertion-reason, 2-mark very short, 3-mark short, 5-mark long answers, case-based questions) and the exact NCERT phrasing examiners expect.",
+  ISC: "ISC Class 12 (CISCE, India). Marking rewards precise definitions, complete derivations and labelled diagrams in the prescribed textbook terminology; answers are marked per scheme point with internal choice in sections. Note the section structure and mark weightage per chapter.",
+  CBSE: "CBSE Class 12 board examination (India), NCERT-aligned. Marking follows step marking with specific keywords from the NCERT textbook; competency-based and case-study questions are increasing. State the exact NCERT phrasing examiners look for, the mark weightage of the topic, and typical question types (1-mark MCQ/assertion-reason, 2/3-mark short answers, 5-mark long answers).",
   ICSE: "CISCE (ICSE Class X / ISC Class XII). Marking rewards precise definitions, labelled diagrams, and complete steps; answers must follow the prescribed textbook terminology. Note the section structure (Section A compulsory, Section B choice) and mark weightage.",
-  SSLC: "Indian state board SSLC (Class 10; Karnataka KSEAB, Kerala, Tamil Nadu). Marking is by scheme with fixed points per answer; textbook definitions and diagrams score. Note 1-mark, 2-mark, 3-mark and 4/5-mark question patterns and what a full-mark answer contains.",
   AP: "College Board Advanced Placement. Multiple-choice plus free-response questions scored with rubrics; explain what earns each rubric point (justification, correct units, referencing the stimulus), and how the topic maps to the course units and skills.",
   SAT: "Digital SAT (College Board). Adaptive modules for Reading & Writing and Math; no penalty for guessing. Focus on question archetypes, time per question, the trap answers used, and reliable elimination strategies. Be concrete about how the skill is tested.",
   JEE: "JEE Main / JEE Advanced (NTA / IITs). MCQs with negative marking (+4/-1) plus numerical-value questions; Advanced adds multi-correct and matching. Focus on the concepts and formulae that recur, the traps, calculation shortcuts, and what previous-year questions on this topic look like.",
@@ -50,7 +51,7 @@ const BOARD_NOTES: Record<string, string> = {
 
 function boardLabel(board: string) {
   const b = (board || "").toUpperCase();
-  return b === "ASA" ? "Cambridge AS & A Level" : b;
+  return b === "ASA" ? "Cambridge AS & A Level" : b === "CBSE10" ? "CBSE Class 10" : b === "CBSE" ? "CBSE Class 12" : b === "ISC" ? "ISC Class 12" : b;
 }
 
 function systemPrompt(mode: string, ctx: Record<string, unknown>) {

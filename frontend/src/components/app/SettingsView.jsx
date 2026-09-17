@@ -251,6 +251,24 @@ function AccessibilitySection({ settings, updateSettings, theme, toggleTheme }) 
           </button>
         </div>
         <ThemeModeToggle />
+        <div className="pt-1">
+          <div className="flex items-center justify-between gap-3 mb-1.5">
+            <div>
+              <div className="text-[13.5px] font-medium text-slate-900">Liquid glass</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">How frosted and see-through cards, the sidebar and dialogs are. The middle is the standard look.</div>
+            </div>
+            <span className="text-[12px] text-slate-500 tabular-nums w-10 text-right">{settings.glassOff ? 'Off' : `${settings.glass ?? 50}%`}</span>
+          </div>
+          <input type="range" min="0" max="100" step="5" value={settings.glass ?? 50} disabled={!!settings.glassOff} onChange={(e) => updateSettings({ glass: parseInt(e.target.value, 10) })} aria-label="Liquid glass intensity" className="w-full accent-blue-600 disabled:opacity-40" data-testid="pref-glass" />
+          <div className="flex justify-between text-[11px] text-slate-500 mt-1"><span>Solid</span><span>Standard</span><span>Clear</span></div>
+        </div>
+        <Toggle
+          checked={!!settings.glassOff}
+          onChange={(v) => { updateSettings({ glassOff: v }); toast.success(v ? 'Liquid glass off. Surfaces are solid.' : 'Liquid glass on'); }}
+          label="Turn off all liquid glass"
+          hint="Removes every blur and transparency for readability and for older devices. The slider is ignored while this is on."
+          testid="pref-glass-off"
+        />
       </div>
     </Section>
   );
