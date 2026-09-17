@@ -9,7 +9,8 @@
 // against a single exam track, so a student mixing boards (e.g. CBSE
 // Mathematics + IB Mathematics AA HL) sees every subject they added.
 
-import { SUBJECTS, EXAM_TRACKS } from '../data/mock';
+import { SUBJECTS, EXAM_TRACKS, TOPICS } from '../data/mock';
+import { BOARD_TOPICS } from '../data/syllabi';
 
 export const boardName = (id) => EXAM_TRACKS.find((t) => t.id === id)?.name || id;
 
@@ -43,7 +44,7 @@ export function primaryTrack(courses, fallback) {
   (courses || []).forEach((c) => { if (c?.exam) counts.set(c.exam, (counts.get(c.exam) || 0) + 1); });
   let best = null;
   for (const [board, n] of counts) if (!best || n > best.n) best = { board, n };
-  return best ? best.board : (fallback || 'CBSE');
+  return best ? best.board : (fallback || 'ASA');
 }
 
 // The board for one subject: its course's board, else the primary track.
@@ -117,6 +118,28 @@ export function activeWorksheets(worksheets, courses, userSubjects, track) {
 // for the student's board wins over the built-in TOPICS map.
 export function syllabusTopicNames(syllabusTopics, board, subject) {
   const rows = syllabusTopics || [];
-  const row = rows.find((r) => r.subject === subject && r.board === board) || rows.find((r) => r.subject === subject);
+  const row = rows.find((r) => r.subject === subject && r.board === board);
   return row ? (row.topics || []).map((t) => t.name).filter(Boolean) : null;
+}
+
+// The topics for a subject ON A GIVEN BOARD: the board's own syllabus file
+// first (IGCSE Physics ≠ A Level Physics ≠ CBSE Physics), then the legacy
+// name-keyed map, then nothing. Every topic list in the app comes through
+// here or through syllabusTopicNames (admin-imported override).
+export function topicsFor(board, subject) {
+  const own = BOARD_TOPICS[board]?.[subject];
+  if (own && own.length) return own;
+  if (!board) {
+    // No board known: first board that teaches the subject.
+    for (const id of EXAM_TRACKS.map((t) => t.id)) {
+      const t = BOARD_TOPICS[id]?.[subject];
+      if (t && t.length) return t;
+    }
+  }
+  return TOPICS[subject] || [];
+}
+
+// Admin override → board syllabus → legacy.
+export function resolvedTopics(syllabusTopics, board, subject) {
+  return syllabusTopicNames(syllabusTopics, board, subject) || topicsFor(board, subject);
 }

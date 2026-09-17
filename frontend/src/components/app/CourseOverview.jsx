@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { EXAM_TRACKS, SUBJECT_INFO, TOPICS, TOPIC_SUMMARY } from '../../data/mock';
+import { EXAM_TRACKS, SUBJECT_INFO, TOPIC_SUMMARY } from '../../data/mock';
+import { topicsFor } from '../../lib/subjects';
 import { ArrowLeft, BookOpen, GraduationCap, CalendarClock, ArrowRight } from 'lucide-react';
 import InfinityBackground from '../decor/InfinityBackground';
 import CreateWorksheetButton from './CreateWorksheetButton';
@@ -32,11 +33,11 @@ function TopicRow({ topic, subjectEntry }) {
   );
 }
 
-function SubjectBlock({ s, onStudy }) {
+function SubjectBlock({ s, board, onStudy }) {
   const info = SUBJECT_INFO[s.subject] || { emoji: '\u25A0' };
   // Custom courses can bring their own topics on the subject entry. Fall back
   // to the built-in TOPICS map for standard subjects.
-  const topics = (Array.isArray(s.topics) && s.topics.length) ? s.topics : (TOPICS[s.subject] || []);
+  const topics = (Array.isArray(s.topics) && s.topics.length) ? s.topics : topicsFor(board, s.subject);
   const days = daysUntil(s.examDate);
   return (
     <div className="card-soft p-5">
@@ -94,7 +95,7 @@ export default function CourseOverview({ courseId, go }) {
   }
 
   const exam = EXAM_TRACKS.find((e) => e.id === course.exam) || { name: course.exam || 'Custom' };
-  const totalTopics = course.subjects.reduce((acc, s) => acc + ((Array.isArray(s.topics) && s.topics.length) ? s.topics.length : (TOPICS[s.subject]?.length || 0)), 0);
+  const totalTopics = course.subjects.reduce((acc, s) => acc + ((Array.isArray(s.topics) && s.topics.length) ? s.topics.length : topicsFor(course.exam, s.subject).length), 0);
 
   const onStudy = (subject) => {
     window.location.hash = `#study?subject=${encodeURIComponent(subject)}`;
@@ -140,7 +141,7 @@ export default function CourseOverview({ courseId, go }) {
           {course.subjects.map((s, i) => {
             // Older / imported courses may list plain subject names.
             const entry = typeof s === 'string' ? { subject: s } : s;
-            return <SubjectBlock key={entry.subject || i} s={entry} onStudy={onStudy} />;
+            return <SubjectBlock key={entry.subject || i} s={entry} board={course.exam} onStudy={onStudy} />;
           })}
         </div>
       </div>

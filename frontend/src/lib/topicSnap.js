@@ -3,7 +3,7 @@
 // Syllabus Bank and the analytics. Ported from the pdf-questions importer
 // (Infinitysheetslol/infinitysheets-updates) and widened to every subject in
 // TOPICS: exact match → keyword hint → substring → bigram similarity.
-import { TOPICS } from '../data/mock';
+import { topicsFor } from './subjects';
 
 // Words that strongly imply a topic, checked before fuzzy matching.
 const KEYWORD_HINTS = {
@@ -55,12 +55,12 @@ function bigramDice(a, b) {
 
 /**
  * snapTopic(subject, proposed, { allowed, fallback })
- *   allowed  — topic list to snap onto (defaults to TOPICS[subject])
+ *   allowed  — topic list to snap onto (defaults to the first board's syllabus for the subject)
  *   fallback — what to return when nothing matches (defaults to allowed[0])
  * Unknown subject with no topic list: the proposed label is kept.
  */
 export function snapTopic(subject, proposed, { allowed, fallback } = {}) {
-  const valid = (allowed && allowed.length ? allowed : TOPICS[subject]) || [];
+  const valid = (allowed && allowed.length ? allowed : topicsFor(null, subject)) || [];
   const p = proposed ? String(proposed).trim() : '';
   if (!valid.length) return p || fallback || 'General';
   const dflt = fallback || valid[0];
@@ -85,7 +85,7 @@ export function snapTopic(subject, proposed, { allowed, fallback } = {}) {
 // Same idea for the question text itself: when the AI gave no topic, guess
 // one from the wording (keyword hints only — anything fuzzier is noise).
 export function guessTopicFromText(subject, text, allowed) {
-  const valid = (allowed && allowed.length ? allowed : TOPICS[subject]) || [];
+  const valid = (allowed && allowed.length ? allowed : topicsFor(null, subject)) || [];
   const t = String(text || '').toLowerCase();
   for (const [keywords, canonical] of KEYWORD_HINTS[subject] || []) {
     if (keywords.some((k) => t.includes(k)) && valid.includes(canonical)) return canonical;

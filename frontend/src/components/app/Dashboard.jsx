@@ -5,13 +5,12 @@ import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
 import { SUBJECT_INFO } from '../../data/mock';
-import { enrolledSubjects, subjectBoards, boardName, activeWorksheets, primaryTrack } from '../../lib/subjects';
+import { enrolledSubjects, subjectBoards, boardName, activeWorksheets, primaryTrack, resolvedTopics } from '../../lib/subjects';
 import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
 import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile, StreakProjectionCard } from './StudyInsights';
 import { recommendedTopics } from '../../lib/studyStats';
-import { TOPICS } from '../../data/mock';
 import AdSlot from '../ads/AdSlot';
 import Badges from './Badges';
 import { DailyChallengeCard, PomodoroTimer } from './DashboardExtras';
@@ -351,7 +350,7 @@ export default function Dashboard({ go }) {
             {mySubjects.map((s) => {
               const info = SUBJECT_INFO[s] || { emoji: '\u25A0', tone: 'primary' };
               const b = mySubjectBoards[s];
-              const recs = recommendedTopics(ws, s, TOPICS[s] || [], { limit: 3 });
+              const recs = recommendedTopics(ws, s, resolvedTopics(state.syllabusTopics, b?.board || studyTrack, s), { limit: 3 });
               return (
                 <button
                   key={s}
@@ -418,14 +417,14 @@ export default function Dashboard({ go }) {
     { id: 'today', label: "Today's 5 + Pomodoro timer", node: (
       <>
       <div className="grid lg:grid-cols-2 gap-4">
-        <DailyChallengeCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
+        <DailyChallengeCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => resolvedTopics(state.syllabusTopics, mySubjectBoards[sub]?.board || studyTrack, sub)} go={go} />
         <PomodoroTimer />
       </div>
       </>
     ) },
     { id: 'mastery', label: 'Topic mastery', node: (
       <>
-      <MasteryCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
+      <MasteryCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => resolvedTopics(state.syllabusTopics, mySubjectBoards[sub]?.board || studyTrack, sub)} go={go} />
       </>
     ) },
     { id: 'badges', label: 'Badges', node: (

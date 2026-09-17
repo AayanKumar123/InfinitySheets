@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
-import { enrolledSubjects, questionsForSubject, syllabusTopicNames, primaryTrack } from '../../lib/subjects';
+import { enrolledSubjects, questionsForSubject, resolvedTopics, primaryTrack } from '../../lib/subjects';
 import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck, Printer, Play, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -440,7 +440,7 @@ export default function Worksheets({ go }) {
   );
   const hasCourses = (state.courses || []).length > 0;
 
-  const topicsForSubject = (s) => (customSubjectTopics[s] || syllabusTopicNames(state.syllabusTopics, subjectBoards(state.courses, track)[s]?.board || track, s) || TOPICS[s] || pastPaperTopicsBySubject[s] || []);
+  const topicsForSubject = (s) => (customSubjectTopics[s] || resolvedTopics(state.syllabusTopics, subjectBoards(state.courses, track)[s]?.board || track, s) || pastPaperTopicsBySubject[s] || []);
 
   const preselect = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_subject') : null;
   const preselectTopic = typeof window !== 'undefined' ? window.sessionStorage.getItem('preselect_topic') : null;

@@ -1,8 +1,8 @@
-import { primaryTrack } from '../../lib/subjects';
+import { primaryTrack, topicsFor } from '../../lib/subjects';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Shield, Plus, Trash2, FileText, Sparkles, Filter, Upload, Link2, X, Loader2, Check, FlaskConical, ClipboardCheck, PenTool } from 'lucide-react';
-import { SUBJECTS, TOPICS, EXAM_TRACKS } from '../../data/mock';
+import { SUBJECTS, EXAM_TRACKS } from '../../data/mock';
 import { FULL_PAPER_TYPE } from '../../data/pastPapers';
 import { toast } from 'sonner';
 import { extractFromPdf, isAiEnabled } from '../../lib/ai';
@@ -17,7 +17,7 @@ const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
 // --------------------------------------------------------------------------
 
 function emptyForm({ syllabus, subject }) {
-  const topics = TOPICS[subject] || [];
+  const topics = topicsFor(syllabus, subject);
   return {
     subject: subject || '',
     topic: topics[0] || '',
@@ -56,12 +56,13 @@ export default function AdminPlaceholder() {
   const { state, addPastPaper, removePastPaper, seedTestPerformance } = useApp();
   const defaultSyllabus = primaryTrack(state.courses, state.user?.examTrack);
   const [syllabus, setSyllabus] = useState(defaultSyllabus);
-  const [subject, setSubject] = useState(() => (SUBJECTS[defaultSyllabus] || [])[0] || '');
+  // A science subject by default, never whatever happens to be first in the list.
+  const [subject, setSubject] = useState(() => { const l = SUBJECTS[defaultSyllabus] || []; return l.find((x) => x === 'Physics') || l[0] || ''; });
 
   // If syllabus changes, reset subject to first available.
   useEffect(() => {
     const subs = SUBJECTS[syllabus] || [];
-    if (!subs.includes(subject)) setSubject(subs[0] || '');
+    if (!subs.includes(subject)) setSubject(subs.find((x) => x === 'Physics') || subs[0] || '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [syllabus]);
 
@@ -163,7 +164,7 @@ function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePast
 
   const setF = (patch) => setForm((f) => ({ ...f, ...patch }));
 
-  const topicsList = TOPICS[subject] || [];
+  const topicsList = topicsFor(syllabus, subject);
 
   const scopedPastPapers = useMemo(() => {
     return pastPapers.filter((p) => p.subject === subject && (!syllabus || !p.board || p.board === syllabus));
@@ -483,7 +484,7 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
     try {
       const [paper] = await filesToAiParts([file]);
       const [scheme] = schemeFile ? await filesToAiParts([schemeFile]) : [null];
-      const topics = TOPICS[subject] || [];
+      const topics = topicsFor(syllabus, subject);
       const drafts = await extractFromPdf({ paper, scheme, board: syllabus, subject, topics });
       const list = drafts.map((q, i) => ({
         ...q,
@@ -624,7 +625,7 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
           </div>
           <div className="flex flex-col gap-2 max-h-[420px] overflow-auto pr-1">
             {extracted.map((d) => (
-              <DraftRow key={d._draftId} draft={d} onChange={(patch) => patchDraft(d._draftId, patch)} onRemove={() => dropDraft(d._draftId)} subject={subject} />
+              <DraftRow syllabus={syllabus} key={d._draftId} draft={d} onChange={(patch) => patchDraft(d._draftId, patch)} onRemove={() => dropDraft(d._draftId)} subject={subject} />
             ))}
           </div>
         </div>
@@ -633,8 +634,8 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   );
 }
 
-function DraftRow({ draft, onChange, onRemove, subject }) {
-  const topicsList = TOPICS[subject] || [];
+function DraftRow({ draft, onChange, onRemove, subject, syllabus }) {
+  const topicsList = topicsFor(syllabus, subject);
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/40 p-3">
       <div className="flex items-start justify-between gap-2 mb-2">

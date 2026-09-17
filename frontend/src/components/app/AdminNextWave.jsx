@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { extractSyllabusTopics, isAiEnabled } from '../../lib/ai';
 import { filesToAiParts } from '../../lib/images';
 import * as store from '../../lib/dataStore';
-import { TOPICS } from '../../data/mock';
+import { topicsFor } from '../../lib/subjects';
 
 // Admin: import a board's syllabus PDF → topic list that overrides the
 // built-in TOPICS for that (board, subject) everywhere in the app.
@@ -46,7 +46,7 @@ export function SyllabusImport({ board, subject }) {
     } catch (e) { toast.error(e.message || 'Could not save'); }
     finally { setSaving(false); }
   };
-  const builtIn = TOPICS[subject] || [];
+  const builtIn = topicsFor(board, subject);
 
   return (
     <div className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5" data-testid="admin-syllabus-import">

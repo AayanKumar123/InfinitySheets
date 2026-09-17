@@ -1,8 +1,8 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { SUBJECTS, TOPICS } from '../data/mock';
+import { SUBJECTS } from '../data/mock';
 import { SEED_PAST_PAPERS } from '../data/pastPapers';
-import { enrolledSubjects, primaryTrack } from '../lib/subjects';
+import { enrolledSubjects, primaryTrack, topicsFor } from '../lib/subjects';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as store from '../lib/dataStore';
 import { computeBadges, BADGES } from '../lib/badges';
@@ -275,7 +275,7 @@ export function AppProvider({ children }) {
   // Legacy local helpers kept for API compatibility (used nowhere critical).
   const signup = useCallback((user) => setState((s) => ({ ...s, user })), []);
   const login = useCallback((email) => {
-    setState((s) => (s.user && s.user.email === email ? s : { ...s, user: s.user || { name: email.split('@')[0], email, examTrack: 'CBSE' } }));
+    setState((s) => (s.user && s.user.email === email ? s : { ...s, user: s.user || { name: email.split('@')[0], email, examTrack: 'ASA' } }));
   }, []);
   const logout = useCallback(() => setState((s) => ({ ...s, user: null })), []);
 
@@ -518,7 +518,7 @@ export function AppProvider({ children }) {
   // Fabricate a realistic body of study data (Admin -> "Create test performance").
   const seedTestPerformance = useCallback(() => {
     const prev = stateRef.current;
-    const track = prev.user?.examTrack || 'CBSE';
+    const track = prev.user?.examTrack || 'ASA';
     // Same source of truth as Start Studying / the Dashboard: the student's
     // courses first, then their onboarding picks. Deleting a subject or course
     // therefore removes it from seeded performance too.
@@ -534,7 +534,8 @@ export function AppProvider({ children }) {
     const today = new Date().toISOString().slice(0, 10);
 
     subs.forEach((subject) => {
-      const topics = TOPICS[subject] && TOPICS[subject].length > 0 ? TOPICS[subject] : ['General'];
+      const topics = topicsFor(primaryTrack(stateRef.current.courses, stateRef.current.user?.examTrack), subject);
+      const topicList = topics.length ? topics : ['General'];
       for (let i = 0; i < 9; i++) {
         const total = pick([5, 8, 10, 10, 12]);
         const score = Math.max(20, Math.min(100, Math.round(45 + Math.random() * 55)));
@@ -542,8 +543,8 @@ export function AppProvider({ children }) {
         const daysBack = (8 - i) * 4 + randInt(0, 3);
         const dt = new Date();
         dt.setDate(dt.getDate() - daysBack);
-        const sheetTopics = [pick(topics)];
-        if (Math.random() < 0.35 && topics.length > 1) {
+        const sheetTopics = [pick(topicList)];
+        if (Math.random() < 0.35 && topicList.length > 1) {
           const extra = pick(topics.filter((t) => t !== sheetTopics[0]));
           if (extra) sheetTopics.push(extra);
         }

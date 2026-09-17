@@ -3,8 +3,7 @@ import { Layers, ChevronRight, Printer, Lightbulb, Loader2, Check, X, ArrowLeft,
 import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 import { buildTopicDeck, topicProgress, deckKey } from '../../lib/flashcards';
-import { enrolledSubjects, boardFor, syllabusTopicNames } from '../../lib/subjects';
-import { TOPICS } from '../../data/mock';
+import { enrolledSubjects, boardFor, resolvedTopics } from '../../lib/subjects';
 import { askAi, isAiEnabled, generateFlashcards } from '../../lib/ai';
 import { exportFlashcardsPdf } from '../../lib/exportData';
 import { track } from '../../lib/analytics';
@@ -21,7 +20,7 @@ export default function Flashcards({ go }) {
   const [subject, setSubject] = useState(subjects[0] || '');
   const activeSubject = subjects.includes(subject) ? subject : subjects[0] || '';
   const board = boardFor(activeSubject, state.courses, state.user?.examTrack);
-  const topics = useMemo(() => syllabusTopicNames(state.syllabusTopics, board, activeSubject) || TOPICS[activeSubject] || [], [state.syllabusTopics, board, activeSubject]);
+  const topics = useMemo(() => resolvedTopics(state.syllabusTopics, board, activeSubject), [state.syllabusTopics, board, activeSubject]);
   const [topic, setTopic] = useState(null);
   const aiOn = isAiEnabled(state);
   const decks = useMemo(() => state.flashcards?.decks || EMPTY, [state.flashcards?.decks]);

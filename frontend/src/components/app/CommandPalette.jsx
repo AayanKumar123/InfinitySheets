@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, CornerDownLeft } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { enrolledSubjects } from '../../lib/subjects';
-import { TOPICS } from '../../data/mock';
+import { enrolledSubjects, boardFor, resolvedTopics } from '../../lib/subjects';
 import { track } from '../../lib/analytics';
 
 // Ctrl/⌘ K: jump anywhere — pages, subjects, topics (opens the topic
@@ -22,13 +21,13 @@ export default function CommandPalette({ nav = [], go, open, onClose }) {
     list.push({ kind: 'Action', label: `Switch to ${state.theme === 'dark' ? 'light' : 'dark'} mode`, run: toggleTheme });
     subjects.forEach((s) => {
       list.push({ kind: 'Subject', label: s, hint: 'Start studying', run: () => go(`study?subject=${encodeURIComponent(s)}`) });
-      (TOPICS[s] || []).forEach((t) => {
+      resolvedTopics(state.syllabusTopics, boardFor(s, state.courses, state.user?.examTrack), s).forEach((t) => {
         list.push({ kind: 'Topic', label: t, hint: s, run: () => go(`topic?subject=${encodeURIComponent(s)}&topic=${encodeURIComponent(t)}`) });
         list.push({ kind: 'Practise', label: `Worksheet on ${t}`, hint: s, run: () => { try { sessionStorage.setItem('preselect_subject', s); sessionStorage.setItem('preselect_topic', t); } catch (e) { /* ignore */ } go('worksheets'); } });
       });
     });
     return list;
-  }, [nav, subjects, state.theme, go, toggleTheme]);
+  }, [nav, subjects, state.theme, state.courses, state.syllabusTopics, state.user?.examTrack, go, toggleTheme]);
 
   const results = useMemo(() => {
     const s = q.trim().toLowerCase();

@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { SUBJECT_INFO, TOPICS } from '../../data/mock';
+import { SUBJECT_INFO } from '../../data/mock';
 import { useApp } from '../../context/AppContext';
-import { subjectBoards, boardName, primaryTrack } from '../../lib/subjects';
+import { subjectBoards, boardName, primaryTrack, resolvedTopics } from '../../lib/subjects';
 import SubjectHero from './subject/SubjectHero';
 import TopicsList from './subject/TopicsList';
 import SubjectSidePanels from './subject/SubjectSidePanels';
@@ -41,7 +41,7 @@ export default function SubjectOverview({ subject, go, onBack }) {
   const board = boards[subject]?.board || examTrack;
   const ibLevel = boards[subject]?.ibLevel;
   const info = SUBJECT_INFO[subject] || FALLBACK_INFO;
-  const topics = TOPICS[subject] || info.keyTopics || [];
+  const topics = resolvedTopics(state.syllabusTopics, board, subject);
   const { stats, subjectAccuracy, totalAnswered, worksheetCount } = useSubjectStats(state.worksheets, subject);
 
   const launch = (topic) => {

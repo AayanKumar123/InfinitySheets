@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ExternalLink, BadgeCheck, Info, ArrowLeft, Sun, Moon, Search, Check, Database } from 'lucide-react';
 import { RESOURCE_TRACKS } from '../../data/resources';
-import { SUBJECTS, TOPICS, QUESTION_BANK } from '../../data/mock';
+import { SUBJECTS, QUESTION_BANK } from '../../data/mock';
+import { topicsFor } from '../../lib/subjects';
 import { useApp } from '../../context/AppContext';
 import Footer from './Footer';
 import Reveal from './Reveal';
@@ -13,7 +14,7 @@ function questionCount(trackId) {
   const subjects = SUBJECTS[trackId] || [];
   let n = 0;
   subjects.forEach((sub) => {
-    (TOPICS[sub] || []).forEach((t) => { n += (QUESTION_BANK[t] || []).length; });
+    topicsFor(trackId, sub).forEach((t) => { n += (QUESTION_BANK[t] || []).length; });
   });
   return n;
 }

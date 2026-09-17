@@ -1,3 +1,5 @@
+import { SUBJECTS_BY_BOARD } from './syllabi';
+
 // Mock data for InfinitySheets clone (frontend-only)
 
 // Kept in alphabetical order by display name — this order is used
@@ -73,22 +75,14 @@ export const TESTIMONIALS = [
 ];
 
 // Subjects per exam track
-export const SUBJECTS = {
-  CBSE10: ['Mathematics', 'Science', 'Social Science', 'English', 'Hindi', 'Sanskrit', 'Computer Applications', 'Information Technology', 'Physical Education', 'Home Science', 'Painting', 'Music'],
-  CBSE: ['Mathematics', 'Applied Mathematics', 'Physics', 'Chemistry', 'Biology', 'Social Science', 'History', 'Geography', 'Political Science', 'Economics', 'English', 'Hindi', 'Computer Science', 'Informatics Practices', 'Accountancy', 'Business Studies', 'Psychology', 'Sociology', 'Physical Education', 'Legal Studies', 'Sanskrit', 'Urdu', 'Home Science', 'Entrepreneurship', 'Biotechnology', 'Engineering Graphics', 'Painting', 'Music'],
-  ICSE: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Applications', 'Computer Science', 'English', 'Hindi', 'History', 'Geography', 'Political Science', 'Economics', 'Commercial Studies', 'Accounts', 'Business Studies', 'Psychology', 'Sociology', 'Environmental Science', 'Physical Education', 'Sanskrit', 'Home Science', 'Art', 'Environmental Applications', 'Technical Drawing'],
-  ISC: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'English', 'Hindi', 'History', 'Geography', 'Political Science', 'Economics', 'Commerce', 'Accounts', 'Business Studies', 'Psychology', 'Sociology', 'Environmental Science', 'Physical Education', 'Home Science', 'Art', 'Legal Studies', 'Mass Media & Communication'],
-  IGCSE: ['Mathematics', 'Additional Mathematics', 'Physics', 'Chemistry', 'Biology', 'Combined Science', 'Economics', 'Accounting', 'Business Studies', 'English', 'English Literature', 'Computer Science', 'ICT', 'History', 'Geography', 'Sociology', 'Environmental Management', 'Global Perspectives', 'Design & Technology', 'Art & Design', 'Physical Education', 'Travel & Tourism', 'French', 'Spanish', 'Hindi', 'Physical Science', 'Co-ordinated Sciences', 'Drama', 'Music', 'Food & Nutrition', 'Agriculture', 'German', 'Mandarin Chinese', 'Arabic', 'Enterprise', 'Marine Science'],
-  ASA: ['Mathematics', 'Further Maths', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Accounting', 'Business Studies', 'Computer Science', 'Psychology', 'Sociology', 'English Literature', 'History', 'Geography', 'Law', 'Media Studies', 'Global Perspectives', 'Environmental Management', 'Design & Technology', 'Art & Design', 'Physical Education', 'French', 'Spanish', 'German', 'Italian', 'Music', 'Drama', 'Classical Studies', 'Divinity', 'Thinking Skills', 'Marine Science', 'Information Technology'],
-  IB: ['Mathematics AA', 'Mathematics AI', 'Physics', 'Chemistry', 'Biology', 'Environmental Systems', 'Sports, Exercise & Health Science', 'Design Technology', 'Computer Science', 'Economics', 'Business Management', 'Psychology', 'History', 'Geography', 'Global Politics', 'Philosophy', 'Digital Society', 'English', 'English Language & Literature', 'Spanish B', 'French B', 'Hindi B', 'Chinese B', 'Visual Arts', 'Theatre', 'Music', 'Spanish A', 'German B', 'Japanese B', 'Arabic B', 'Film', 'Dance', 'Social & Cultural Anthropology', 'World Religions', 'Classical Languages', 'Literature & Performance'],
-  AP: ['Calculus AB', 'Calculus BC', 'Precalculus', 'Statistics', 'Physics', 'Chemistry', 'Biology', 'Environmental Science', 'Computer Science', 'Computer Science Principles', 'English', 'English Language', 'History', 'US History', 'World History', 'European History', 'US Government', 'Human Geography', 'Economics', 'Psychology', 'Art History', 'Spanish', 'French', 'Physics 1', 'Physics 2', 'Physics C: Mechanics', 'Physics C: Electricity & Magnetism', 'Microeconomics', 'Macroeconomics', 'Seminar', 'Research', 'Music Theory', '2-D Art & Design', 'Drawing', 'Latin', 'Chinese', 'Japanese', 'Italian', 'German', 'Comparative Government'],
-  // Single-paper exams are one subject each; their topics span the whole syllabus.
-  SAT: ['SAT'],
-  JEE: ['JEE'],
-  NEET: ['NEET'],
-  LSAT: ['LSAT'],
-};
+// Subjects per board live in data/syllabi/<BOARD>.js (one file per examining
+// body, complete lists, own topic structure). Re-exported here so existing
+// imports keep working.
+export const SUBJECTS = SUBJECTS_BY_BOARD;
 
+// Legacy subject-name → topics map. Only a fallback now: topicsFor(board,
+// subject) in lib/subjects.js reads the per-board syllabus first. Still keyed
+// by topic name for QUESTION_BANK / TOPIC_SUMMARY lookups.
 export const TOPICS = {
   'Science': ['Chemical Reactions', 'Acids, Bases and Salts', 'Metals and Non-metals', 'Life Processes', 'Control and Coordination', 'Light', 'Electricity', 'Magnetic Effects of Current', 'Our Environment'],
   'Information Technology': ['Digital Documentation', 'Spreadsheets', 'Databases', 'Web Basics', 'Digital Safety'],

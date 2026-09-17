@@ -34,7 +34,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const isOnboarding = mode === 'onboarding';
 
   const [step, setStep] = useState(0);
-  const [examTrack, setExamTrack] = useState(state.user?.examTrack || 'CBSE');
+  const [examTrack, setExamTrack] = useState(state.user?.examTrack || ''); // nothing preselected until the student picks a board
   const trackSubjects = useMemo(() => SUBJECTS[examTrack] || [], [examTrack]);
   const [picked, setPicked] = useState([]); // [subject, ...]
   const [ibLevels, setIbLevels] = useState({}); // { subject: 'HL' | 'SL' }
@@ -54,7 +54,8 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   // Fixed-syllabus tracks: take every subject automatically and keep the
   // selection in sync if the student changes track mid-wizard.
   useEffect(() => {
-    if (isFixedTrack) setPicked(SUBJECTS[examTrack] || []);
+    // The whole-exam entry (first in the list); its sections can be added later.
+    if (isFixedTrack) setPicked((SUBJECTS[examTrack] || []).slice(0, 1));
   }, [examTrack, isFixedTrack]);
 
   // Never leave the wizard pointing past the end of a shorter step list.
@@ -116,7 +117,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
 
   const skip = () => {
     if (onClose) onClose();
-    else if (isOnboarding) completeOnboarding({ examTrack, examDate: '', subjects: trackSubjects, frequency, weeklyGoal });
+    else if (isOnboarding) completeOnboarding({ examTrack, examDate: '', subjects: trackSubjects.slice(0, 1), frequency, weeklyGoal });
   };
 
   return (
