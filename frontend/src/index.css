@@ -28,7 +28,7 @@ html.dark {
     --color-card: #171717;
     --color-text: #f5f5f5;
     --color-text-2: #a3a3a3;
-    --color-border: #262626;
+    --color-border: #1f1f1f;
     --color-overlay: rgba(255, 255, 255, 0.04);
     color-scheme: dark;
 }
@@ -295,7 +295,7 @@ html.dark .border-slate-200,
 html.dark .border-zinc-100,
 html.dark .border-zinc-200 { border-color: var(--color-border) !important; }
 
-html.dark .bg-violet-50 { background-color: rgba(124, 58, 237, 0.14) !important; }
+html.dark .bg-violet-50 { background-color: rgba(255, 255, 255, 0.03) !important; }
 html.dark .bg-violet-100 { background-color: rgba(124, 58, 237, 0.20) !important; }
 html.dark .bg-blue-50 { background-color: rgba(37, 99, 235, 0.14) !important; }
 html.dark .bg-blue-100 { background-color: rgba(37, 99, 235, 0.20) !important; }
@@ -825,7 +825,7 @@ html.dark .border-slate-400 { border-color: #71717a !important; }
    overrides above, so chips like "bg-violet-50/60 text-violet-700" rendered
    as a pale box with pale text (the foggy buttons). One rule per family.
    ===================================================================== */
-html.dark [class*="bg-violet-50/"]  { background-color: rgba(124, 58, 237, 0.16) !important; }
+html.dark [class*="bg-violet-50/"]  { background-color: rgba(255, 255, 255, 0.03) !important; }
 html.dark [class*="bg-blue-50/"]    { background-color: rgba(37, 99, 235, 0.16) !important; }
 html.dark [class*="bg-emerald-50/"] { background-color: rgba(16, 185, 129, 0.14) !important; }
 html.dark [class*="bg-rose-50/"]    { background-color: rgba(244, 63, 94, 0.12) !important; }
@@ -849,9 +849,9 @@ html.dark .text-rose-700,   html.dark .text-rose-800   { color: #fda4af !importa
 html.dark .text-amber-900   { color: #fde68a !important; }
 html.dark .text-sky-800,    html.dark .text-sky-900    { color: #bae6fd !important; }
 html.dark .border-violet-300, html.dark .border-blue-300, html.dark .border-emerald-300,
-html.dark .border-rose-300,  html.dark .border-amber-300, html.dark .border-sky-300 { border-color: rgba(255, 255, 255, 0.18) !important; }
+html.dark .border-rose-300,  html.dark .border-amber-300, html.dark .border-sky-300 { border-color: rgba(255, 255, 255, 0.12) !important; }
 html.dark .border-violet-200, html.dark .border-blue-200, html.dark .border-emerald-200,
-html.dark .border-rose-200,  html.dark .border-amber-200, html.dark .border-sky-200 { border-color: rgba(255, 255, 255, 0.14) !important; }
+html.dark .border-rose-200,  html.dark .border-amber-200, html.dark .border-sky-200 { border-color: rgba(255, 255, 255, 0.08) !important; }
 html.dark .text-white { color: #fff !important; }
 
 /* =====================================================================
@@ -870,24 +870,21 @@ html.dark .text-white { color: #fff !important; }
 html.dark {
   --glass-bg: rgba(23, 23, 23, 0.86);
   --glass-bg-strong: rgba(23, 23, 23, 0.95);
-  --glass-border: rgba(255, 255, 255, 0.09);
-  --glass-shadow: 0 12px 40px -18px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: none;
   --glass-hi: rgba(255, 255, 255, 0.05);
 }
 
 /* Ambient background the glass can refract: soft colour fields. */
 .section-bg {
   background-image:
-    radial-gradient(1100px 600px at -10% -10%, rgba(37, 99, 235, 0.10), transparent 60%),
-    radial-gradient(900px 500px at 110% 10%, rgba(124, 58, 237, 0.09), transparent 60%),
-    radial-gradient(800px 500px at 50% 110%, rgba(16, 185, 129, 0.07), transparent 60%);
+    radial-gradient(1100px 600px at -10% -10%, rgba(37, 99, 235, 0.05), transparent 60%),
+    radial-gradient(800px 500px at 50% 110%, rgba(16, 185, 129, 0.04), transparent 60%);
   background-attachment: fixed;
 }
 html.dark .section-bg {
-  background-image:
-    radial-gradient(1100px 600px at -10% -10%, rgba(37, 99, 235, 0.16), transparent 60%),
-    radial-gradient(900px 500px at 110% 10%, rgba(124, 58, 237, 0.14), transparent 60%),
-    radial-gradient(800px 500px at 50% 110%, rgba(16, 185, 129, 0.08), transparent 60%) !important;
+  /* Flat in dark mode: no coloured light fields behind the cards. */
+  background-image: none !important;
   background-color: var(--color-bg) !important;
 }
 

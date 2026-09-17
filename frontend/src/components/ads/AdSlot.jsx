@@ -33,6 +33,12 @@ const SIZE = {
   compact: 'min-h-[60px]',
 };
 
+// Master switch. Ads are parked for now: every placement stays in the code
+// (9 slots, see AD_UNITS) but renders nothing until this is true. To turn
+// ads on later: set REACT_APP_ADS=on in frontend/.env, fill AD_UNITS with the
+// network's unit ids, and load the network script in public/index.html.
+export const ADS_ENABLED = process.env.REACT_APP_ADS === 'on';
+
 export default function AdSlot({ slot, size = 'banner', className = '', label = 'Advertisement' }) {
   const ref = useRef(null);
   const unit = AD_UNITS[slot];
@@ -44,6 +50,8 @@ export default function AdSlot({ slot, size = 'banner', className = '', label = 
     if (!unit || !ref.current) return;
     try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) { /* network not loaded */ }
   }, [unit]);
+
+  if (!ADS_ENABLED) return null;
 
   return (
     <aside className={`w-full ${className}`} data-testid={`ad-${slot}`} data-ad-slot={slot} aria-label={label}>

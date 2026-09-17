@@ -181,3 +181,8 @@ Fix: a topic preselected from the Syllabus Bank / study plan / Today's 5 was res
 - **Study groups are not competitive**: no rank column, alphabetical, your own row highlighted — "what the group did this week", not a leaderboard.
 - **Study plan shows the exam countdown** and plans back from that date.
 - **Study groups in the demo**: a sample group with made-up classmates so new visitors see the feature; real groups need an account.
+
+### Ads (parked)
+
+All nine ad placements are still in the code (`frontend/src/components/ads/AdSlot.jsx`) but render **nothing** until ads are switched on: set `REACT_APP_ADS=on` in `frontend/.env`, fill `AD_UNITS` with the network's unit ids, load the network script in `public/index.html`, and — because students are minors — mark the site child-directed and serve non-personalised ads only.
+
