@@ -5,23 +5,13 @@ import { useApp } from '../../context/AppContext';
 import * as store from '../../lib/dataStore';
 import { track } from '../../lib/analytics';
 
-// Demo: a sample group with made-up classmates so the page is not a dead
-// end for a new visitor. Nothing is sent anywhere.
-const DEMO_GROUP = { id: 'g_demo', code: 'DEMO2345', name: '10B Physics (sample)', school: 'Sample School' };
-const DEMO_BOARD = [
-  { name: 'Aarav', me: false, questions: 42, sheets: 5, streak: 3 },
-  { name: 'Demo', me: true, questions: 36, sheets: 4, streak: 5 },
-  { name: 'Meera', me: false, questions: 58, sheets: 6, streak: 7 },
-  { name: 'Rohan', me: false, questions: 12, sheets: 2, streak: 1 },
-];
-
 // Study groups: create one, share the 8-character code, join with a code, see
 // what the group did this week. Deliberately NOT a leaderboard: no ranks,
 // alphabetical order, everyone's own row highlighted — it is there to make
 // studying feel shared, not to make anyone feel behind.
 export default function Groups() {
   const { state } = useApp();
-  const isReal = !!(state.user && !state.user.isDemo && state.user.id);
+  const isReal = !!(state.user && state.user.id);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(isReal);
   const [active, setActive] = useState(null);
@@ -32,7 +22,7 @@ export default function Groups() {
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!isReal) { setGroups([DEMO_GROUP]); setActive(DEMO_GROUP); setLoading(false); return; }
+    if (!isReal) { setGroups([]); setActive(null); setLoading(false); return; }
     setLoading(true);
     try {
       const list = await store.myGroups();
@@ -44,12 +34,11 @@ export default function Groups() {
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     if (!active) { setBoard([]); return; }
-    if (!isReal) { setBoard(DEMO_BOARD); return; }
     store.groupLeaderboard(active.id).then((rows) => setBoard([...rows].sort((a, b) => String(a.name).localeCompare(String(b.name))))).catch(() => setBoard([]));
   }, [active, isReal]);
 
   const create = async () => {
-    if (!isReal) { toast('Sign up to create a real group — this one is a sample'); return; }
+    if (!isReal) { toast('Sign in to create a group'); return; }
     if (!name.trim()) { toast.error('Give the group a name'); return; }
     setBusy(true);
     try {

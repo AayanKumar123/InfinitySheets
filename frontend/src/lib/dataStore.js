@@ -169,7 +169,6 @@ export function profileToUser(row, authUser) {
     role: (row && row.role) || 'user',
     examTrack: (row && row.exam_track) || null,
     subjects: (row && row.subjects) || [],
-    isDemo: false,
   };
 }
 

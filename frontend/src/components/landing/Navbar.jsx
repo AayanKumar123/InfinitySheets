@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Infinity, Menu, X, Sun, Moon, Play, ArrowRight } from 'lucide-react';
+import { Infinity, Menu, X, Sun, Moon, ArrowRight } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import DemoLoginModal from './DemoLoginModal';
 
 export default function Navbar({ onStart }) {
   const [open, setOpen] = useState(false);
-  const [demoOpen, setDemoOpen] = useState(false);
   // Past the hero, Start Free becomes the loudest element in the bar.
   const [scrolled, setScrolled] = useState(false);
   React.useEffect(() => {
@@ -22,7 +20,6 @@ export default function Navbar({ onStart }) {
     { label: 'Courses', href: '#resources' },
     { label: 'Pricing', href: '#pricing' },
   ];
-  const openDemo = (e) => { if (e) e.preventDefault(); setOpen(false); setDemoOpen(true); };
   return (
     <header className="sticky top-0 z-40 liquid-glass border-b border-[color:var(--color-border)]">
       <div className="max-w-[1280px] mx-auto px-6 h-[60px] flex items-center justify-between">
@@ -52,16 +49,7 @@ export default function Navbar({ onStart }) {
               Open app <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <>
-              <button
-                onClick={openDemo}
-                data-testid="nav-try-demo"
-                className="hidden lg:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13.5px] font-medium text-slate-800 border border-slate-300 hover:border-blue-500 hover:text-blue-700 transition-colors"
-              >
-                <Play className="w-4 h-4" /> Try Demo
-              </button>
-              <button onClick={onStart} className={`btn-violet hidden lg:inline-flex px-4 py-2 rounded-lg text-[14px] font-medium transition-all duration-300 ${scrolled ? 'shadow-lg shadow-violet-400/40 ring-2 ring-violet-300/60 scale-105' : 'shadow-sm'}`}>Start Free</button>
-            </>
+            <button onClick={onStart} className={`btn-violet hidden lg:inline-flex px-4 py-2 rounded-lg text-[14px] font-medium transition-all duration-300 ${scrolled ? 'shadow-lg shadow-violet-400/40 ring-2 ring-violet-300/60 scale-105' : 'shadow-sm'}`}>Start Free</button>
           )}
           <button onClick={() => setOpen(!open)} aria-label="Open menu" className="lg:hidden w-9 h-9 inline-flex items-center justify-center rounded-md hover:bg-slate-100">
             {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -79,21 +67,11 @@ export default function Navbar({ onStart }) {
             {state.user ? (
               <button onClick={() => { setOpen(false); window.location.hash = '#dashboard'; }} className="btn-violet px-4 py-2 rounded-lg text-[14px] font-medium">Open app</button>
             ) : (
-              <>
-                <button
-                  onClick={openDemo}
-                  data-testid="nav-try-demo-mobile"
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-medium text-slate-800 border border-slate-300"
-                >
-                  <Play className="w-4 h-4" /> Try Demo
-                </button>
-                <button onClick={() => { setOpen(false); onStart(); }} className="btn-violet px-4 py-2 rounded-lg text-[14px] font-medium">Start Free</button>
-              </>
+              <button onClick={() => { setOpen(false); onStart(); }} className="btn-violet px-4 py-2 rounded-lg text-[14px] font-medium">Start Free</button>
             )}
           </div>
         </div>
       )}
-      <DemoLoginModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </header>
   );
 }

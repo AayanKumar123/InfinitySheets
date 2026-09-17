@@ -699,7 +699,7 @@ I have a complaint about InfinitySheets:
 
 
 
-— ${user?.name || 'A student'}${user?.email && !user?.isDemo ? ` (${user.email})` : ''}`);
+— ${user?.name || 'A student'}${user?.email ? ` (${user.email})` : ''}`);
   return (
     <div className="pt-6 mt-2 border-t border-[color:var(--color-border)] flex justify-center">
       <a

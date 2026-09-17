@@ -152,7 +152,7 @@ export default function AdminPlaceholder() {
 
 function CategoryPanel({ syllabus, subject, pastPapers, addPastPaper, removePastPaper }) {
   const { state } = useApp();
-  const addedBy = state.user?.email || (state.user?.isDemo ? 'demo' : 'unknown');
+  const addedBy = state.user?.email || 'unknown';
   const [form, setForm] = useState(() => emptyForm({ syllabus, subject }));
   const [filterTopic, setFilterTopic] = useState('');
   const [busy, setBusy] = useState(false);
@@ -460,7 +460,7 @@ function LibraryRow({ p, onRemove }) {
 
 function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   const { state, refreshPastPapers } = useApp();
-  const addedBy = state.user?.email || (state.user?.isDemo ? 'demo' : 'unknown');
+  const addedBy = state.user?.email || 'unknown';
   const [file, setFile] = useState(null);
   const [schemeFile, setSchemeFile] = useState(null);   // optional mark-scheme PDF
   const aiOn = isAiEnabled(state);
@@ -478,7 +478,7 @@ function BulkPdfUpload({ syllabus, subject, addPastPaper }) {
   const extract = async () => {
     if (!file) { toast.error('Choose a PDF first'); return; }
     if (!aiOn) { toast.error('AI is switched off in Settings — turn it on to scan the PDF.'); return; }
-    if (!state.user?.isDemo && state.user?.role && state.user.role !== 'admin') { toast.error('Admin access is required to add to the question bank.'); return; }
+    if (state.user?.role !== 'admin') { toast.error('Admin access is required to add to the question bank.'); return; }
     setUploading(true);
     try {
       const [paper] = await filesToAiParts([file]);

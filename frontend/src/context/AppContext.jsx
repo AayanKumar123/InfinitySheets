@@ -11,8 +11,7 @@ import { initAnalytics, identify, track } from '../lib/analytics';
 import { toast } from 'sonner';
 
 // Study data now lives in Supabase (Postgres + RLS) when the user is signed in
-// with a real account. Demo mode (user.isDemo) stays 100% local (localStorage,
-// no network). Theme is always a local device preference.
+// with a real account.
 const STORAGE_KEY = 'infinitysheets_state_v1';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -24,7 +23,7 @@ function logError(scope, err) {
 }
 
 const defaultState = {
-  user: null, // { id, name, email, role, examTrack, subjects?, isDemo? }
+  user: null, // { id, name, email, role, examTrack, subjects? }
   worksheets: [],
   mistakes: [],
   courses: [],
@@ -79,7 +78,6 @@ export function AppProvider({ children }) {
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
 
-  const isDemoLocalRef = useRef(false);
   const bootstrappedRef = useRef(null);
 
   // Cloud-sync status for the header badge: idle | saving | saved | error | local
@@ -89,7 +87,7 @@ export function AppProvider({ children }) {
   // ---- sync helpers -------------------------------------------------------
   const canSync = () => {
     const u = stateRef.current.user;
-    return !!(u && !u.isDemo && u.id && isSupabaseConfigured);
+    return !!(u && u.id && isSupabaseConfigured);
   };
   const uid = () => stateRef.current.user && stateRef.current.user.id;
   const bg = (factory, scope) => {
@@ -117,7 +115,7 @@ export function AppProvider({ children }) {
       const flagKey = `infinitysheets_synced_${userId}`;
       const local = stateRef.current;
       const already = localStorage.getItem(flagKey);
-      const localHasData = local && !(local.user && local.user.isDemo) && !local.fromDemo &&
+      const localHasData = local && !local.fromDemo &&
         ((local.worksheets || []).length || (local.mistakes || []).length || (local.courses || []).length);
       if (!already && localHasData) {
         try {
@@ -146,7 +144,6 @@ export function AppProvider({ children }) {
           email: authUser.email,
           name: authUser.email ? authUser.email.split('@')[0] : 'Student',
           role: 'user',
-          isDemo: false,
         },
       }));
     }
@@ -169,16 +166,11 @@ export function AppProvider({ children }) {
       ];
     } catch (err) { logError('hydrate', err); }
 
-    const demoLocal = !!(hydrated.user && hydrated.user.isDemo);
-    isDemoLocalRef.current = demoLocal;
-    // Never keep a stale real (non-demo) user from a previous session until
-    // Supabase confirms the session; demo users stay as-is.
-    if (demoLocal) {
-      setState(withTrack(hydrated, hydrated.courses));
-      setLoaded(true);
-    } else {
-      setState({ ...hydrated, user: null });
-    }
+    // Never keep a stale user from a previous session until Supabase
+    // confirms the session. (A leftover demo user from the old demo mode is
+    // dropped the same way and its local data is not migrated.)
+    const fromDemo = !!(hydrated.user && hydrated.user.isDemo) || !!hydrated.fromDemo;
+    setState({ ...hydrated, user: null, fromDemo });
 
     if (!isSupabaseConfigured) {
       setLoaded(true);
@@ -186,7 +178,6 @@ export function AppProvider({ children }) {
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (isDemoLocalRef.current) return; // demo never touches Supabase
       if (event === 'SIGNED_OUT') {
         bootstrappedRef.current = null;
         setSyncStatus('idle');
@@ -254,22 +245,6 @@ export function AppProvider({ children }) {
     return () => { if (mql.removeEventListener) mql.removeEventListener('change', apply); else mql.removeListener(apply); };
   }, [state.themeMode]);
 
-  // The demo asks the same two questions as a real account (age, then your
-  // board / subjects / exam dates) and then fills the chosen subjects with a
-  // few weeks of sample worksheets so every page has something to show.
-  // "Reset demo" wipes it; everything stays on this device.
-  const seedRef = useRef(null);
-  const startDemo = useCallback(() => {
-    isDemoLocalRef.current = true;
-    setSyncStatus('local');
-    setState((s) => ({
-      ...s,
-      user: { name: 'Demo Student', email: 'demo@infinitysheets.app', examTrack: primaryTrack(s.courses, s.user?.examTrack || 'IGCSE'), isDemo: true, subjects: s.user?.subjects || [] },
-      onboardingDone: (s.courses || []).length > 0 && !!s.onboardingDone,
-    }));
-    setLoaded(true);
-  }, []);
-
   // Functional update: the wizard calls addCourse immediately before this,
   // and a snapshot taken from stateRef would still be missing that course.
   const completeOnboarding = useCallback(({ examTrack, examDate, subjects, frequency, weeklyGoal }) => {
@@ -290,11 +265,6 @@ export function AppProvider({ children }) {
     const saved = patch(stateRef.current);
     bg(() => store.upsertProfile(uid(), { examTrack: saved.user?.examTrack, subjects: saved.user?.subjects || [] }), 'onboarding/profile');
     bg(() => store.upsertSettings(saved, uid()), 'onboarding/settings');
-    // Demo only: sample history for the subjects just chosen (after the
-    // course the wizard added has landed in state).
-    if (stateRef.current.user?.isDemo && !(stateRef.current.worksheets || []).length) {
-      setTimeout(() => seedRef.current?.(), 80);
-    }
   }, []);
 
   const restartOnboarding = useCallback(() => {
@@ -307,10 +277,7 @@ export function AppProvider({ children }) {
   const login = useCallback((email) => {
     setState((s) => (s.user && s.user.email === email ? s : { ...s, user: s.user || { name: email.split('@')[0], email, examTrack: 'CBSE' } }));
   }, []);
-  // Leaving the demo keeps its progress on this device (so re-entering the
-  // demo resumes it) but remembers that the data is the demo's, so a real
-  // sign-up afterwards never migrates it into the new account.
-  const logout = useCallback(() => setState((s) => ({ ...s, user: null, fromDemo: !!s.user?.isDemo || !!s.fromDemo })), []);
+  const logout = useCallback(() => setState((s) => ({ ...s, user: null })), []);
 
   // ---- Supabase auth ------------------------------------------------------
   const apiRegister = useCallback(async ({ email, password, name, examTrack, subjects }) => {
@@ -327,7 +294,6 @@ export function AppProvider({ children }) {
       throw e;
     }
     const authUser = data.user;
-    isDemoLocalRef.current = false;
     bootstrappedRef.current = authUser.id;
     try {
       // email is owned by auth (a trigger rejects client-side changes), so it is not sent here.
@@ -343,7 +309,6 @@ export function AppProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
     if (error) throw error;
     const authUser = data.user;
-    isDemoLocalRef.current = false;
     bootstrappedRef.current = authUser.id;
     await bootstrapCore(authUser);
     setLoaded(true);
@@ -353,7 +318,6 @@ export function AppProvider({ children }) {
   // Google OAuth (redirect flow). Requires the Google provider to be enabled
   // in the Supabase dashboard. Returns after kicking off the redirect.
   const apiGoogleAuth = useCallback(async () => {
-    isDemoLocalRef.current = false;
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
@@ -365,7 +329,6 @@ export function AppProvider({ children }) {
   const apiLogout = useCallback(async () => {
     try { await supabase.auth.signOut({ scope: 'local' }); }
     catch (e) { logError('logout', e); }
-    isDemoLocalRef.current = false;
     bootstrappedRef.current = null;
     setSyncStatus('idle');
     setState((s) => ({ ...defaultState, theme: s.theme }));
@@ -401,7 +364,6 @@ export function AppProvider({ children }) {
       catch (e) { logError('deleteAccount/server', e); throw e; }
       supabase.auth.signOut({ scope: 'local' }).catch((e) => logError('deleteAccount/signout', e));
     }
-    isDemoLocalRef.current = false;
     bootstrappedRef.current = null;
     setState(defaultState);
     try { localStorage.removeItem(STORAGE_KEY); } catch (err) { logError('deleteAccount', err); }
@@ -621,7 +583,6 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings(next, uid()), 'seed/settings');
   }, []);
 
-  seedRef.current = seedTestPerformance;
 
   // ---- past papers --------------------------------------------------------
   const refreshPastPapers = useCallback(async () => {
@@ -783,7 +744,7 @@ export function AppProvider({ children }) {
     finishTutorial, restartTutorial,
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
-    toggleTheme, startDemo, completeOnboarding, restartOnboarding,
+    toggleTheme, completeOnboarding, restartOnboarding,
     markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   }), [
     state, loaded, syncStatus,
@@ -795,7 +756,7 @@ export function AppProvider({ children }) {
     finishTutorial, restartTutorial,
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
-    toggleTheme, startDemo, completeOnboarding, restartOnboarding,
+    toggleTheme, completeOnboarding, restartOnboarding,
     markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
   ]);
 

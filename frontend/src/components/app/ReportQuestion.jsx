@@ -22,7 +22,7 @@ export default function ReportQuestion({ q, subject, compact = false, testid }) 
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  const isReal = state.user && !state.user.isDemo && state.user.id;
+  const isReal = state.user && state.user.id;
 
   const send = async () => {
     setBusy(true);

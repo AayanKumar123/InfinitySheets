@@ -121,7 +121,6 @@ function AccountDetails({ user, updateProfile }) {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
-  const isDemo = !!user?.isDemo;
   const dirty = name !== (user?.name || '') || email !== (user?.email || '') || avatar !== (user?.avatar || '');
 
   const save = () => {
@@ -130,19 +129,19 @@ function AccountDetails({ user, updateProfile }) {
   };
 
   return (
-    <Section title="Account details" icon={User} subtitle={isDemo ? 'Demo session — changes are saved on this device only.' : 'Your name and how we identify you.'}>
+    <Section title="Account details" icon={User} subtitle="Your name and how we identify you.">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Field label="Display name">
           <input className="input-base" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Priya" data-testid="settings-name" />
         </Field>
-        <Field label="Email" hint={isDemo ? 'Demo accounts do not use a real email.' : ''}>
+        <Field label="Email">
           <input className="input-base" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" data-testid="settings-email" />
         </Field>
         <Field label="Avatar URL (optional)">
           <input className="input-base" value={avatar} onChange={(e) => setAvatar(e.target.value)} placeholder="https://..." />
         </Field>
         <Field label="Role">
-          <div className="input-base flex items-center text-[13.5px] text-slate-600 bg-slate-50">{isDemo ? 'Demo student' : user?.role === 'admin' ? 'Administrator' : 'Student'}</div>
+          <div className="input-base flex items-center text-[13.5px] text-slate-600 bg-slate-50">{user?.role === 'admin' ? 'Administrator' : 'Student'}</div>
         </Field>
       </div>
       <button

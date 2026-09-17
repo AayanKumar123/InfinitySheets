@@ -34,7 +34,7 @@ function Toggle({ checked, onChange, label, hint, testid }) {
 export function RemindersSection() {
   const { state, updateSettings } = useApp();
   const s = state.settings || {};
-  const isReal = !!(state.user && !state.user.isDemo && state.user.id);
+  const isReal = !!(state.user && state.user.id);
   const supported = notificationsSupported();
   const perm = supported ? window.Notification.permission : 'unsupported';
 

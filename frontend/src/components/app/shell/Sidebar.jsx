@@ -1,5 +1,5 @@
 import React from 'react';
-import { Infinity, LogOut, RotateCcw, PanelLeftClose } from 'lucide-react';
+import { Infinity, LogOut, PanelLeftClose } from 'lucide-react';
 
 /**
  * Left navigation rail. Renders brand mark, nav items, and the bottom
@@ -9,7 +9,7 @@ import { Infinity, LogOut, RotateCcw, PanelLeftClose } from 'lucide-react';
  * `onClose` (optional) toggles the sidebar collapsed state in the shell —
  * a chevron button appears in the header when provided.
  */
-export default function Sidebar({ nav, activeKey, isDemo, onNavigate, onResetDemo, onLogout, onClose }) {
+export default function Sidebar({ nav, activeKey, onNavigate, onLogout, onClose }) {
   return (
     <aside className="border border-[color:var(--color-border)] flex flex-col bg-white relative overflow-hidden rounded-2xl shadow-sm h-full">
       <div className="relative px-5 pt-5 pb-6 flex items-center gap-2 shrink-0">
@@ -18,7 +18,7 @@ export default function Sidebar({ nav, activeKey, isDemo, onNavigate, onResetDem
         </span>
         <div className="leading-tight min-w-0 flex-1">
           <div className="font-semibold text-[14.5px] tracking-tight">InfinitySheets</div>
-          <div className="text-[10px] text-slate-500">{isDemo ? 'Demo session' : 'Adaptive study'}</div>
+          <div className="text-[10px] text-slate-500">Adaptive study</div>
         </div>
         {onClose && (
           <button
@@ -50,23 +50,13 @@ export default function Sidebar({ nav, activeKey, isDemo, onNavigate, onResetDem
         })}
       </nav>
       <div className="relative px-3 pb-4 pt-4 border-t border-[color:var(--color-border)] flex flex-col gap-1">
-        {isDemo && (
-          <button
-            onClick={onResetDemo}
-            data-testid="sidebar-reset-demo"
-            className="sidebar-item w-full text-left text-[13.5px] px-3 py-2 rounded-lg flex items-center gap-2.5 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-          >
-            <RotateCcw className="w-5 h-5 text-blue-600" />
-            <span>Reset demo</span>
-          </button>
-        )}
         <button
           onClick={onLogout}
           data-testid="sidebar-logout"
           className="sidebar-item w-full text-left text-[13.5px] px-3 py-2 rounded-lg flex items-center gap-2.5 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
         >
           <LogOut className="w-5 h-5" />
-          <span>{isDemo ? 'Exit demo' : 'Logout'}</span>
+          <span>Logout</span>
         </button>
       </div>
     </aside>

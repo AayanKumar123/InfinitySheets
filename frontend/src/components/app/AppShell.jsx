@@ -19,9 +19,7 @@ import CourseOverview from './CourseOverview';
 import TopicOverview from './TopicOverview';
 import ResourcesPage from '../landing/ResourcesPage';
 import Sidebar from './shell/Sidebar';
-import DemoBanner from './shell/DemoBanner';
 import TopHeader from './shell/TopHeader';
-import { toast } from 'sonner';
 import Flashcards from './Flashcards';
 import Groups from './Groups';
 import ConsentGate from './ConsentGate';
@@ -112,10 +110,9 @@ function renderRoute(activeKey, params, go, isAdmin) {
 }
 
 export default function AppShell({ hash }) {
-  const { state, syncStatus, logout, apiLogout, toggleTheme, restartTutorial, restartOnboarding, resetProgress } = useApp();
+  const { state, syncStatus, apiLogout, toggleTheme } = useApp();
   const { key: active, params } = parseHash(hash);
-  const isDemo = !!state.user?.isDemo;
-  const isAdmin = state.user?.role === 'admin' || isDemo;
+  const isAdmin = state.user?.role === 'admin';
   const NAV = isAdmin ? [...BASE_NAV, ADMIN_ITEM] : BASE_NAV;
   const ALL_ITEMS = [...NAV, ...HIDDEN_ROUTES];
   const current = ALL_ITEMS.find((n) => n.key === active) || NAV[0];
@@ -187,20 +184,8 @@ export default function AppShell({ hash }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const resetDemo = () => {
-    resetProgress();
-    restartOnboarding();
-    restartTutorial();
-    window.location.hash = '#dashboard';
-    toast.success('Demo reset — starting setup from the top');
-  };
-
   const exitAccount = async () => {
-    if (isDemo) {
-      logout();
-    } else {
-      await apiLogout();
-    }
+    await apiLogout();
     window.location.hash = '';
   };
 
@@ -232,9 +217,7 @@ export default function AppShell({ hash }) {
           <Sidebar
             nav={NAV}
             activeKey={current.key}
-            isDemo={isDemo}
             onNavigate={go}
-            onResetDemo={resetDemo}
             onLogout={exitAccount}
             onClose={() => setSidebarOpen(false)}
           />
@@ -242,7 +225,6 @@ export default function AppShell({ hash }) {
       </div>
 
       <main className="min-w-0 flex-1 relative">
-        {isDemo && <DemoBanner onResetDemo={resetDemo} onExit={exitAccount} />}
         <TopHeader
           title={current.label}
           activeKey={current.key}
@@ -254,7 +236,6 @@ export default function AppShell({ hash }) {
           onOpenSidebar={() => setSidebarOpen(true)}
           onOpenPalette={() => setPaletteOpen(true)}
           syncStatus={syncStatus}
-          isDemo={!!state.user?.isDemo}
         />
         <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-7 max-w-[1280px]">
           {renderRoute(current.key, params, go, isAdmin)}

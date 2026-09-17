@@ -12,8 +12,7 @@ tooling (past-paper PDF extraction) using the `service_role` key.
   `@supabase/supabase-js` for auth and every study-data read/write. `AppContext`
   is the single place components touch data (unchanged public API:
   `apiRegister`, `apiLogin`, `apiGoogleAuth`, `apiLogout`, plus all study
-  mutations). Demo mode (`state.user.isDemo`) stays **100% local** (localStorage,
-  no network).
+  mutations).
 - **Backend** — FastAPI. Only past-paper admin/PDF-extraction. Uses the
   `service_role` key server-side (bypasses RLS) and verifies caller tokens
   through Supabase GoTrue. **Never** ships the service_role key to the browser.
@@ -175,12 +174,11 @@ Fix: a topic preselected from the Syllabus Bank / study plan / Today's 5 was res
 
 ### Wave 3
 
-- **Demo opens pre-loaded**: Try Demo → an IGCSE course (Mathematics, Physics) with 18 seeded worksheets and a 5-day streak, then the consent question, then the tutorial on a populated dashboard. *Reset demo* wipes it.
 - **Mistake-reason chips are optional**: Settings → Accessibility → *Ask why I missed a question* (default on; chips are labelled "optional").
 - **Flashcards explain the concept**: on the answer side, *Explain the concept I missed* asks the AI for the idea, the one rule and the trap; cached per card.
 - **Study groups are not competitive**: no rank column, alphabetical, your own row highlighted — "what the group did this week", not a leaderboard.
 - **Study plan shows the exam countdown** and plans back from that date.
-- **Study groups in the demo**: a sample group with made-up classmates so new visitors see the feature; real groups need an account.
+- **Study groups** need an account; there is no sample group.
 
 ### Ads (parked)
 

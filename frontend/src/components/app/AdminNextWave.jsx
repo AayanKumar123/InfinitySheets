@@ -11,7 +11,7 @@ import { TOPICS } from '../../data/mock';
 // built-in TOPICS for that (board, subject) everywhere in the app.
 export function SyllabusImport({ board, subject }) {
   const { state, setSyllabusTopics } = useApp();
-  const isReal = !!(state.user && !state.user.isDemo && state.user.id);
+  const isReal = !!(state.user && state.user.id);
   const existing = (state.syllabusTopics || []).find((r) => r.board === board && r.subject === subject);
   const [drafts, setDrafts] = useState(null);
   const [source, setSource] = useState('');
@@ -92,7 +92,7 @@ export function SyllabusImport({ board, subject }) {
 // question hides it from new worksheets until an admin acts.
 export function FlagQueue() {
   const { state, removePastPaper } = useApp();
-  const isReal = !!(state.user && !state.user.isDemo && state.user.id);
+  const isReal = !!(state.user && state.user.id);
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(isReal);
   const load = useCallback(() => {
