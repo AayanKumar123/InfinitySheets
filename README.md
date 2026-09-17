@@ -107,8 +107,17 @@ signup (email/password and Google).
 5. **Account deletion** is self-service: Settings → Delete account calls
    `public.delete_own_account()` (SECURITY DEFINER), which removes the auth
    row and cascades to every table the user owns.
-6. **Make an admin** (to manage past papers): in SQL Editor,
-   `update public.profiles set role='admin' where email='you@example.com';`
+6. **Admins are allow-listed.** Only addresses in `public.admin_emails` can
+   ever hold `role='admin'` (migration `0010_admin_allowlist_lock.sql`): the
+   `profiles_admin_allowlist` trigger downgrades any other row, `is_admin()`
+   re-checks the list, clients can't change `role`/`email` at all, and the
+   Admin tab only renders for admins. To add an admin, insert their email in
+   SQL Editor: `insert into public.admin_emails (email) values ('x@y.com');`
+   — the account becomes admin once that email is confirmed.
+7. **Recommended toggles**: Authentication → Providers → Email → *Confirm
+   email* ON; Authentication → *Leaked password protection* ON (Pro plan).
+8. The `ai-chat` edge function refuses calls without a signed-in session and
+   rate-limits per account.
 
 ---
 

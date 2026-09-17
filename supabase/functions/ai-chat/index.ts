@@ -219,17 +219,31 @@ function cleanFiles(list: unknown, max = 6): FileIn[] {
     .map((f) => ({ mimeType: String(f.mimeType), data: String(f.data), label: f.label ? String(f.label) : undefined }));
 }
 
-// Best-effort per-IP rate limit. The function is callable with the public
-// anon key (the demo has no account), so without this one visitor could burn
-// the whole free-tier quota. In-memory per isolate: a ceiling, not a ledger.
+// Only signed-in students may use the AI (there is no demo any more). The
+// caller's session token is checked against Supabase Auth; the anon key on
+// its own is refused, so the Gemini quota can't be drained anonymously.
+async function requireUser(req: Request): Promise<string | null> {
+  const auth = req.headers.get("authorization") || "";
+  const token = auth.replace(/^Bearer\s+/i, "").trim();
+  if (!token || !DB_URL || !DB_KEY) return null;
+  try {
+    const r = await fetch(`${DB_URL}/auth/v1/user`, { headers: { apikey: DB_KEY, Authorization: `Bearer ${token}` } });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return u && typeof u.id === "string" && u.role === "authenticated" ? u.id : null;
+  } catch { return null; }
+}
+
+// Best-effort per-user rate limit so one account can't burn the whole
+// free-tier quota. In-memory per isolate: a ceiling, not a ledger.
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX = 40;
 const rate = new Map<string, number[]>();
-function rateLimited(ip: string): boolean {
+function rateLimited(who: string): boolean {
   const now = Date.now();
-  const hits = (rate.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (hits.length >= RATE_MAX) { rate.set(ip, hits); return true; }
-  hits.push(now); rate.set(ip, hits);
+  const hits = (rate.get(who) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= RATE_MAX) { rate.set(who, hits); return true; }
+  hits.push(now); rate.set(who, hits);
   if (rate.size > 5000) rate.clear();
   return false;
 }
@@ -237,7 +251,8 @@ function rateLimited(ip: string): boolean {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
-  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || req.headers.get("cf-connecting-ip") || "unknown";
+  const userId = await requireUser(req);
+  if (!userId) return json({ error: "Please sign in to use the AI." }, 401);
 
   const key = envLike("GEMINI_API_KEY");
   if (!key) return json({ error: "AI is not configured yet — add the GEMINI_API_KEY secret to the Supabase project." }, 503);
@@ -251,7 +266,7 @@ Deno.serve(async (req: Request) => {
   // Cached overviews are free; everything else counts against the limit.
   const cachedOverview = mode === "overview" && !body.force ? await cacheGet(cacheKey(ctx)) : null;
   if (cachedOverview) { cacheBumpHit(cacheKey(ctx)); return json({ text: cachedOverview.body, model: cachedOverview.model, cached: true }); }
-  if (rateLimited(ip)) return json({ error: "Too many AI requests from this connection. Please wait a few minutes." }, 429);
+  if (rateLimited(userId)) return json({ error: "Too many AI requests. Please wait a few minutes." }, 429);
 
   // An overview is the same for every student, so check the shared cache first.
   // `force` (the Regenerate button) skips the read but still refreshes the row.
