@@ -172,9 +172,10 @@ export default function AppShell({ hash }) {
     return () => clearInterval(id);
   }, [state.settings?.pushReminders, state.settings?.reminderHour, state.worksheets, state.lastStudyDate, state.streak]);
   const isDark = state.theme === 'dark';
-  const showOnboarding = !state.onboardingDone;
-  const showConsent = state.onboardingDone && !state.consent;
-  const showTutorial = state.onboardingDone && !!state.consent && !state.tutorialDone;
+  // New account: age question → choose courses → short tutorial.
+  const showConsent = !state.consent;
+  const showOnboarding = !!state.consent && !state.onboardingDone;
+  const showTutorial = !!state.consent && state.onboardingDone && !state.tutorialDone;
 
   // Ctrl/⌘ K command palette.
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -260,8 +261,8 @@ export default function AppShell({ hash }) {
         </div>
       </main>
 
-      {showOnboarding && <CourseWizard mode="onboarding" />}
       {showConsent && <ConsentGate />}
+      {showOnboarding && <CourseWizard mode="onboarding" />}
       {showTutorial && <TutorialOverlay />}
       <CommandPalette nav={NAV} go={go} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>

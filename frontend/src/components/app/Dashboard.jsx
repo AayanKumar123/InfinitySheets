@@ -14,7 +14,7 @@ import { recommendedTopics } from '../../lib/studyStats';
 import { TOPICS } from '../../data/mock';
 import AdSlot from '../ads/AdSlot';
 import Badges from './Badges';
-import { DailyChallengeCard, FocusTimer } from './DashboardExtras';
+import { DailyChallengeCard } from './DashboardExtras';
 import MasteryCard from './MasteryCard';
 
 
@@ -99,55 +99,18 @@ function LatestDiagnosisStat({ sheet, go }) {
   );
 }
 
-// Editable: click the pencil, type a number of days and the exam date behind
-// the countdown is updated — the course subject's exam date when that is what
-// is shown, otherwise the account-wide fallback in Settings.
-function DaysStat({ days, subLabel, onChange }) {
+// Read-only countdown; exam dates are edited in Settings.
+function DaysStat({ days, subLabel, onEdit }) {
   const has = days !== null && days !== undefined;
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState('');
-  const start = () => { setVal(has ? String(days) : '30'); setEditing(true); };
-  const commit = () => {
-    const n = parseInt(val, 10);
-    if (Number.isNaN(n) || n < 0 || n > 3650) { toast.error('Enter a number of days between 0 and 3650'); return; }
-    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    onChange(iso, n);
-    setEditing(false);
-  };
   return (
-    <div className="rounded-xl border border-violet-200/70 p-4 bg-violet-50 relative overflow-hidden" data-testid="days-until-exam">
-      <div className="relative flex items-center justify-between">
-        <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-violet-700">Days until exam</div>
-        {!editing && (
-          <button onClick={start} title="Change the number of days" className="w-6 h-6 rounded-md text-violet-600 hover:bg-violet-100 flex items-center justify-center" data-testid="days-edit"><Pencil className="w-3.5 h-3.5" /></button>
-        )}
+    <div className="rounded-xl border border-violet-200/60 bg-violet-50/40 p-4 flex flex-col min-h-[104px]" data-testid="days-until-exam">
+      <div className="eyebrow-muted">Days until exam</div>
+      <div className="text-[26px] font-semibold mt-1 text-slate-900 tabular-nums leading-tight">
+        {has ? days : '\u2014'}
+        {has && <span className="text-[12px] font-medium text-slate-500 ml-1">{days === 1 ? 'day' : 'days'}</span>}
       </div>
-      {editing ? (
-        <div className="relative mt-1 flex items-center gap-1.5">
-          <input
-            autoFocus
-            type="number"
-            min="0"
-            max="3650"
-            value={val}
-            onChange={(e) => setVal(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-            className="input-base w-20 text-[16px] font-semibold py-1 px-2"
-            data-testid="days-input"
-          />
-          <span className="text-[12px] text-slate-500">days</span>
-          <button onClick={commit} className="w-7 h-7 rounded-md bg-violet-600 text-white flex items-center justify-center" data-testid="days-save"><Check className="w-4 h-4" /></button>
-          <button onClick={() => setEditing(false)} className="w-7 h-7 rounded-md text-slate-500 hover:bg-violet-100 flex items-center justify-center"><X className="w-4 h-4" /></button>
-        </div>
-      ) : (
-        <div className="relative text-[24px] font-semibold mt-1 text-slate-900 tabular-nums">
-          {has ? days : '\u2014'}
-          {has && <span className="text-[12px] font-medium text-slate-500 ml-1">{days === 1 ? 'day' : 'days'}</span>}
-        </div>
-      )}
-      {subLabel && !editing && <div className="relative text-[11px] text-slate-500 mt-0.5 truncate">{subLabel}</div>}
-      {!has && !subLabel && !editing && <div className="relative text-[11px] text-slate-500 mt-0.5">Add a course, or set a date here</div>}
+      {subLabel && <div className="text-[11px] text-slate-500 mt-0.5 truncate">{subLabel}</div>}
+      {!has && <button type="button" onClick={onEdit} className="text-[11px] text-violet-700 hover:text-violet-900 mt-0.5 text-left" data-testid="days-edit">Set a date in Settings</button>}
     </div>
   );
 }
@@ -311,20 +274,6 @@ export default function Dashboard({ go }) {
   const fallbackDays = fallbackDate ? Math.max(0, Math.ceil((new Date(fallbackDate + 'T00:00:00').getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
   const nearest = courseExams[0];
   const examCountdown = nearest ? nearest.days : fallbackDays;
-  const setExamDays = (iso, n) => {
-    if (nearest) {
-      const course = (state.courses || []).find((c) => c.name === nearest.courseName && (Array.isArray(c.subjects) ? c.subjects.some((x) => x.subject === nearest.subject) : c.subject === nearest.subject));
-      if (course) {
-        const patch = Array.isArray(course.subjects)
-          ? { subjects: course.subjects.map((x) => (x.subject === nearest.subject ? { ...x, examDate: iso } : x)) }
-          : { examDate: iso };
-        updateCourse(course.id, patch);
-      }
-    } else {
-      updateSettings({ examDate: iso });
-    }
-    toast.success(`Exam set to ${n} day${n === 1 ? '' : 's'} from today${nearest ? ` for ${nearest.name}` : ''}`);
-  };
   const examLabel = nearest ? nearest.name : (fallbackDate ? new Date(fallbackDate).toLocaleDateString() : null);
 
   // Random greeting — picked once per mount, so it changes every refresh.
@@ -389,7 +338,7 @@ export default function Dashboard({ go }) {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <DaysStat days={examCountdown} subLabel={examLabel} onChange={setExamDays} />
+        <DaysStat days={examCountdown} subLabel={examLabel} onEdit={() => go('settings')} />
         <PredictedScoreMini
           predictedBySubject={predictedBySubject}
           visibleSubjects={visibleSubjects}
@@ -496,7 +445,6 @@ export default function Dashboard({ go }) {
 
       <div className="grid lg:grid-cols-2 gap-4">
         <DailyChallengeCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />
-        <FocusTimer />
       </div>
 
       <MasteryCard worksheets={ws} subjects={mySubjects} topicsFor={(sub) => TOPICS[sub] || []} go={go} />

@@ -6,6 +6,7 @@ import { EXAM_TRACKS, SUBJECTS } from '../../data/mock';
 import { primaryTrack, enrolledSubjects } from '../../lib/subjects';
 import { RemindersSection } from './ReminderSettings';
 import { PrivacySection, ThemeModeToggle } from './PrivacyExportSettings';
+import ExamDatesSettings from './ExamDatesSettings';
 
 const GOALS = [5, 10, 20];
 const WEEKLY_GOALS = [20, 50, 100];
@@ -26,6 +27,7 @@ export default function SettingsView() {
       <AccountDetails user={state.user} updateProfile={updateProfile} />
 
       <Preferences settings={state.settings} updateSettings={updateSettings} />
+      <ExamDatesSettings />
 
       <AiSection settings={state.settings} updateSettings={updateSettings} />
       <RemindersSection />

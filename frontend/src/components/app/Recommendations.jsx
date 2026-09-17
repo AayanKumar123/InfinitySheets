@@ -42,7 +42,7 @@ export default function Recommendations({ go }) {
       `Weakest topics: ${weak.join('; ') || 'none identified yet'}.`,
       `Strongest topics: ${strong.join('; ') || 'none identified yet'}.`,
       ...ws.filter((w) => w.diagnosis).slice(0, 3).map((w) => `Latest diagnosis (${w.subject} · ${w.topic}, ${w.score}%): ${String(w.diagnosis.text).slice(0, 500)}`),
-      'Use this to give prioritised, specific advice.',
+      'Use this to give prioritised, specific advice. When the student asks how to structure a session, recommend focused blocks (for example 25 minutes on, 5 off) rather than long unbroken sittings.',
     ].join('\n');
     return { primer, context: { board: boardList[0], boards: boardList } };
   }, [boards, examTrack, weaknesses, strengths, ws, state.settings?.examDate]);

@@ -482,6 +482,9 @@ export default function Worksheets({ go }) {
   const [flags, setFlags] = useState([]);     // per-question "come back to this"
   const [adaptive, setAdaptive] = useState(false);   // difficulty picked from recent accuracy
   const [simulation, setSimulation] = useState(false); // full exam paper structure
+  // Recap: a short check of what you remember. Typed one-line answers, ten
+  // questions, no diagnosis or analysis afterwards — just the answers.
+  const [recap, setRecap] = useState(false);
   const [current, setCurrent] = useState(0);
   // Sheet-level modes chosen on the build screen.
   const [examMode, setExamMode] = useState(false);     // fullscreen, locked
@@ -708,8 +711,8 @@ export default function Worksheets({ go }) {
       toast.error('No past-paper questions match this selection. Ask an admin to upload some, or also tick AI generated.');
       return null;
     }
-    const length = Math.max(3, Math.min(30, Math.round(duration / 3)));
-    const reviewQuestions = withReviews && includeReviews ? reviewsDue.filter((r) => topics.includes(r.topic) || !r.topic).map(reviewToQuestion) : [];
+    const length = recap ? 10 : Math.max(3, Math.min(30, Math.round(duration / 3)));
+    const reviewQuestions = withReviews && includeReviews && !recap ? reviewsDue.filter((r) => topics.includes(r.topic) || !r.topic).map(reviewToQuestion) : [];
     let generated = [];
     if (aiGenerated && aiOn) {
       // How many the AI has to write: the sheet minus reviews minus the
@@ -720,7 +723,7 @@ export default function Worksheets({ go }) {
       if (need > 0) {
         setGenerating(true);
         try {
-          generated = await generateQuestions({ board: boardForSubject, ibLevel: ibLevelForSubject, subject, topics, answerType, difficulty: effDifficulty, count: need });
+          generated = await generateQuestions({ board: boardForSubject, ibLevel: ibLevelForSubject, subject, topics, answerType: recap ? 'Typed response' : answerType, difficulty: recap ? 'Easy' : effDifficulty, count: need });
         } catch (e) {
           toast.error(`${e.message || 'The AI could not write questions'} — using the built-in bank instead.`);
         } finally {
@@ -728,7 +731,7 @@ export default function Worksheets({ go }) {
         }
       }
     }
-    const qs = buildQuestions({ topics, answerType, difficulty: effDifficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions, generated });
+    const qs = buildQuestions({ topics, answerType: recap ? 'Typed response' : answerType, difficulty: recap ? 'Easy' : effDifficulty, length, pastPapers, aiGenerated, pastPaperPool, reviewQuestions, generated });
     if (qs.length < length) toast(`Only ${qs.length} past-paper question${qs.length === 1 ? '' : 's'} match this selection, so this sheet has ${qs.length}. Tick AI generated for more.`);
     return qs;
   };
@@ -776,7 +779,7 @@ export default function Worksheets({ go }) {
     telemetryRef.current = { data: emptyTelemetry(qs.length), enteredAt: null, hiddenAt: null };
     if (examMode) enterFullscreen();
     setStartTime(Date.now());
-    setTimeLeft((simulation ? simPreset.minutes : duration) * 60);
+    setTimeLeft((simulation ? simPreset.minutes : recap ? 10 : duration) * 60);
     setStage('take');
   };
 
@@ -914,7 +917,7 @@ export default function Worksheets({ go }) {
       subject,
       topic: topics.join(', '),
       topics,
-      difficulty: simulation ? 'Exam level' : effDifficulty,
+      difficulty: simulation ? 'Exam level' : recap ? 'Easy' : effDifficulty,
       adaptive: adaptive ? adaptivePick : undefined,
       length: questions.length,
       answerType,
@@ -927,6 +930,7 @@ export default function Worksheets({ go }) {
       flags,
       challenge: challengePick?.key || undefined,
       simulation: simulation ? simMeta : null,
+      recap: recap || undefined,
       examMode,
       // Remembered on the sheet so history / diagnosis still know the board
       // after the subject is removed from the student's courses.
@@ -1350,12 +1354,18 @@ export default function Worksheets({ go }) {
             <div className="h-full bg-blue-500" style={{ width: `${result.score}%` }} />
           </div>
         </div>
-        <div className="mb-5">
-          <DiagnosisPanel sheet={result} autoRun testid="worksheet-diagnosis" />
-        </div>
-        <div className="mb-5">
-          <WorksheetAnalysis sheet={result} testid="worksheet-analysis" />
-        </div>
+        {result.recap ? (
+          <div className="mb-5 text-[13px] text-slate-500" data-testid="recap-note">Recap: answers only. Run a full worksheet for a diagnosis and timing analysis.</div>
+        ) : (
+          <>
+            <div className="mb-5">
+              <DiagnosisPanel sheet={result} autoRun testid="worksheet-diagnosis" />
+            </div>
+            <div className="mb-5">
+              <WorksheetAnalysis sheet={result} testid="worksheet-analysis" />
+            </div>
+          </>
+        )}
         {result.paper && (
           <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-[13px] text-slate-700 inline-flex items-center gap-2">
             <Printer className="w-4 h-4 text-blue-600" /> Done on paper and marked by the AI from your scans{result.durationSec ? ` · ${fmtTime(result.durationSec)} on the timer` : ''}
@@ -1619,6 +1629,13 @@ export default function Worksheets({ go }) {
               checked={paceCoach}
               onChange={setPaceCoach}
               testid="ws-pace-coach"
+            />
+            <CheckboxCard
+              label={<span>Recap <span className="text-slate-500 font-normal">— 10 short answers, 10 min, answers only</span></span>}
+              icon={<Zap className="w-5 h-5 text-emerald-600" />}
+              checked={recap}
+              onChange={(v) => { setRecap(v); if (v) setSimulation(false); }}
+              testid="ws-recap"
             />
           </div>
           {simulation && (

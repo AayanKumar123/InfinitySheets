@@ -58,7 +58,6 @@ const defaultState = {
   // Wave 2: age band + AI consent (asked once), focus-timer sessions, and
   // whether the theme follows the OS.
   consent: null,
-  focusSessions: [],
   themeMode: 'manual',
   questionsToday: 0,
   goalDate: null,
@@ -237,30 +236,20 @@ export function AppProvider({ children }) {
     return () => { if (mql.removeEventListener) mql.removeEventListener('change', apply); else mql.removeListener(apply); };
   }, [state.themeMode]);
 
-  // The demo is a new visitor's first look, so it opens pre-loaded: a sample
-  // course with two subjects and a few weeks of realistic worksheet history.
+  // The demo asks the same two questions as a real account (age, then your
+  // board / subjects / exam dates) and then fills the chosen subjects with a
+  // few weeks of sample worksheets so every page has something to show.
   // "Reset demo" wipes it; everything stays on this device.
-  const DEMO_COURSE = { id: 'c_demo', name: 'IGCSE Term', exam: 'IGCSE', subjects: [{ subject: 'Mathematics' }, { subject: 'Physics' }], status: 'Active', target: 'A' };
   const seedRef = useRef(null);
   const startDemo = useCallback(() => {
     isDemoLocalRef.current = true;
     setSyncStatus('local');
-    let fresh = false;
-    setState((s) => {
-      fresh = !(s.courses || []).length && !(s.worksheets || []).length;
-      const courses = fresh ? [{ ...DEMO_COURSE, addedAt: new Date().toISOString() }] : s.courses;
-      return {
-        ...s,
-        user: { name: 'Demo Student', email: 'demo@infinitysheets.app', examTrack: primaryTrack(courses, 'IGCSE'), isDemo: true, subjects: ['Mathematics', 'Physics'] },
-        courses,
-        onboardingDone: true,
-        demoSeeded: fresh ? true : s.demoSeeded,
-      };
-    });
+    setState((s) => ({
+      ...s,
+      user: { name: 'Demo Student', email: 'demo@infinitysheets.app', examTrack: primaryTrack(s.courses, s.user?.examTrack || 'IGCSE'), isDemo: true, subjects: s.user?.subjects || [] },
+      onboardingDone: (s.courses || []).length > 0 && !!s.onboardingDone,
+    }));
     setLoaded(true);
-    // Seed after the course is in state (seedTestPerformance reads stateRef).
-    setTimeout(() => { if (fresh) seedRef.current?.(); }, 50);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Functional update: the wizard calls addCourse immediately before this,
@@ -283,6 +272,11 @@ export function AppProvider({ children }) {
     const saved = patch(stateRef.current);
     bg(() => store.upsertProfile(uid(), { examTrack: saved.user?.examTrack, subjects: saved.user?.subjects || [] }), 'onboarding/profile');
     bg(() => store.upsertSettings(saved, uid()), 'onboarding/settings');
+    // Demo only: sample history for the subjects just chosen (after the
+    // course the wizard added has landed in state).
+    if (stateRef.current.user?.isDemo && !(stateRef.current.worksheets || []).length) {
+      setTimeout(() => seedRef.current?.(), 80);
+    }
   }, []);
 
   const restartOnboarding = useCallback(() => {
@@ -752,11 +746,6 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings({ ...stateRef.current, consent, settings: { ...stateRef.current.settings, aiEnabled: !!aiConsent } }, uid()), 'consent');
   }, []);
 
-  const logFocusSession = useCallback((session) => {
-    setState((s) => ({ ...s, focusSessions: [...(s.focusSessions || []).slice(-199), session] }));
-    bg(() => store.upsertSettings(stateRef.current, uid()), 'focus');
-  }, []);
-
   const setSyllabusTopics = useCallback((rows) => {
     setState((s) => ({ ...s, syllabusTopics: rows }));
   }, []);
@@ -772,7 +761,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, setThemeMode, saveFlashcardExplanation,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -784,7 +773,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, startDemo, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, setThemeMode, saveFlashcardExplanation,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

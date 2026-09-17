@@ -313,10 +313,10 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                         </div>
                       </div>
                       <input type="date" min={new Date().toISOString().slice(0, 10)} className="input-base" value={v} onChange={(e) => setDates((d) => ({ ...d, [s]: e.target.value }))} />
-                      <div className="rounded-md border border-violet-200/60 bg-violet-50 px-3 py-2 text-right min-w-[100px]">
-                        <div className="text-[9.5px] tracking-wider uppercase font-semibold text-violet-700">Days</div>
-                        <div className="text-[16px] font-semibold text-slate-900 tabular-nums">{days !== null ? days : '—'}</div>
-                      </div>
+                      <label className="rounded-md border border-violet-200/60 bg-violet-50 px-3 py-2 min-w-[120px] flex flex-col">
+                        <span className="text-[9.5px] tracking-wider uppercase font-semibold text-violet-700">Or in … days</span>
+                        <input type="number" min="0" max="3650" inputMode="numeric" placeholder="30" aria-label={`Days until the ${s} exam`} className="bg-transparent outline-none text-[16px] font-semibold text-slate-900 tabular-nums w-full" value={days ?? ''} onChange={(e) => { const n = parseInt(e.target.value, 10); setDates((d) => ({ ...d, [s]: Number.isNaN(n) ? '' : inDays(Math.max(0, Math.min(3650, n))) })); }} data-testid={`days-${s.replace(/\s+/g, '-')}`} />
+                      </label>
                       <div className="md:col-span-3 flex flex-wrap gap-1.5">
                         {[7, 30, 60, 90, 180].map((d) => {
                           const iso = inDays(d);
