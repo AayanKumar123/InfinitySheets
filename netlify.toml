@@ -1,0 +1,9 @@
+# Netlify: the React app lives in frontend/. Hash routing, so no redirects
+# are needed. CI=true keeps lint warnings as build errors, same as locally.
+[build]
+  base = "frontend"
+  command = "corepack enable && corepack yarn install && CI=true corepack yarn build"
+  publish = "build"
+
+[build.environment]
+  NODE_VERSION = "22"
