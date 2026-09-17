@@ -20,7 +20,7 @@ function HeroHeading() {
   return (
     <h1 className="h-display text-[56px] sm:text-[80px] lg:text-[108px] leading-[1.02] max-w-[1080px]">
       A study tool tailored just for{' '}
-      <span className={`hl-mark hl-serif ${highlight ? 'hl-on' : ''}`}>you</span>.
+      <span className={`em-highlight hl-serif ${highlight ? 'em-on' : ''}`}>you</span>.
     </h1>
   );
 }

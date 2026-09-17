@@ -658,64 +658,40 @@ html:not(.dark) .shot-dark { display: none; }
     .doodle-wave, .doodle-wobble, .doodle-flip, .doodle-pop { animation: none; }
 }
 
-/* Marker-highlight sweep (study vibe) */
-.hl-mark { position: relative; z-index: 0; display: inline-block; }
-.hl-mark::before {
-    content: '';
-    position: absolute;
-    inset: 12% -5% 6% -5%;
-    background: linear-gradient(100deg, rgba(253, 224, 71, 0.85), rgba(250, 204, 21, 0.65));
-    border-radius: 0.35em 0.5em 0.4em 0.45em;
-    transform: scaleX(0) rotate(-1deg);
-    transform-origin: left center;
-    z-index: -1;
+/* Emphasis marks (Emphasis.jsx): straight, no wobble. */
+.em-highlight {
+    display: inline; padding: 0.05em 0.15em; margin: 0 -0.15em; border-radius: 0.25em;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+    background-image: linear-gradient(rgba(253, 224, 71, 0.55), rgba(253, 224, 71, 0.55));
+    background-repeat: no-repeat; background-size: 0% 100%; background-position: left center;
+    transition: background-size 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.hl-mark.hl-on::before { animation: hl-sweep 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-@keyframes hl-sweep {
-    to { transform: scaleX(1) rotate(-1deg); }
-}
-html.dark .hl-mark::before {
-    background: linear-gradient(100deg, rgba(202, 138, 4, 0.75), rgba(161, 98, 7, 0.6));
-}
-/* Amber marker for text on always-dark sections (white text stays readable). */
-.hl-amber::before,
-html.dark .hl-amber::before {
-    background: linear-gradient(100deg, rgba(217, 119, 6, 0.92), rgba(180, 83, 9, 0.85)) !important;
-}
-@media (prefers-reduced-motion: reduce) {
-    .hl-mark.hl-on::before { animation: none; transform: scaleX(1) rotate(-1deg); }
-}
+.em-highlight.em-on { background-size: 100% 100%; }
+html.dark .em-highlight { background-image: linear-gradient(rgba(202, 138, 4, 0.45), rgba(202, 138, 4, 0.45)); }
+.em-amber, html.dark .em-amber { background-image: linear-gradient(rgba(217, 119, 6, 0.6), rgba(217, 119, 6, 0.6)) !important; }
 
-/* Hand-drawn underline that draws itself in when scrolled into view. */
-.u-mark { position: relative; white-space: nowrap; }
-.u-line {
-    position: absolute; left: -3%; bottom: -0.24em; width: 106%; height: 0.42em;
-    overflow: visible; pointer-events: none;
+.em-underline { position: relative; display: inline; white-space: nowrap; }
+.em-underline::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -0.08em; height: 2px; border-radius: 2px;
+    background: #2563eb; transform: scaleX(0); transform-origin: left center;
+    transition: transform 0.55s 0.05s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.u-line path {
-    fill: none; stroke: #2563eb; stroke-width: 2.4; stroke-linecap: round;
-    vector-effect: non-scaling-stroke; stroke-dasharray: 220; stroke-dashoffset: 220;
-}
-html.dark .u-line path { stroke: #60a5fa; }
-.u-mark.u-on .u-line path { animation: u-draw 0.75s 0.05s ease-out forwards; }
-@keyframes u-draw { to { stroke-dashoffset: 0; } }
+.em-underline.em-on::after { transform: scaleX(1); }
+html.dark .em-underline::after { background: #60a5fa; }
 
-/* Hand-drawn circle that loops around a short phrase (e.g. a price). */
-.c-mark { position: relative; display: inline-block; }
-.c-ring {
-    position: absolute; left: -14%; top: -22%; width: 128%; height: 150%;
-    overflow: visible; pointer-events: none;
+.em-circle { position: relative; display: inline-block; padding: 0.05em 0.35em; }
+.em-circle::before {
+    content: ''; position: absolute; inset: -0.1em -0.1em; border: 2px solid #2563eb; border-radius: 999px;
+    opacity: 0; transform: scale(0.92); transition: opacity 0.4s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.c-ring path {
-    fill: none; stroke: #2563eb; stroke-width: 2.4; stroke-linecap: round;
-    vector-effect: non-scaling-stroke; stroke-dasharray: 360; stroke-dashoffset: 360;
-}
-html.dark .c-ring path { stroke: #60a5fa; }
-.c-mark.c-on .c-ring path { animation: c-draw 0.9s 0.1s ease-out forwards; }
-@keyframes c-draw { to { stroke-dashoffset: 0; } }
+.em-circle.em-on::before { opacity: 1; transform: scale(1); }
+html.dark .em-circle::before { border-color: #60a5fa; }
 
 @media (prefers-reduced-motion: reduce) {
-    .u-mark.u-on .u-line path, .c-mark.c-on .c-ring path { animation: none; stroke-dashoffset: 0; }
+    .em-highlight, .em-underline::after, .em-circle::before { transition: none; }
+    .em-highlight { background-size: 100% 100%; }
+    .em-underline::after { transform: scaleX(1); }
+    .em-circle::before { opacity: 1; transform: scale(1); }
 }
 
 /* Typed-out heading caret */
