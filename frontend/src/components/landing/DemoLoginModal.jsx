@@ -145,8 +145,6 @@ export default function DemoLoginModal({ open, onClose }) {
           </button>
         </form>
       </div>
-        </div>
-      </div>
     </div>
   );
 }
