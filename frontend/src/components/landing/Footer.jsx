@@ -16,7 +16,7 @@ export default function Footer() {
         <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2">
             <Infinity className="w-4 h-4 text-blue-600" strokeWidth={2.4} />
-            <span className="text-[13.5px] font-semibold text-zinc-900">InfinitySheets</span>
+            <span className="text-[13.5px] font-semibold text-zinc-900">InfinityStudios</span>
           </div>
           <p className="mt-3 text-[12.5px] text-zinc-500 leading-relaxed max-w-[220px]">
             Endless exam-style practice, tuned to your weak spots. Free forever.

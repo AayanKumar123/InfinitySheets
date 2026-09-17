@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { SUBJECTS, SUBJECT_INFO, EXAM_TRACKS } from '../../data/mock';
 import { enrolledSubjects, subjectBoards, boardName, tracksOffering, defaultBoardFor, primaryTrack } from '../../lib/subjects';
 
-import { BookOpen, ArrowRight, Search, Plus, X, Trash2, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
+import { BookOpen, ArrowRight, Search, Plus, X, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import InfinityBackground from '../decor/InfinityBackground';
 import SubjectOverview from './SubjectOverview';
@@ -107,25 +107,9 @@ export default function StartStudying({ go, subjectParam }) {
 
   // Drop a subject from every course that contains it. Empty courses are
   // removed so the student doesn't end up with a course with no subjects.
-  const removeSubject = (s) => {
-    if (!subjectInCourse(s)) return;
-    if (typeof window !== 'undefined' && !window.confirm(`Remove ${s} from your courses?`)) return;
-    let count = 0;
-    (courses || []).forEach((c) => {
-      const subs = Array.isArray(c.subjects) ? c.subjects : (c.subject ? [{ subject: c.subject }] : []);
-      const has = subs.some((e) => (typeof e === 'string' ? e : e?.subject) === s);
-      if (!has) return;
-      const next = subs.filter((e) => (typeof e === 'string' ? e : e?.subject) !== s);
-      if (next.length === 0) removeCourse(c.id);
-      else updateCourse(c.id, { subjects: next });
-      count += 1;
-    });
-    if (count) toast.success(`Removed ${s}`);
-  };
 
   const renderCard = (s, taken) => {
     const info = SUBJECT_INFO[s] || { emoji: '\u25A0', tagline: 'Practice and improve.', tone: 'primary' };
-    const removable = taken && subjectInCourse(s);
     return (
       <div key={s} className="group relative card-soft p-5 overflow-hidden flex flex-col" data-testid={`subject-tile-${s}`}>
         <button
@@ -177,15 +161,6 @@ export default function StartStudying({ go, subjectParam }) {
             className="relative mt-4 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-semibold text-blue-700 border border-blue-300 bg-blue-50/60 hover:bg-blue-100 transition-colors"
           >
             <Plus className="w-4 h-4" /> Add Subject
-          </button>
-        )}
-        {removable && (
-          <button
-            onClick={() => removeSubject(s)}
-            data-testid={`remove-subject-${s}`}
-            className="relative mt-4 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[13px] font-semibold text-rose-600 border border-rose-200 bg-rose-50/60 hover:bg-rose-100 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" /> Remove
           </button>
         )}
       </div>
