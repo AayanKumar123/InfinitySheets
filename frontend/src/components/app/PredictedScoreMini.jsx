@@ -99,8 +99,8 @@ export default function PredictedScoreMini({ predictedBySubject, visibleSubjects
 
   if (scored.length === 0) {
     return (
-      <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-4">
-        <div className="eyebrow-muted">{label}</div>
+      <div className="tile tile-royal">
+        <div className="eyebrow-muted tile-accent">{label}</div>
         <div className="text-[20px] font-semibold mt-1 text-slate-400">&mdash;</div>
         <div className="text-[11px] text-slate-500 mt-1">Complete a worksheet in any subject to unlock.</div>
         {footer}
@@ -118,8 +118,8 @@ export default function PredictedScoreMini({ predictedBySubject, visibleSubjects
   });
 
   return (
-    <div className="rounded-xl border border-[color:var(--color-border)] bg-white p-4" data-testid="predicted-grade-tile">
-      <div className="eyebrow-muted">{label}</div>
+    <div className="tile tile-royal" data-testid="predicted-grade-tile">
+      <div className="eyebrow-muted tile-accent">{label}</div>
       {order.length === 1 ? (
         <BoardSummary track={order[0]} scored={groups[order[0]]} />
       ) : (

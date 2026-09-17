@@ -78,11 +78,11 @@ function LatestDiagnosisStat({ sheet, go }) {
     <button
       type="button"
       onClick={() => go('recommendations')}
-      className="text-left rounded-xl border border-emerald-200/70 p-4 bg-emerald-50/60 hover:border-emerald-400 transition-colors relative overflow-hidden"
+      className="text-left tile tile-emerald hover:brightness-[1.03] transition-colors relative overflow-hidden"
       data-testid="latest-diagnosis"
       aria-label="Open Smart Learning"
     >
-      <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-emerald-700 inline-flex items-center gap-1"><Stethoscope className="w-3.5 h-3.5" /> Latest diagnosis</div>
+      <div className="text-[10px] tracking-[0.14em] uppercase font-semibold tile-accent inline-flex items-center gap-1"><Stethoscope className="w-3.5 h-3.5" /> Latest diagnosis</div>
       {d ? (
         <>
           <div className="text-[13.5px] font-semibold text-slate-900 mt-1 truncate">{sheet.subject} · {sheet.topic} <span className="text-slate-500 font-medium tabular-nums">{sheet.score}%</span></div>
@@ -103,8 +103,8 @@ function LatestDiagnosisStat({ sheet, go }) {
 function DaysStat({ days, subLabel, onEdit }) {
   const has = days !== null && days !== undefined;
   return (
-    <div className="rounded-xl border border-violet-200/60 bg-violet-50/40 p-4 flex flex-col min-h-[104px]" data-testid="days-until-exam">
-      <div className="eyebrow-muted">Days until exam</div>
+    <div className="tile tile-violet flex flex-col min-h-[104px]" data-testid="days-until-exam">
+      <div className="eyebrow-muted tile-accent">Days until exam</div>
       <div className="text-[26px] font-semibold mt-1 text-slate-900 tabular-nums leading-tight">
         {has ? days : '\u2014'}
         {has && <span className="text-[12px] font-medium text-slate-500 ml-1">{days === 1 ? 'day' : 'days'}</span>}
@@ -321,11 +321,11 @@ export default function Dashboard({ go }) {
           }
         />
         <LatestDiagnosisStat sheet={latestDiagnosed} go={go} />
-        <div className="rounded-xl border border-[color:var(--color-border)] p-4 bg-white" data-testid="weekly-goal">
-          <div className="text-[10px] tracking-[0.14em] uppercase font-semibold text-slate-500">Weekly goal</div>
+        <div className="tile tile-orange" data-testid="weekly-goal">
+          <div className="text-[10px] tracking-[0.14em] uppercase font-semibold tile-accent">Weekly goal</div>
           <div className="text-[20px] font-semibold mt-1 text-slate-900 tabular-nums">{questionsThisWeek} <span className="text-[13px] font-medium text-slate-500">/ {weeklyGoal} questions</span></div>
-          <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-blue-500 transition-all" style={{ width: `${progressPct}%` }} />
+          <div className="mt-2 h-1.5 rounded-full tile-track overflow-hidden">
+            <div className="h-full tile-bar transition-all" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="text-[11px] text-slate-500 mt-1">{progressPct >= 100 ? 'Goal reached this week' : `${weeklyGoal - questionsThisWeek} to go · last 7 days`}</div>
         </div>
