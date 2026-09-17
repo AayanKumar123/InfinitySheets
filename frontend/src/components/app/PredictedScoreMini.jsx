@@ -41,11 +41,7 @@ function CountRow({ entries }) {
       {entries.map((e) => (
         <div key={e.key} className="inline-flex items-baseline gap-1">
           <span className="text-[20px] font-semibold text-slate-900 tabular-nums leading-none">{e.count}</span>
-          {e.html ? (
-            <span className="text-[13px] font-semibold text-slate-600 leading-none" dangerouslySetInnerHTML={{ __html: e.label }} />
-          ) : (
-            <span className="text-[13px] font-semibold text-slate-600 leading-none">{e.label}</span>
-          )}
+          <span className="text-[13px] font-semibold text-slate-600 leading-none">{e.label}</span>
         </div>
       ))}
     </div>
@@ -76,7 +72,7 @@ function BoardSummary({ track, scored, compact }) {
     sub = `Across ${scored.length} subject${scored.length === 1 ? '' : 's'} \u00b7 predicted IB grade (1\u20137).`;
   } else {
     const entries = PERCENT_BUCKETS
-      .map((b) => ({ key: b.key, count: scored.filter((p) => p.predicted >= b.min && p.predicted < b.max).length, label: b.label, html: true }))
+      .map((b) => ({ key: b.key, count: scored.filter((p) => p.predicted >= b.min && p.predicted < b.max).length, label: b.label }))
       .filter((b) => b.count > 0);
     value = <CountRow entries={entries} />;
     sub = `Across ${scored.length} subject${scored.length === 1 ? '' : 's'}.`;
