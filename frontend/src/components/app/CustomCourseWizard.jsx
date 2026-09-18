@@ -45,7 +45,7 @@ function placeholderSummaryForTopic(topic, file) {
 
 const ACCEPTED = '.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,image/*';
 
-export default function CustomCourseWizard({ onClose }) {
+export default function CustomCourseWizard({ onClose, onCreated }) {
   const { addCourse } = useApp();
 
   const [name, setName] = useState('');
@@ -106,6 +106,8 @@ export default function CustomCourseWizard({ onClose }) {
         status: 'Active',
       });
       toast.success(`${name.trim()} added — course overview ready`);
+      // Lets a parent (e.g. the onboarding wizard) finish its own flow.
+      if (onCreated) onCreated({ courseId, subject: subject.trim() });
       if (onClose) onClose();
       window.location.hash = `#course-overview?id=${encodeURIComponent(courseId)}`;
     } catch (e) {

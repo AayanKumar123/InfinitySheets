@@ -398,7 +398,7 @@ function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerTy
 /* ================== Main component ================== */
 
 export default function Worksheets({ go }) {
-  const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet, tagMistakeReason } = useApp();
+  const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet, tagMistakeReason, addPendingSubmission, removePendingSubmission } = useApp();
   const tagReason = (sheetId, i, reason) => { tagMistakeReason(sheetId, i, reason); if (reason) trackEvent('mistake_tagged', { reason }); };
   const track = primaryTrack(state.courses, state.user?.examTrack);
   const examMinutes = EXAM_DURATIONS[track] || 60;
@@ -496,10 +496,24 @@ export default function Worksheets({ go }) {
   const aiOn = isAiEnabled(state);
   const [generating, setGenerating] = useState(false);   // AI is writing questions
   const [paper, setPaper] = useState(() => loadPaper()); // printed worksheet session
+  const [submissionId, setSubmissionId] = useState(null); // pending submission this paper came from
   const [paperNow, setPaperNow] = useState(Date.now());
   const [assessing, setAssessing] = useState(false);
   const [paperFiles, setPaperFiles] = useState([]);
   useEffect(() => { savePaper(paper); }, [paper]);
+  // Opened from the dashboard "Submissions due" card to scan + mark a saved
+  // worksheet: load its questions into a paper session so the hand-in UI shows.
+  useEffect(() => {
+    let id = null;
+    try { id = window.sessionStorage.getItem('scan_submission_id'); window.sessionStorage.removeItem('scan_submission_id'); } catch (_) { /* ignore */ }
+    if (!id) return;
+    const sub = (state.pendingSubmissions || []).find((x) => x.id === id);
+    if (!sub) return;
+    setSubmissionId(sub.id);
+    setPaper({ id: `paper_${Date.now()}`, subject: sub.subject, topics: sub.topics, answerType: sub.answerType, difficulty: sub.difficulty, duration: sub.duration, questions: sub.questions, createdAt: sub.createdAt, startedAt: null, submittedAt: null });
+    setPaperFiles([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!paper?.startedAt || paper.submittedAt) return;
     const id = setInterval(() => setPaperNow(Date.now()), 1000);
@@ -822,6 +836,16 @@ export default function Worksheets({ go }) {
       // Open a paper session so the student can time it and hand in the answers.
       setPaper({ id: `paper_${Date.now()}`, subject, topics, answerType, difficulty, duration, questions: qs, createdAt: new Date().toISOString(), startedAt: null, submittedAt: null });
       setPaperFiles([]);
+      setSubmissionId(null);
+      // Track it as a submission due (default: one week) so the student can
+      // find it on the dashboard, cancel the deadline, or hand it in for AI
+      // marking later.
+      const due = new Date(); due.setDate(due.getDate() + 7);
+      addPendingSubmission({
+        subject, topics, answerType, difficulty, duration,
+        questions: qs, board: boardForSubject, ibLevel: ibLevelForSubject,
+        dueDate: due.toISOString().slice(0, 10),
+      });
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('PDF export failed', err);
@@ -890,6 +914,7 @@ export default function Worksheets({ go }) {
         date: submittedAt,
       };
       recordWorksheet(sheet);
+      if (submissionId) { removePendingSubmission(submissionId); setSubmissionId(null); }
       setResult(sheet);
       setPaper(null);
       setPaperFiles([]);
@@ -1657,7 +1682,7 @@ export default function Worksheets({ go }) {
               testid="ws-past-papers"
             />
             <CheckboxCard
-              label={<>&#x2728; AI generated questions</>}
+              label={<>&#x2728; Accurate to you</>}
               icon={<Sparkles className="w-5 h-5 text-blue-700" />}
               checked={aiGenerated}
               onChange={setAiGenerated}

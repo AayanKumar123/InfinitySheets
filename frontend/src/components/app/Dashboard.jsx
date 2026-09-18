@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail, SlidersHorizontal, GripVertical } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail, SlidersHorizontal, GripVertical, Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
@@ -115,8 +115,47 @@ function DaysStat({ days, subLabel, onEdit }) {
   );
 }
 
+// Worksheets exported as a PDF and awaiting hand-in. The student can drop the
+// deadline or hand the sheet in for AI marking. Hidden when there are none.
+function SubmissionsDueCard({ submissions, onScan, onCancel, onClearDue }) {
+  if (!submissions.length) return null;
+  const daysLeft = (iso) => (iso ? Math.ceil((new Date(iso + 'T00:00:00').getTime() - Date.now()) / 86400000) : null);
+  return (
+    <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white" data-testid="submissions-due">
+      <div className="eyebrow-muted mb-3 flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-600" /> Worksheet submissions due</div>
+      <ul className="flex flex-col gap-2.5">
+        {submissions.map((s) => {
+          const d = daysLeft(s.dueDate);
+          return (
+            <li key={s.id} className="flex items-center gap-3 rounded-lg border border-[color:var(--color-border)] px-3 py-2.5" data-testid={`submission-${s.id}`}>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13.5px] font-medium text-slate-900 truncate">{s.subject}</div>
+                <div className="text-[11.5px] text-slate-500 truncate">{(s.topics || []).join(' · ') || 'Worksheet'}</div>
+              </div>
+              {s.dueDate ? (
+                <span className={`text-[11.5px] font-medium tabular-nums shrink-0 ${d !== null && d < 0 ? 'text-rose-600' : d !== null && d <= 2 ? 'text-amber-600' : 'text-slate-500'}`}>
+                  {d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'Due today' : `Due in ${d}d`}
+                </span>
+              ) : (
+                <span className="text-[11.5px] text-slate-400 shrink-0">No deadline</span>
+              )}
+              {s.dueDate && (
+                <button type="button" onClick={() => onClearDue(s.id)} className="text-[11.5px] text-slate-500 hover:text-slate-800 shrink-0" data-testid={`submission-cleardue-${s.id}`}>Cancel date</button>
+              )}
+              <button type="button" onClick={() => onScan(s.id)} className="btn-violet inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] font-semibold shrink-0" data-testid={`submission-scan-${s.id}`}>
+                <Upload className="w-3.5 h-3.5" /> Scan
+              </button>
+              <button type="button" aria-label="Remove" onClick={() => onCancel(s.id)} className="w-7 h-7 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" data-testid={`submission-remove-${s.id}`}><X className="w-4 h-4" /></button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export default function Dashboard({ go }) {
-  const { state, clearDraftWorksheet, updateSettings, updateCourse } = useApp();
+  const { state, clearDraftWorksheet, updateSettings, updateCourse, removePendingSubmission, setSubmissionDue } = useApp();
   // Memoised: a fresh `[]` fallback each render would invalidate every useMemo below.
   // Only subjects still in the student's courses count towards the dashboard.
   const ws = useMemo(() => activeWorksheets(state.worksheets, state.courses, state.user?.subjects, primaryTrack(state.courses, state.user?.examTrack)), [state.worksheets, state.courses, state.user?.subjects, state.user?.examTrack]);
@@ -398,6 +437,14 @@ export default function Dashboard({ go }) {
         </div>
       )}
       </>
+    ) },
+    { id: 'submissions', label: 'Worksheet submissions due', node: (
+      <SubmissionsDueCard
+        submissions={state.pendingSubmissions || []}
+        onScan={(id) => { try { window.sessionStorage.setItem('scan_submission_id', id); } catch (_) { /* ignore */ } go('worksheets'); }}
+        onCancel={(id) => removePendingSubmission(id)}
+        onClearDue={(id) => setSubmissionDue(id, null)}
+      />
     ) },
     { id: 'week', label: 'This week + reviews due', node: (
       <>

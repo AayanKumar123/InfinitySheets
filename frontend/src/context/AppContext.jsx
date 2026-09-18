@@ -61,6 +61,11 @@ const defaultState = {
   consent: null,
   themeMode: 'manual',
   focusSessions: [],
+  // Worksheets exported as a PDF and awaiting hand-in. Each carries its
+  // questions so it can be scanned + AI-marked later. { id, subject, topics,
+  // answerType, difficulty, duration, questions, board, ibLevel, createdAt,
+  // dueDate }.
+  pendingSubmissions: [],
   questionsToday: 0,
   goalDate: null,
   // In-progress worksheet the student left mid-way (null when none). Lets them
@@ -784,6 +789,23 @@ export function AppProvider({ children }) {
     setState((s) => ({ ...s, syllabusTopics: rows }));
   }, []);
 
+  // ---- Worksheet submissions due ------------------------------------------
+  const addPendingSubmission = useCallback((sub) => {
+    const entry = { id: `sub_${Date.now()}`, createdAt: new Date().toISOString(), ...sub };
+    setState((s) => ({ ...s, pendingSubmissions: [entry, ...(s.pendingSubmissions || [])].slice(0, 20) }));
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'submissions/add');
+    return entry;
+  }, []);
+  const removePendingSubmission = useCallback((id) => {
+    setState((s) => ({ ...s, pendingSubmissions: (s.pendingSubmissions || []).filter((x) => x.id !== id) }));
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'submissions/remove');
+  }, []);
+  // Clear just the deadline but keep the worksheet available to scan.
+  const setSubmissionDue = useCallback((id, dueDate) => {
+    setState((s) => ({ ...s, pendingSubmissions: (s.pendingSubmissions || []).map((x) => (x.id === id ? { ...x, dueDate: dueDate || null } : x)) }));
+    bg(() => store.upsertSettings(stateRef.current, uid()), 'submissions/due');
+  }, []);
+
   const value = useMemo(() => ({
     state, loaded, syncStatus,
     signup, login, logout,
@@ -795,7 +817,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation, addPendingSubmission, removePendingSubmission, setSubmissionDue,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -807,7 +829,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation, addPendingSubmission, removePendingSubmission, setSubmissionDue,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

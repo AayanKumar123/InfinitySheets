@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { EXAM_TRACKS, SUBJECTS, SUBJECT_INFO } from '../../data/mock';
 import { ArrowRight, ArrowLeft, Calendar, CheckCircle2, GraduationCap, BookOpen, X, Sparkles, CalendarClock, Target } from 'lucide-react';
 import StudyDecor from '../decor/StudyDecor';
+import CustomCourseWizard from './CustomCourseWizard';
 import { toast } from 'sonner';
 
 // Entrance exams have a fixed syllabus — every candidate sits the same
@@ -34,6 +35,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const isOnboarding = mode === 'onboarding';
 
   const [step, setStep] = useState(0);
+  const [customOpen, setCustomOpen] = useState(false);
   const [examTrack, setExamTrack] = useState(state.user?.examTrack || ''); // nothing preselected until the student picks a board
   const trackSubjects = useMemo(() => SUBJECTS[examTrack] || [], [examTrack]);
   const [picked, setPicked] = useState([]); // [subject, ...]
@@ -120,6 +122,15 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
     else if (isOnboarding) completeOnboarding({ examTrack, examDate: '', subjects: trackSubjects.slice(0, 1), frequency, weeklyGoal });
   };
 
+  if (customOpen) {
+    return (
+      <CustomCourseWizard
+        onCreated={isOnboarding ? ({ subject }) => completeOnboarding({ examTrack: 'Custom', examDate: '', subjects: [subject], frequency, weeklyGoal }) : undefined}
+        onClose={() => { setCustomOpen(false); if (onClose) onClose(); }}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center section-bg overflow-auto">
       <StudyDecor density="dense" />
@@ -183,6 +194,20 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                     </button>
                   );
                 })}
+                {/* Bring-your-own material: opens the custom course builder. */}
+                <button
+                  type="button"
+                  data-testid="exam-custom"
+                  onClick={() => setCustomOpen(true)}
+                  className="text-left rounded-xl border border-dashed border-[color:var(--color-border)] bg-white px-4 py-3 transition-colors hover:bg-slate-100"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[13.5px] font-semibold text-violet-700 inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Custom course</div>
+                      <div className="text-[11.5px] text-slate-500 mt-0.5">Your own subject and material.</div>
+                    </div>
+                  </div>
+                </button>
               </div>
             </div>
           )}
