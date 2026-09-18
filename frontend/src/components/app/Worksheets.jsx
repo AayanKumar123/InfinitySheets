@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { TOPICS, QUESTION_BANK, FALLBACK_QUESTIONS, EXAM_DURATIONS } from '../../data/mock';
-import { enrolledSubjects, questionsForSubject, resolvedTopics, primaryTrack } from '../../lib/subjects';
-import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck, Printer, Play, Upload, Trash2 } from 'lucide-react';
+import { enrolledSubjects, questionsForSubject, resolvedTopics, topicGroups, primaryTrack } from '../../lib/subjects';
+import { Check, X, Clock, ChevronLeft, ChevronRight, Sparkles, FileText, AlertCircle, Download, Flag, Lock, Maximize2, Gauge, RotateCcw, Loader2, ClipboardCheck, Printer, Play, Upload, Trash2, ChevronDown, Minus } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import CreateWorksheetButton from './CreateWorksheetButton';
@@ -688,6 +688,24 @@ export default function Worksheets({ go }) {
   const toggleTopic = (t) => {
     setTopics((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
   };
+  // Topics grouped into collapsible chapter dropdowns for the picker.
+  const chapterGroups = useMemo(
+    () => topicGroups(state.syllabusTopics, boardForSubject, subject),
+    [state.syllabusTopics, boardForSubject, subject],
+  );
+  const allUnits = useMemo(() => chapterGroups.flatMap((g) => g.units), [chapterGroups]);
+  // Which chapters are expanded. A single "All topics" group opens by default;
+  // when a subject splits into several chapters they start collapsed.
+  const [openChapters, setOpenChapters] = useState({});
+  useEffect(() => {
+    setOpenChapters(chapterGroups.length <= 1 ? { 0: true } : {});
+  }, [subject, boardForSubject, chapterGroups.length]);
+  const setChapterTopics = (units, on) => setTopics((prev) => {
+    const set = new Set(prev);
+    units.forEach((u) => (on ? set.add(u) : set.delete(u)));
+    return Array.from(set);
+  });
+  const selectAllTopics = (on) => setTopics(on ? [...allUnits] : []);
 
   // Count of admin-uploaded past-paper questions matching current filters.
   const ppAvailable = useMemo(() => {
@@ -1512,24 +1530,81 @@ export default function Worksheets({ go }) {
         </div>
 
         <Field label={`Topics (${topics.length} selected)`}>
-          {topicsList.length === 0 ? (
+          {allUnits.length === 0 ? (
             <div className="text-[13px] text-slate-500 italic">No topics available for this subject yet.</div>
           ) : (
-            <div className="flex flex-wrap gap-2" data-testid="ws-topics">
-              {topicsList.map((t) => {
-                const sel = topics.includes(t);
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => toggleTopic(t)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium border transition-colors ${sel ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-zinc-200 bg-white text-slate-700 hover:bg-slate-100'}`}
-                  >
-                    {sel && <Check className="w-4 h-4" />}
-                    {t}
-                  </button>
-                );
-              })}
+            <div data-testid="ws-topics">
+              {/* Master control: tick or clear every unit across all chapters. */}
+              <div className="flex items-center justify-between mb-2">
+                <button
+                  type="button"
+                  onClick={() => selectAllTopics(topics.length !== allUnits.length)}
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-blue-700 hover:text-blue-900"
+                  data-testid="ws-topics-select-all"
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center ${topics.length === allUnits.length ? 'bg-blue-600 border-blue-600 text-white' : topics.length ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-slate-300 text-transparent'}`}>
+                    {topics.length === allUnits.length ? <Check className="w-3 h-3" /> : topics.length ? <Minus className="w-3 h-3" /> : null}
+                  </span>
+                  {topics.length === allUnits.length ? 'Clear all' : 'Select all'}
+                </button>
+                <span className="text-[11.5px] text-slate-500 tabular-nums">{topics.length}/{allUnits.length}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {chapterGroups.map((g, gi) => {
+                  const selectedIn = g.units.filter((u) => topics.includes(u));
+                  const allOn = selectedIn.length === g.units.length;
+                  const someOn = selectedIn.length > 0 && !allOn;
+                  const open = !!openChapters[gi];
+                  const single = chapterGroups.length === 1;
+                  return (
+                    <div key={g.chapter + gi} className="rounded-lg border border-[color:var(--color-border)] overflow-hidden" data-testid={`ws-chapter-${gi}`}>
+                      <div className="flex items-center gap-2 px-3 py-2 bg-slate-50/70">
+                        {/* Chapter-level select-all (indeterminate when partial). */}
+                        <button
+                          type="button"
+                          onClick={() => setChapterTopics(g.units, !allOn)}
+                          aria-label={`Select all in ${g.chapter}`}
+                          className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${allOn ? 'bg-blue-600 border-blue-600 text-white' : someOn ? 'bg-blue-100 border-blue-400 text-blue-700' : 'border-slate-300 text-transparent hover:border-slate-400'}`}
+                          data-testid={`ws-chapter-all-${gi}`}
+                        >
+                          {allOn ? <Check className="w-3.5 h-3.5" /> : someOn ? <Minus className="w-3.5 h-3.5" /> : null}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOpenChapters((o) => ({ ...o, [gi]: !o[gi] }))}
+                          className="flex-1 flex items-center justify-between text-left"
+                          aria-expanded={open}
+                          data-testid={`ws-chapter-toggle-${gi}`}
+                        >
+                          <span className="text-[13px] font-semibold text-slate-800">{single ? 'Topics' : g.chapter}</span>
+                          <span className="flex items-center gap-2">
+                            <span className="text-[11px] text-slate-500 tabular-nums">{selectedIn.length}/{g.units.length}</span>
+                            {open ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                          </span>
+                        </button>
+                      </div>
+                      {open && (
+                        <div className="flex flex-wrap gap-2 p-3">
+                          {g.units.map((t) => {
+                            const sel = topics.includes(t);
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => toggleTopic(t)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12.5px] font-medium border transition-colors ${sel ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-zinc-200 bg-white text-slate-700 hover:bg-slate-100'}`}
+                              >
+                                {sel && <Check className="w-4 h-4" />}
+                                {t}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </Field>

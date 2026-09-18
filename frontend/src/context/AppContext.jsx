@@ -79,6 +79,11 @@ export function AppProvider({ children }) {
   useEffect(() => { stateRef.current = state; }, [state]);
 
   const bootstrappedRef = useRef(null);
+  // Admin-only demo/preview: a local sample account. While it's active the
+  // Supabase auth listener and localStorage cache are frozen so the admin's
+  // real account is never touched, and nothing syncs (a demo user has no id,
+  // so canSync() is already false).
+  const demoRef = useRef(false);
 
   // Cloud-sync status for the header badge: idle | saving | saved | error | local
   const [syncStatus, setSyncStatus] = useState('idle');
@@ -178,6 +183,7 @@ export function AppProvider({ children }) {
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (demoRef.current) return; // a demo preview freezes the real session
       if (event === 'SIGNED_OUT') {
         bootstrappedRef.current = null;
         setSyncStatus('idle');
@@ -202,6 +208,7 @@ export function AppProvider({ children }) {
   // otherwise. Auth tokens are stored separately by supabase-js.
   useEffect(() => {
     if (!loaded) return;
+    if (demoRef.current) return; // never cache the demo over the real account
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch (err) { logError('persist', err); }
   }, [state, loaded]);
@@ -584,6 +591,48 @@ export function AppProvider({ children }) {
     bg(() => store.upsertSettings(next, uid()), 'seed/settings');
   }, []);
 
+  // ---- Admin-only demo / preview ------------------------------------------
+  // Enter a fully local sample account to see the app the way a new student
+  // does. Only an admin can trigger it (the caller also gates the button).
+  // Nothing is written to Supabase (the demo user has no id) and the admin's
+  // real cached state is left untouched; exitDemo reloads back into it.
+  const startAdminDemo = useCallback(() => {
+    if (stateRef.current.user?.role !== 'admin') return;
+    demoRef.current = true;
+    setSyncStatus('local');
+    const sampleCourse = {
+      id: `demo_${Date.now()}`,
+      addedAt: new Date().toISOString(),
+      name: 'AS & A Level (demo)',
+      exam: 'ASA',
+      status: 'Active',
+      target: 'A*',
+      level: 'Intermediate',
+      subjects: [
+        { subject: 'Physics' }, { subject: 'Chemistry' }, { subject: 'Mathematics' },
+      ],
+    };
+    setState((s) => withTrack({
+      ...s,
+      user: { name: 'Demo Student', email: 'demo@infinitysheets.app', role: 'user', examTrack: 'ASA', isDemo: true, subjects: ['Physics', 'Chemistry', 'Mathematics'] },
+      courses: [sampleCourse],
+      worksheets: [],
+      mistakes: [],
+      onboardingDone: true,
+    }, [sampleCourse]));
+    setLoaded(true);
+    // Fill the sample subjects with a few weeks of history once the course has
+    // landed in state.
+    setTimeout(() => seedTestPerformance(), 60);
+  }, [seedTestPerformance]);
+
+  const exitDemo = useCallback(() => {
+    demoRef.current = false;
+    // The admin's Supabase session is still alive; a reload re-bootstraps their
+    // real account and discards the in-memory demo data.
+    if (typeof window !== 'undefined') window.location.reload();
+  }, []);
+
 
   // ---- past papers --------------------------------------------------------
   const refreshPastPapers = useCallback(async () => {
@@ -739,7 +788,7 @@ export function AppProvider({ children }) {
     state, loaded, syncStatus,
     signup, login, logout,
     apiRegister, apiLogin, apiGoogleAuth, apiLogout,
-    updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount,
+    updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount, startAdminDemo, exitDemo,
     recordWorksheet, removeMistake,
     saveDraftWorksheet, clearDraftWorksheet, updateWorksheet,
     finishTutorial, restartTutorial,
@@ -751,7 +800,7 @@ export function AppProvider({ children }) {
     state, loaded, syncStatus,
     signup, login, logout,
     apiRegister, apiLogin, apiGoogleAuth, apiLogout,
-    updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount,
+    updateProfile, updateSettings, resetProgress, seedTestPerformance, deleteAccount, startAdminDemo, exitDemo,
     recordWorksheet, removeMistake,
     saveDraftWorksheet, clearDraftWorksheet, updateWorksheet,
     finishTutorial, restartTutorial,

@@ -110,7 +110,8 @@ function renderRoute(activeKey, params, go, isAdmin) {
 }
 
 export default function AppShell({ hash }) {
-  const { state, syncStatus, apiLogout, toggleTheme } = useApp();
+  const { state, syncStatus, apiLogout, toggleTheme, exitDemo } = useApp();
+  const isDemo = !!state.user?.isDemo;
   const { key: active, params } = parseHash(hash);
   const isAdmin = state.user?.role === 'admin';
   const NAV = isAdmin ? [...BASE_NAV, ADMIN_ITEM] : BASE_NAV;
@@ -225,6 +226,12 @@ export default function AppShell({ hash }) {
       </div>
 
       <main className="min-w-0 flex-1 relative">
+        {isDemo && (
+          <div className="sticky top-0 z-30 bg-violet-600 text-white text-[12.5px] font-medium px-4 py-1.5 flex items-center justify-center gap-3" data-testid="demo-banner">
+            <span>Demo preview — sample data, nothing is saved.</span>
+            <button type="button" onClick={exitDemo} className="underline underline-offset-2 hover:opacity-90" data-testid="demo-exit">Exit demo</button>
+          </div>
+        )}
         <TopHeader
           title={current.label}
           activeKey={current.key}

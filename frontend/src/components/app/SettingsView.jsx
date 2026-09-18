@@ -18,11 +18,24 @@ const DIFF = ['Easy', 'Medium', 'Exam level', 'Hard'];
 // --------------------------------------------------------------------------
 
 export default function SettingsView() {
-  const { state, updateProfile, updateSettings, resetProgress, deleteAccount, restartTutorial, restartOnboarding, toggleTheme } = useApp();
+  const { state, updateProfile, updateSettings, resetProgress, deleteAccount, restartTutorial, restartOnboarding, toggleTheme, startAdminDemo } = useApp();
+  const isAdmin = state.user?.role === 'admin';
 
   return (
     <div className="max-w-[820px] flex flex-col gap-5">
       <p className="text-[14px] text-slate-500">Manage your account, study preferences, and how the app behaves.</p>
+
+      {isAdmin && (
+        <Section title="Admin tools" icon={User} subtitle="Only visible to administrators.">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13.5px] font-medium text-slate-900">Demo preview</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">Enter a local sample account to see the app as a new student. Nothing is saved; “Exit demo” returns to your account.</div>
+            </div>
+            <button type="button" onClick={startAdminDemo} className="btn-violet px-4 py-2 rounded-lg text-[13px] font-semibold shrink-0" data-testid="admin-start-demo">Enter demo</button>
+          </div>
+        </Section>
+      )}
 
       <AccountDetails user={state.user} updateProfile={updateProfile} />
 

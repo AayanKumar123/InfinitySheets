@@ -10,7 +10,7 @@
 // Mathematics + IB Mathematics AA HL) sees every subject they added.
 
 import { SUBJECTS, EXAM_TRACKS, TOPICS } from '../data/mock';
-import { BOARD_TOPICS } from '../data/syllabi';
+import { BOARD_TOPICS, boardSubject } from '../data/syllabi';
 
 export const boardName = (id) => EXAM_TRACKS.find((t) => t.id === id)?.name || id;
 
@@ -142,4 +142,29 @@ export function topicsFor(board, subject) {
 // Admin override → board syllabus → legacy.
 export function resolvedTopics(syllabusTopics, board, subject) {
   return syllabusTopicNames(syllabusTopics, board, subject) || topicsFor(board, subject);
+}
+
+// Topics grouped into chapters for the worksheet picker's collapsible
+// dropdowns. Shape: [{ chapter, units: [topic name, ...] }].
+//   1. An admin-imported syllabus can carry chapters on its rows.
+//   2. A board syllabus file can define `chapters: [{ name, units }]` on a
+//      subject; when present those become the dropdowns.
+//   3. Otherwise every topic is a unit under a single "All topics" group, so
+//      the picker still gives one collapsible list with select-all.
+export function topicGroups(syllabusTopics, board, subject) {
+  const rows = syllabusTopics || [];
+  const imported = rows.find((r) => r.subject === subject && r.board === board);
+  if (imported && Array.isArray(imported.chapters) && imported.chapters.length) {
+    return imported.chapters
+      .map((c) => ({ chapter: c.name || 'Topics', units: (c.units || []).map((u) => (typeof u === 'string' ? u : u?.name)).filter(Boolean) }))
+      .filter((g) => g.units.length);
+  }
+  const subj = boardSubject(board, subject);
+  if (subj && Array.isArray(subj.chapters) && subj.chapters.length) {
+    return subj.chapters
+      .map((c) => ({ chapter: c.name || 'Topics', units: (c.units || []).filter(Boolean) }))
+      .filter((g) => g.units.length);
+  }
+  const flat = resolvedTopics(syllabusTopics, board, subject);
+  return flat.length ? [{ chapter: 'All topics', units: flat }] : [];
 }

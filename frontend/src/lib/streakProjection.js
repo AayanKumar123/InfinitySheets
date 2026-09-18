@@ -87,15 +87,21 @@ export function projectStreak(worksheets = [], { subject, board, streak = 0, now
       ? `At this pace you reach ${nb.label} in ${subject} in about ${weeksToNext} week${weeksToNext === 1 ? '' : 's'}${streak >= 3 ? ` — your ${streak}-day streak is doing the work` : ''}.`
       : `Keep this rhythm and ${subject} holds at ${projectedLabel}.`;
 
-  return { subject, board, current, projected, weeks, sheetsPerWeek: +sheetsPerWeek.toFixed(1), gainPerSheet: +gainPerSheet.toFixed(1), currentLabel, projectedLabel, nextBoundary: nb, weeksToNext, crosses, message, tone: formatGrade(projected, board).tone };
+  // A projection is only worth showing when it actually predicts a change:
+  // the projected grade differs from the current one, or a boundary is crossed.
+  const changes = crosses || projectedLabel !== currentLabel;
+  return { subject, board, current, projected, weeks, sheetsPerWeek: +sheetsPerWeek.toFixed(1), gainPerSheet: +gainPerSheet.toFixed(1), currentLabel, projectedLabel, nextBoundary: nb, weeksToNext, crosses, changes, message, tone: formatGrade(projected, board).tone };
 }
 
 // Pick the most motivating subject to headline: one that crosses a boundary
 // soonest, else the one with the most sheets.
 export function bestProjection(worksheets, subjects, boards, opts = {}) {
   const all = (subjects || []).map((s) => projectStreak(worksheets, { ...opts, subject: s, board: boards?.[s]?.board || opts.board })).filter(Boolean);
-  if (!all.length) return null;
-  const crossing = all.filter((p) => p.crosses).sort((a, b) => (a.weeksToNext || 99) - (b.weeksToNext || 99));
+  // Only surface projections that predict an actual change; a flat "holds at
+  // the same grade" projection is not shown.
+  const changing = all.filter((p) => p.changes);
+  if (!changing.length) return null;
+  const crossing = changing.filter((p) => p.crosses).sort((a, b) => (a.weeksToNext || 99) - (b.weeksToNext || 99));
   if (crossing.length) return crossing[0];
-  return all.sort((a, b) => (a.weeksToNext || 99) - (b.weeksToNext || 99))[0];
+  return changing.sort((a, b) => (a.weeksToNext || 99) - (b.weeksToNext || 99))[0];
 }

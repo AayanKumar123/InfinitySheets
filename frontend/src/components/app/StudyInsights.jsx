@@ -198,12 +198,13 @@ export function TimingTrendsCard({ worksheets, subject }) {
 export function StreakProjectionCard({ worksheets, subjects, boards, streak }) {
   const p = useMemo(() => bestProjection(worksheets, subjects, boards, { streak, weeks: 2 }), [worksheets, subjects, boards, streak]);
   const tone = p ? (p.tone === 'good' ? 'text-emerald-700' : p.tone === 'ok' ? 'text-amber-700' : 'text-rose-700') : '';
+  // Only render when there is an actual projected change; otherwise hide the
+  // whole card (the parent lets the heatmap take the full width).
+  if (!p) return null;
   return (
     <div className="rounded-xl border border-[color:var(--color-border)] p-5 bg-white flex flex-col" data-testid="streak-projection">
       <div className="eyebrow-muted mb-2 flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-violet-600" /> If you keep this up</div>
-      {!p ? (
-        <div className="text-[13px] text-slate-500 flex-1">Finish two worksheets in a subject and this card projects the grade your streak is heading for.</div>
-      ) : (
+      {(
         <>
           <div className="flex items-end gap-3 mt-1">
             <div>

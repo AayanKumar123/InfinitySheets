@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
+import { CalendarClock, Sparkles, BookOpen, ArrowRight, PlayCircle, Stethoscope, Pencil, Check, X, Mail, SlidersHorizontal, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStrengthsWeaknesses, useSavedSwOverrides } from '../../hooks/useStrengthsWeaknesses';
 import { predictedScore, formatGrade, scoreToIBGrade } from '../../lib/predictedGrade';
@@ -10,6 +10,7 @@ import PredictedScoreMini from './PredictedScoreMini';
 import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
 import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile, StreakProjectionCard } from './StudyInsights';
+import { bestProjection } from '../../lib/streakProjection';
 import { recommendedTopics } from '../../lib/studyStats';
 import AdSlot from '../ads/AdSlot';
 import Badges from './Badges';
@@ -406,14 +407,17 @@ export default function Dashboard({ go }) {
       </div>
       </>
     ) },
-    { id: 'streak', label: 'Study streak + projection', node: (
-      <>
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2"><StreakHeatmap worksheets={ws} streak={state.streak} /></div>
-        <StreakProjectionCard worksheets={ws} subjects={mySubjects} boards={mySubjectBoards} streak={state.streak} />
+    { id: 'streak', label: 'Study streak + projection', node: (() => {
+      // The projection card only appears when it predicts an actual grade
+      // change; when it doesn't, the heatmap takes the full width.
+      const proj = bestProjection(ws, mySubjects, mySubjectBoards, { streak: state.streak, weeks: 2 });
+      return (
+      <div className={`grid gap-4 ${proj ? 'lg:grid-cols-3' : ''}`}>
+        <div className={proj ? 'lg:col-span-2' : ''}><StreakHeatmap worksheets={ws} streak={state.streak} /></div>
+        {proj && <StreakProjectionCard worksheets={ws} subjects={mySubjects} boards={mySubjectBoards} streak={state.streak} />}
       </div>
-      </>
-    ) },
+      );
+    })() },
     { id: 'today', label: "Today's 5 + Pomodoro timer", node: (
       <>
       <div className="grid lg:grid-cols-2 gap-4">
@@ -573,6 +577,8 @@ export default function Dashboard({ go }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardPrefs, CARDS.map((c) => c.id).join('|')]);
   const [manageOpen, setManageOpen] = useState(false);
+  const [dragId, setDragId] = useState(null);   // card being dragged in the manager
+  const [overId, setOverId] = useState(null);   // card the pointer is currently over
   const prefsList = (() => {
     const byId = new Map(CARDS.map((c) => [c.id, c]));
     const base = cardPrefs ? cardPrefs.filter((p) => byId.has(p.id)) : CARDS.map((c) => ({ id: c.id, on: true }));
@@ -585,6 +591,18 @@ export default function Dashboard({ go }) {
     const i = prefsList.findIndex((p) => p.id === id); const j = i + dir;
     if (i < 0 || j < 0 || j >= prefsList.length) return;
     const next = [...prefsList]; [next[i], next[j]] = [next[j], next[i]]; savePrefs(next);
+  };
+  // Drag a card and drop it onto another to reorder — the dragged card lands
+  // just before the one it was dropped on.
+  const reorderCard = (fromId, toId) => {
+    if (!fromId || fromId === toId) return;
+    const from = prefsList.findIndex((p) => p.id === fromId);
+    const to = prefsList.findIndex((p) => p.id === toId);
+    if (from < 0 || to < 0) return;
+    const next = [...prefsList];
+    const [moved] = next.splice(from, 1);
+    next.splice(next.findIndex((p) => p.id === toId), 0, moved);
+    savePrefs(next);
   };
 
   return (
@@ -603,7 +621,7 @@ export default function Dashboard({ go }) {
           <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-[14px] font-semibold text-slate-900">Dashboard cards</div>
-              <div className="text-[12px] text-slate-500">Choose which cards show and the order they appear in.</div>
+              <div className="text-[12px] text-slate-500">Drag the handle to reorder; toggle to show or hide. Or use ↑/↓ when a handle is focused.</div>
             </div>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => savePrefs(null)} className="text-[12px] text-slate-500 hover:text-slate-800">Reset</button>
@@ -615,13 +633,29 @@ export default function Dashboard({ go }) {
               const c = CARDS.find((x) => x.id === p.id);
               const on = p.on !== false;
               return (
-                <li key={p.id} className="py-2 flex items-center gap-3">
+                <li
+                  key={p.id}
+                  onDragOver={(e) => { if (dragId) { e.preventDefault(); if (overId !== p.id) setOverId(p.id); } }}
+                  onDrop={(e) => { e.preventDefault(); reorderCard(dragId, p.id); setDragId(null); setOverId(null); }}
+                  className={`py-2 flex items-center gap-2.5 transition-colors ${dragId === p.id ? 'opacity-40' : ''} ${overId === p.id && dragId !== p.id ? 'bg-blue-50/70 rounded-lg' : ''}`}
+                  data-testid={`card-row-${p.id}`}
+                >
+                  <button
+                    type="button"
+                    aria-label={`Reorder ${c?.label}`}
+                    draggable
+                    onDragStart={(e) => { setDragId(p.id); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', p.id); } catch (_) {} }}
+                    onDragEnd={() => { setDragId(null); setOverId(null); }}
+                    onKeyDown={(e) => { if (e.key === 'ArrowUp') { e.preventDefault(); moveCard(p.id, -1); } else if (e.key === 'ArrowDown') { e.preventDefault(); moveCard(p.id, 1); } }}
+                    className="w-7 h-7 shrink-0 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
+                    data-testid={`card-drag-${p.id}`}
+                  >
+                    <GripVertical className="w-4 h-4" />
+                  </button>
                   <button type="button" role="switch" aria-checked={on} aria-label={`Show ${c?.label}`} onClick={() => toggleCard(p.id)} className={`w-9 h-5 rounded-full relative shrink-0 transition-colors ${on ? 'bg-blue-600' : 'bg-slate-300'}`} data-testid={`card-toggle-${p.id}`}>
                     <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
                   </button>
                   <span className={`flex-1 text-[13px] ${on ? 'text-slate-800' : 'text-slate-400'}`}>{c?.label}</span>
-                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => moveCard(p.id, -1)} className="w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center" data-testid={`card-up-${p.id}`}><ChevronUp className="w-4 h-4" /></button>
-                  <button type="button" aria-label="Move down" disabled={i === prefsList.length - 1} onClick={() => moveCard(p.id, 1)} className="w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center" data-testid={`card-down-${p.id}`}><ChevronDown className="w-4 h-4" /></button>
                 </li>
               );
             })}
