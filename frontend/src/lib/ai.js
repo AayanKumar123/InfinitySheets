@@ -171,7 +171,33 @@ function parseJsonReply(text) {
   return JSON.parse(repaired);
 }
 
-const QUESTION_SHAPE = 'Write all maths and science in textbook Unicode notation: 3², x⁻¹, 10⁻³, √2, ×, ÷, ≤, ≥, ±, π, θ, H₂O, m/s² — never ^, sqrt(), *, or LaTeX. Each question object: {"q": string, "topic": one of the given topics, "answerType": "Multiple choice" | "Typed response" | "Exam style", "marks": integer, "options": [4 strings, MCQ only], "a": index of the correct option (MCQ only), "typedAnswer": string (typed only), "typedAliases": [strings] (typed only), "examAnswer": model answer (exam style), "examKeywords": [3-6 key ideas] (exam style), "markScheme": [{"point": string, "marks": integer}]}';
+const QUESTION_SHAPE = 'Write all maths and science in textbook Unicode notation: 3², x⁻¹, 10⁻³, √2, ×, ÷, ≤, ≥, ±, π, θ, H₂O, m/s² — never ^, sqrt(), *, or LaTeX. Each question object: {"q": string, "topic": one of the given topics, "answerType": "Multiple choice" | "Typed response" | "Exam style" | "Drawing", "marks": integer, "options": [4 strings, MCQ only], "a": index of the correct option (MCQ only), "typedAnswer": string (typed only), "typedAliases": [strings] (typed only), "examAnswer": model answer (exam style / drawing), "examKeywords": [3-6 key ideas], "hasDiagram": true when the question shows or needs a figure, "diagramNote": short description of that figure, "markScheme": [{"point": string, "marks": integer}]}';
+
+// Recover as many COMPLETE question objects as possible from a `{"questions":[
+// ...]}` reply even when the JSON was cut off by the token limit — we walk the
+// array counting braces and keep every object that closed cleanly.
+function recoverQuestions(text) {
+  const s = String(text || '');
+  const key = s.search(/"questions"\s*:\s*\[/);
+  if (key < 0) return [];
+  let i = s.indexOf('[', key) + 1;
+  const out = [];
+  while (i < s.length) {
+    while (i < s.length && /[\s,]/.test(s[i])) i += 1;
+    if (s[i] !== '{') break;
+    let depth = 0, inStr = false, esc = false, start = i;
+    for (; i < s.length; i += 1) {
+      const c = s[i];
+      if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; }
+      else if (c === '"') inStr = true;
+      else if (c === '{') depth += 1;
+      else if (c === '}') { depth -= 1; if (depth === 0) { i += 1; break; } }
+    }
+    if (depth !== 0) break; // truncated object — stop
+    try { out.push(JSON.parse(s.slice(start, i))); } catch (_) { break; }
+  }
+  return out;
+}
 
 // Normalise whatever the model returns into the shape the worksheet uses.
 const DIFFICULTIES = ['Easy', 'Medium', 'Exam level', 'Hard'];
@@ -190,6 +216,8 @@ export function shapeQuestion(raw, { answerType, difficulty, topics = [], subjec
     answerType: type,
     difficulty: DIFFICULTIES.includes(raw.difficulty) ? raw.difficulty : difficulty,
     marks: Number(raw.marks) || undefined,
+    hasDiagram: raw.hasDiagram === true || type === 'Drawing' ? true : undefined,
+    diagramNote: raw.diagramNote ? String(raw.diagramNote).trim() : undefined,
     markScheme: Array.isArray(raw.markScheme) ? raw.markScheme.filter((p) => p && p.point).map((p) => ({ point: String(p.point), marks: Math.max(1, parseInt(p.marks, 10) || 1) })) : undefined,
   };
   if (type === 'Multiple choice') {
@@ -235,25 +263,62 @@ export async function generateQuestions({ board, ibLevel, subject, topics, answe
  * Admin bulk import: a question-paper PDF (plus an optional mark-scheme PDF)
  * → drafts with answers and marking schemes filled in.
  */
-export async function extractFromPdf({ paper, scheme, board, subject, topics = [] }) {
+export async function extractFromPdf({ paper, scheme, board, subject, topics = [], onProgress }) {
   const files = [{ ...paper, label: 'QUESTION PAPER' }];
   if (scheme) files.push({ ...scheme, label: 'MARK SCHEME' });
-  const content = [
-    `Extract every question from the QUESTION PAPER for ${subject} (${board}).`,
+  const baseLines = [
+    `Extract EVERY question from the QUESTION PAPER for ${subject} (${board}) — do not stop until the last question on the last page.`,
     scheme
       ? 'A MARK SCHEME is attached: take the accepted answer and the mark points for each question from it, matched by question number.'
       : 'No mark scheme is attached: give the correct answer and write a sensible examiner-style marking scheme for each question.',
     `Tag each question with the closest topic from: ${topics.join('; ') || '(free choice)'}.`,
-    'Choose "Multiple choice" only when the paper prints options; short numeric / one-line answers are "Typed response"; anything needing explanation or working is "Exam style". Keep sub-parts (a), (b) as separate questions with the stem repeated.',
-    'Put the question stem in "q" without the question number and without repeating the options (options go in "options" only). For MCQs set "a" only when the correct option is printed, given in the mark scheme, or unambiguous — otherwise set "a" to null; never guess. Only include questions that are clearly complete: skip cover pages, instructions, diagram-only questions and answer-key commentary. Never invent options or answers you cannot see.',
-    `Reply as {"questions": [...]}. ${QUESTION_SHAPE}. Include "year" if it is printed on the paper.`,
-  ].join('\n');
-  const text = await askAi({ mode: 'extract', context: { board, subject }, files, messages: [{ role: 'user', content }] });
-  const parsed = parseJsonReply(text);
-  return (parsed.questions || []).map((r) => {
-    const q = shapeQuestion(r, { answerType: 'Exam style', difficulty: 'Medium', topics, subject, strict: true });
-    return q ? { ...q, year: Number(r.year) || undefined } : null;
-  }).filter(Boolean);
+    'Choose "Multiple choice" only when the paper prints options; short numeric / one-line answers are "Typed response"; anything that must be drawn/sketched/plotted/labelled is "Drawing" (it cannot be typed); anything else needing explanation or working is "Exam style". Keep every sub-part (a), (b), (c) as a separate question with the shared stem repeated.',
+    'Include a "number" field with the printed question label, e.g. "1", "3(b)", "12 (ii)".',
+    'Put the question stem in "q" without the question number and without repeating the options (options go in "options" only). For MCQs set "a" only when the correct option is printed, given in the mark scheme, or unambiguous — otherwise set "a" to null; never guess. Include diagram questions: set "hasDiagram": true with a short "diagramNote". Skip only cover pages, instructions and answer-key commentary. Never invent options or answers you cannot see.',
+    `${QUESTION_SHAPE}. Include "year" if it is printed on the paper.`,
+  ];
+  const seen = new Set();
+  const all = [];
+  // Long papers exceed one reply's token budget, so keep asking for more until
+  // a call adds nothing new (or a safety cap is hit). Truncated JSON is still
+  // salvaged for its complete questions.
+  for (let pass = 0; pass < 8; pass += 1) {
+    const already = all.map((q) => q._number).filter(Boolean);
+    const content = [
+      ...baseLines,
+      already.length
+        ? `You have already extracted questions ${already.slice(-12).join(', ')}${already.length > 12 ? ' (and earlier ones)' : ''}. CONTINUE from the next one you have not returned yet; do NOT repeat any already listed.`
+        : 'Start from question 1.',
+      'Reply as {"questions": [...], "more": true if there are further questions after these, false if this is the end of the paper}.',
+    ].join('\n');
+    let text;
+    try {
+      text = await askAi({ mode: 'extract', context: { board, subject }, files, messages: [{ role: 'user', content }] });
+    } catch (e) {
+      if (all.length) break; // keep what we have
+      throw e;
+    }
+    let rows;
+    try { rows = (parseJsonReply(text).questions) || []; }
+    catch (_) { rows = recoverQuestions(text); } // truncated reply → salvage
+    let added = 0;
+    let more = /"more"\s*:\s*true/.test(text);
+    for (const r of rows) {
+      const num = r.number != null ? String(r.number).trim() : '';
+      const key = (num || String(r.q || '').slice(0, 60)).toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const q = shapeQuestion(r, { answerType: 'Exam style', difficulty: 'Medium', topics, subject, strict: true });
+      if (q) { all.push({ ...q, _number: num, year: Number(r.year) || undefined }); added += 1; }
+    }
+    if (onProgress) { try { onProgress(all.length); } catch (_) { /* ignore */ } }
+    // If a truncated reply still gave us questions, there are almost certainly
+    // more; otherwise trust the model's "more" flag.
+    const wasTruncated = rows.length && !/"more"\s*:/.test(text);
+    if (!added) break;
+    if (!more && !wasTruncated) break;
+  }
+  return all.map(({ _number, ...q }) => q);
 }
 
 /**

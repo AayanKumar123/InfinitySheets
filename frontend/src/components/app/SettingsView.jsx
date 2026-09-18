@@ -29,10 +29,10 @@ export default function SettingsView() {
         <Section title="Admin tools" icon={User} subtitle="Only visible to administrators.">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-[13.5px] font-medium text-slate-900">Demo preview</div>
-              <div className="text-[12px] text-slate-500 mt-0.5">Enter a local sample account to see the app as a new student. Nothing is saved; “Exit demo” returns to your account.</div>
+              <div className="text-[13.5px] font-medium text-slate-900">Test mode</div>
+              <div className="text-[12px] text-slate-500 mt-0.5">Enter a local sample account to see the app as a new student. Nothing is saved; “Exit test mode” returns to your account.</div>
             </div>
-            <button type="button" onClick={startAdminDemo} className="btn-violet px-4 py-2 rounded-lg text-[13px] font-semibold shrink-0" data-testid="admin-start-demo">Enter demo</button>
+            <button type="button" onClick={startAdminDemo} className="btn-violet px-4 py-2 rounded-lg text-[13px] font-semibold shrink-0" data-testid="admin-start-demo">Enter test mode</button>
           </div>
         </Section>
       )}

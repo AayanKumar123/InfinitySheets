@@ -70,7 +70,9 @@ function systemPrompt(mode: string, ctx: Record<string, unknown>) {
     return `${base}\n\nYou write ORIGINAL practice questions for this exam. Every question must be new (never copied from a past paper), squarely inside the current syllabus for the topic, at the requested difficulty, and in the exact style and command words this board uses. Numbers, contexts and wording must be your own. Reply with a single JSON object and nothing else.`;
   }
   if (mode === "extract") {
-    return `You extract questions from a past-paper PDF for ${boardLabel(board)}${level} ${ctx.subject || ""}. Transcribe each question faithfully (plain Unicode maths, no LaTeX). When a mark scheme document is also supplied, match its answers and mark points to each question by question number. Reply with a single JSON object and nothing else.`;
+    return `You extract EVERY question from a past-paper PDF for ${boardLabel(board)}${level} ${ctx.subject || ""}. Work through the paper page by page, in order, and do not stop early — a typical paper has 20-40 numbered questions or sub-parts, so returning only a few means you missed most of them. Transcribe each question faithfully (plain Unicode maths, no LaTeX). Split every numbered question into its lettered sub-parts (a), (b), (c)… as separate items, repeating the shared stem so each stands alone. When a MARK SCHEME document is also supplied, match its accepted answer and mark points to each question by question number.
+
+A question that asks the student to DRAW, SKETCH, PLOT, LABEL or COMPLETE a diagram/graph/figure cannot be typed — set its "answerType" to "Drawing". If a question includes or refers to a diagram/figure/graph the student must read to answer it, set "hasDiagram": true and put a short "diagramNote" describing what the figure shows (the student will look at the original paper). Do NOT skip diagram questions — include them all. Reply with a single JSON object and nothing else.`;
   }
   if (mode === "assess") {
     return `You are an examiner for ${boardLabel(board)}${level} ${ctx.subject || ""}. The student sat a printed worksheet on paper and has uploaded photos or a PDF of their handwritten answers. Read the answers, match them to the numbered questions supplied, transcribe the working briefly, and mark each strictly against the accepted answer / marking scheme given. Never award marks for answers that are not on the page. Reply with a single JSON object and nothing else.`;
@@ -300,7 +302,7 @@ Deno.serve(async (req: Request) => {
     contents,
     generationConfig: {
       temperature: mode === "generate" ? 0.9 : mode === "transcribe" || JSON_MODES.has(mode) ? 0.1 : 0.4,
-      maxOutputTokens: JSON_MODES.has(mode) ? 8000 : mode === "transcribe" ? 2500 : 1500,
+      maxOutputTokens: mode === "extract" ? 16000 : JSON_MODES.has(mode) ? 8000 : mode === "transcribe" ? 2500 : 1500,
       ...(JSON_MODES.has(mode) ? { responseMimeType: "application/json" } : {}),
     },
   });
