@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { EXAM_TRACKS, SUBJECTS, SUBJECT_INFO } from '../../data/mock';
-import { ArrowRight, ArrowLeft, Calendar, CheckCircle2, GraduationCap, BookOpen, X, Sparkles, CalendarClock, Target } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Calendar, CheckCircle2, GraduationCap, BookOpen, X, Sparkles, CalendarClock, Target, Search } from 'lucide-react';
 import StudyDecor from '../decor/StudyDecor';
 import CustomCourseWizard from './CustomCourseWizard';
 import { toast } from 'sonner';
@@ -36,6 +36,7 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
 
   const [step, setStep] = useState(0);
   const [customOpen, setCustomOpen] = useState(false);
+  const [subjectQuery, setSubjectQuery] = useState('');
   const [examTrack, setExamTrack] = useState(state.user?.examTrack || ''); // nothing preselected until the student picks a board
   const trackSubjects = useMemo(() => SUBJECTS[examTrack] || [], [examTrack]);
   const [picked, setPicked] = useState([]); // [subject, ...]
@@ -228,8 +229,18 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                   <button onClick={() => { setPicked([]); setDates({}); }} className="text-[12.5px] text-slate-500 hover:text-slate-800 transition-colors">Clear</button>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                {trackSubjects.map((s) => {
+              <div className="mt-3 relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  value={subjectQuery}
+                  onChange={(e) => setSubjectQuery(e.target.value)}
+                  placeholder="Search subjects"
+                  className="input-base pl-9"
+                  data-testid="wizard-subject-search"
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2.5 max-h-[42vh] overflow-y-auto pr-1">
+                {trackSubjects.filter((s) => s.toLowerCase().includes(subjectQuery.trim().toLowerCase())).map((s) => {
                   const info = SUBJECT_INFO[s] || { emoji: '\u25A0', tagline: 'Practice and improve.' };
                   const sel = picked.includes(s);
                   return (

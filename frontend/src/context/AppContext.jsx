@@ -605,31 +605,21 @@ export function AppProvider({ children }) {
     if (stateRef.current.user?.role !== 'admin') return;
     demoRef.current = true;
     setSyncStatus('local');
-    const sampleCourse = {
-      id: `demo_${Date.now()}`,
-      addedAt: new Date().toISOString(),
-      name: 'AS & A Level (demo)',
-      exam: 'ASA',
-      status: 'Active',
-      target: 'A*',
-      level: 'Intermediate',
-      subjects: [
-        { subject: 'Physics' }, { subject: 'Chemistry' }, { subject: 'Mathematics' },
-      ],
-    };
+    // A blank test account that keeps admin powers: it starts at the very top
+    // of the new-student flow (course setup, then the tutorial) so an admin
+    // sees exactly what a fresh user sees, and the Admin tab stays available.
     setState((s) => withTrack({
       ...s,
-      user: { name: 'Demo Student', email: 'demo@infinitysheets.app', role: 'user', examTrack: 'ASA', isDemo: true, subjects: ['Physics', 'Chemistry', 'Mathematics'] },
-      courses: [sampleCourse],
+      user: { name: 'Test Student', email: 'test@infinitysheets.app', role: 'admin', examTrack: '', isDemo: true, subjects: [] },
+      courses: [],
       worksheets: [],
       mistakes: [],
-      onboardingDone: true,
-    }, [sampleCourse]));
+      consent: s.consent || { ageBand: '18+', at: Date.now() },
+      onboardingDone: false,
+      tutorialDone: false,
+    }, []));
     setLoaded(true);
-    // Fill the sample subjects with a few weeks of history once the course has
-    // landed in state.
-    setTimeout(() => seedTestPerformance(), 60);
-  }, [seedTestPerformance]);
+  }, []);
 
   const exitDemo = useCallback(() => {
     demoRef.current = false;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ChevronDown, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 
@@ -22,6 +22,7 @@ export default function ExamDatesSettings() {
   const courses = state.courses || [];
   const [adding, setAdding] = useState(null); // `${courseId}|${subject}` being added to
   const [draft, setDraft] = useState({ name: '', date: '' });
+  const [open, setOpen] = useState(false);
 
   const saveExams = (course, subjectName, exams) => {
     const subjects = (Array.isArray(course.subjects) ? course.subjects : []).map((e) => {
@@ -45,10 +46,18 @@ export default function ExamDatesSettings() {
 
   return (
     <section className="rounded-2xl border border-[color:var(--color-border)] bg-white p-5" data-testid="exam-dates">
-      <div className="mb-4">
-        <h2 className="text-[16px] font-semibold text-slate-900">Exam dates</h2>
-        <p className="text-[13px] text-slate-500 mt-0.5">Each subject can have several exams (Paper 1, Paper 2, a mock). The dashboard counts down to the nearest one.</p>
-      </div>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between gap-3 text-left" aria-expanded={open} data-testid="exam-dates-toggle">
+        <div className="flex items-start gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-blue-100 text-blue-700"><CalendarClock className="w-4.5 h-4.5" /></span>
+          <div className="min-w-0">
+            <div className="text-[16px] font-semibold text-slate-900">Exam dates</div>
+            <div className="text-[12.5px] text-slate-500 mt-0.5">Each subject can have several exams (Paper 1, Paper 2, a mock). The dashboard counts down to the nearest one.</div>
+          </div>
+        </div>
+        <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+      <div className="mt-4">
       {rows.length === 0 ? (
         <p className="text-[13px] text-slate-500">Add a course to set dates per subject.</p>
       ) : (
@@ -100,6 +109,8 @@ export default function ExamDatesSettings() {
         </div>
         <input type="date" min={today()} value={state.settings?.examDate || ''} onChange={(e) => { updateSettings({ examDate: e.target.value }); toast.success(e.target.value ? 'Fallback exam date saved' : 'Fallback date cleared'); }} aria-label="Fallback exam date" className="input-base !w-auto" data-testid="exam-date-fallback" />
       </div>
+      </div>
+      )}
     </section>
   );
 }

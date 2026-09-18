@@ -63,7 +63,7 @@ export function ThemeModeToggle() {
   return (
     <label className="flex items-start gap-3 cursor-pointer select-none">
       <button type="button" onClick={() => { setThemeMode(on ? 'manual' : 'system'); toast.success(on ? 'Theme set manually' : 'Theme now follows your device'); }} data-testid="pref-theme-system" aria-pressed={on} className={`mt-0.5 w-10 h-6 rounded-full transition-colors relative shrink-0 ${on ? 'bg-blue-600' : 'bg-slate-300'}`}>
-        <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
       </button>
       <div className="min-w-0">
         <div className="text-[13.5px] font-medium text-slate-900 inline-flex items-center gap-1.5"><MonitorSmartphone className="w-4 h-4 text-slate-600" /> Follow my device's theme</div>

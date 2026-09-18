@@ -116,7 +116,7 @@ function Toggle({ checked, onChange, label, hint, testid }) {
         aria-pressed={checked}
         className={`mt-0.5 w-10 h-6 rounded-full transition-colors relative shrink-0 ${checked ? 'bg-blue-600' : 'bg-slate-300'}`}
       >
-        <span className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
       </button>
       <div className="min-w-0">
         <div className="text-[13.5px] font-medium text-slate-900">{label}</div>
