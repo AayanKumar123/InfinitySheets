@@ -426,6 +426,30 @@ export async function extractSyllabusTopics({ file, board, subject }) {
 }
 
 /**
+ * Grounded course finder for the custom-course wizard. The model may ask one
+ * short clarifying question at a time, then searches the web and returns real
+ * candidate official courses to match against. `history` is the running
+ * conversation ([{ role, content }]). Resolves to:
+ *   { question: string|null, candidates: [{ name, org, level, url, why }], note }
+ */
+export async function courseSearch({ subject, description, history = [] }) {
+  const intro = `The student is building a custom course. Subject: ${subject || '(not given)'}. Their description: ${description || '(none)'}. Help identify the exact official course/specification and return real candidates you find by searching the web.`;
+  const messages = [{ role: 'user', content: intro }, ...history];
+  const text = await askAi({ mode: 'course-search', context: { subject }, messages });
+  let parsed;
+  try { parsed = parseJsonReply(text); } catch (_) { parsed = {}; }
+  const candidates = Array.isArray(parsed.candidates) ? parsed.candidates.map((c) => ({
+    name: String(c.name || '').trim(),
+    org: String(c.org || '').trim(),
+    level: String(c.level || '').trim(),
+    url: String(c.url || '').trim(),
+    why: String(c.why || '').trim(),
+  })).filter((c) => c.name).slice(0, 6) : [];
+  const question = parsed.question && String(parsed.question).trim() ? String(parsed.question).trim() : null;
+  return { question, candidates, note: parsed.note ? String(parsed.note).trim() : '' };
+}
+
+/**
  * Concept flashcards for one topic, SaveMyExams-style: a term / question on
  * the front, a short exact answer on the back. Resolves to [{ front, back }].
  */
