@@ -24,6 +24,8 @@ import Flashcards from './Flashcards';
 import Groups from './Groups';
 import ConsentGate from './ConsentGate';
 import CommandPalette from './CommandPalette';
+import { isPlus } from '../../lib/entitlements';
+import { PlusUpgradeScreen } from './PlusLock';
 import { pageview } from '../../lib/analytics';
 import { maybeRemind } from '../../lib/reminders';
 import { dueReviews } from '../../lib/spacedRepetition';
@@ -110,11 +112,13 @@ function renderRoute(activeKey, params, go, isAdmin) {
 }
 
 export default function AppShell({ hash }) {
-  const { state, syncStatus, apiLogout, toggleTheme, exitDemo } = useApp();
+  const { state, syncStatus, apiLogout, toggleTheme, exitDemo, setTestPlan } = useApp();
+  const plus = isPlus(state);
   const isDemo = !!state.user?.isDemo;
   const { key: active, params } = parseHash(hash);
   const isAdmin = state.user?.role === 'admin';
-  const NAV = isAdmin ? [...BASE_NAV, ADMIN_ITEM] : BASE_NAV;
+  const PLUS_NAV = { flashcards: 'flashcards', recommendations: 'aiPlan' };
+  const NAV = (isAdmin ? [...BASE_NAV, ADMIN_ITEM] : BASE_NAV).map((n) => (PLUS_NAV[n.key] && !plus ? { ...n, locked: true } : n));
   const ALL_ITEMS = [...NAV, ...HIDDEN_ROUTES];
   const current = ALL_ITEMS.find((n) => n.key === active) || NAV[0];
 
@@ -229,6 +233,10 @@ export default function AppShell({ hash }) {
         {isDemo && (
           <div className="sticky top-0 z-30 bg-violet-600 text-white text-[12.5px] font-medium px-4 py-1.5 flex items-center justify-center gap-3" data-testid="demo-banner">
             <span>Test mode — sample data, nothing is saved.</span>
+            <span className="inline-flex items-center rounded-full bg-white/15 p-0.5 text-[11px] font-semibold">
+              <button type="button" onClick={() => setTestPlan('free')} className={`px-2 py-0.5 rounded-full ${state.testPlan !== 'plus' ? 'bg-white text-violet-700' : 'text-white/90'}`} data-testid="test-plan-free">Free</button>
+              <button type="button" onClick={() => setTestPlan('plus')} className={`px-2 py-0.5 rounded-full ${state.testPlan === 'plus' ? 'bg-white text-violet-700' : 'text-white/90'}`} data-testid="test-plan-plus">InfinitySheets+</button>
+            </span>
             <button type="button" onClick={exitDemo} className="underline underline-offset-2 hover:opacity-90" data-testid="demo-exit">Exit test mode</button>
           </div>
         )}
@@ -245,7 +253,7 @@ export default function AppShell({ hash }) {
           syncStatus={syncStatus}
         />
         <div className="px-4 sm:px-6 lg:px-8 py-5 sm:py-7 max-w-[1280px]">
-          {renderRoute(current.key, params, go, isAdmin)}
+          {PLUS_NAV[current.key] && !plus ? <PlusUpgradeScreen feature={PLUS_NAV[current.key]} /> : renderRoute(current.key, params, go, isAdmin)}
         </div>
       </main>
 

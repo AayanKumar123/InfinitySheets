@@ -393,13 +393,21 @@ export async function workedSolution({ q, given, board, ibLevel, subject }) {
  * A week-long study plan from the student's data. Resolves to
  * { summary, days: [{ day, date, tasks: [{ subject, topic, minutes, what }] }] }.
  */
-export async function buildStudyPlan({ board, boards = {}, examDate, frequency, weeklyGoal, weakTopics, subjects, startDate }) {
+export async function buildStudyPlan({ board, boards = {}, examDate, exams = [], frequency, weeklyGoal, weakTopics, subjects, startDate }) {
+  // Every exam the student has registered (subject · name · date), soonest first.
+  const examLines = (exams || [])
+    .filter((e) => e && e.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .map((e) => `${e.subject}${e.name && e.name !== 'Exam' ? ` (${e.name})` : ''} — ${e.date}`);
   const content = [
     Object.keys(boards).length ? `Board per subject: ${Object.entries(boards).map(([s, b]) => `${s} (${b.board}${b.ibLevel ? ' ' + b.ibLevel : ''})`).join(', ')}.` : '',
-    `Today is ${startDate}. Exam date: ${examDate || 'not set'}. Study frequency the student chose: ${frequency || '3-4 per week'}. Weekly question goal: ${weeklyGoal || 50}.`,
+    `Today is ${startDate}. Study frequency the student chose: ${frequency || '3-4 per week'}. Weekly question goal: ${weeklyGoal || 50}.`,
+    examLines.length
+      ? `Registered exams (soonest first): ${examLines.join('; ')}. Build the plan around ALL of these — give each subject time weighted by how soon its exam is, front-load the nearest exam, and make sure every registered exam gets covered before its date.`
+      : `Exam date: ${examDate || 'not set'}.`,
     `Subjects: ${(subjects || []).join(', ') || '(none yet)'}.`,
     `Weakest topics (subject · topic · accuracy%): ${(weakTopics || []).map((t) => `${t.subject} · ${t.topic} · ${t.accuracy}%`).join('; ') || '(no data yet — spread evenly)'}.`,
-    'Plan the next 7 days starting today.',
+    'Plan the next 7 days starting today, prioritising subjects by how close their exam is.',
   ].filter(Boolean).join('\n');
   const text = await askAi({ mode: 'plan', context: { board }, messages: [{ role: 'user', content }] });
   const parsed = parseJsonReply(text);

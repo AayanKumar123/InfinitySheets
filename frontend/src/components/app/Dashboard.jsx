@@ -11,6 +11,7 @@ import CreateWorksheetButton from './CreateWorksheetButton';
 import { diagnosisSnippet } from './ai/DiagnosisPanel';
 import { WeeklySummaryCard, StreakHeatmap, ReviewDueTile, StreakProjectionCard } from './StudyInsights';
 import { bestProjection } from '../../lib/streakProjection';
+import { PlusLock } from './PlusLock';
 import { recommendedTopics } from '../../lib/studyStats';
 import AdSlot from '../ads/AdSlot';
 import Badges from './Badges';
@@ -450,7 +451,7 @@ export default function Dashboard({ go }) {
       <>
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2"><WeeklySummaryCard worksheets={ws} /></div>
-        <ReviewDueTile worksheets={ws} onStart={() => go('worksheets')} />
+        <PlusLock feature="reviewDue"><ReviewDueTile worksheets={ws} onStart={() => go('worksheets')} /></PlusLock>
       </div>
       </>
     ) },

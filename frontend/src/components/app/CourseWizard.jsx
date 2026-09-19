@@ -4,6 +4,8 @@ import { EXAM_TRACKS, SUBJECTS, SUBJECT_INFO } from '../../data/mock';
 import { ArrowRight, ArrowLeft, Calendar, CheckCircle2, GraduationCap, BookOpen, X, Sparkles, CalendarClock, Target, Search } from 'lucide-react';
 import StudyDecor from '../decor/StudyDecor';
 import CustomCourseWizard from './CustomCourseWizard';
+import { usePlus, PlusBadge } from './PlusLock';
+import { FREE_SUBJECT_LIMIT } from '../../lib/entitlements';
 import { toast } from 'sonner';
 
 // Entrance exams have a fixed syllabus — every candidate sits the same
@@ -32,6 +34,7 @@ function inDays(d) {
 
 export default function CourseWizard({ mode = 'onboarding', onClose }) {
   const { state, addCourse, completeOnboarding, updateSettings } = useApp();
+  const { isPlus: plus, requirePlus } = usePlus();
   const isOnboarding = mode === 'onboarding';
 
   const [step, setStep] = useState(0);
@@ -102,6 +105,13 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
     const trackName = exam?.name || examTrack;
     const autoName = picked.length > 1 ? `${trackName} Term` : (picked[0] === trackName || picked[0] === examTrack ? trackName : `${trackName} ${picked[0]}`);
     const name = (courseName || '').trim() || autoName;
+    // Free tier is capped at FREE_SUBJECT_LIMIT subjects total.
+    if (!plus) {
+      const already = new Set();
+      (state.courses || []).forEach((c) => (Array.isArray(c.subjects) ? c.subjects : []).forEach((e) => already.add(typeof e === 'string' ? e : e?.subject)));
+      picked.forEach((x) => already.add(x));
+      if (already.size > FREE_SUBJECT_LIMIT) { toast.error(`Free is limited to ${FREE_SUBJECT_LIMIT} subjects. Upgrade to InfinitySheets+ for more.`); return; }
+    }
     const courseId = `c_${Date.now()}`;
     addCourse({ id: courseId, name, exam: examTrack, subjects, status: 'Active', target, level });
     const earliest = subjects.map((x) => x.examDate).sort()[0];
@@ -199,13 +209,13 @@ export default function CourseWizard({ mode = 'onboarding', onClose }) {
                 <button
                   type="button"
                   data-testid="exam-custom"
-                  onClick={() => setCustomOpen(true)}
+                  onClick={() => { if (requirePlus('customCourse')) setCustomOpen(true); }}
                   className="text-left rounded-xl border border-dashed border-[color:var(--color-border)] bg-white px-4 py-3 transition-colors hover:bg-slate-100"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-[13.5px] font-semibold text-violet-700 inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Custom course</div>
-                      <div className="text-[11.5px] text-slate-500 mt-0.5">Your own subject and material.</div>
+                      <div className="text-[13.5px] font-semibold text-violet-700 inline-flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> Custom course {!plus && <PlusBadge />}</div>
+                      <div className="text-[11.5px] text-slate-500 mt-0.5">Your own subject, searched online. InfinitySheets+.</div>
                     </div>
                   </div>
                 </button>

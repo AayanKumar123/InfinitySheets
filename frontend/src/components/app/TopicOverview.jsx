@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ExternalLink, Sparkles, RefreshCw, Loader2, FileText, Link2, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Sparkles, RefreshCw, Loader2, FileText, Link2, Settings as SettingsIcon, Lock } from 'lucide-react';
+import { usePlus } from './PlusLock';
 import { useApp } from '../../context/AppContext';
 import { syllabusLink } from '../../data/syllabus';
 import { subjectBoards, boardName, primaryTrack } from '../../lib/subjects';
@@ -15,6 +16,7 @@ import AiChat, { MarkdownLite } from './ai/AiChat';
  * Route: #topic?subject=<subject>&topic=<topic>
  */
 export default function TopicOverview({ subject, topic, go }) {
+  const { isPlus: plus } = usePlus();
   const { state } = useApp();
   const examTrack = primaryTrack(state.courses, state.user?.examTrack);
   const boards = useMemo(() => subjectBoards(state.courses, examTrack), [state.courses, examTrack]);
@@ -82,6 +84,7 @@ export default function TopicOverview({ subject, topic, go }) {
         {/* Left: AI overview + doubts */}
         <div className="flex flex-col gap-5 min-w-0">
           <Overview context={context} />
+          {plus ? (
           <AiChat
             title="Ask a doubt"
             subtitle={`Knows what ${boardName(board)} examiners want for ${topic}.`}
@@ -95,6 +98,9 @@ export default function TopicOverview({ subject, topic, go }) {
             placeholder={`Ask anything about ${topic}…`}
             testid="topic-chat"
           />
+          ) : (
+            <div className="card-soft p-5 text-[13px] text-slate-700 inline-flex items-center gap-2" data-testid="ask-doubt-locked"><Lock className="w-4 h-4 text-violet-600" /> Ask a doubt is an InfinitySheets+ feature.</div>
+          )}
         </div>
 
         {/* Right: sources, past-paper questions, attempts */}

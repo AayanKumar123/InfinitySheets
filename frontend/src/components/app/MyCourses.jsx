@@ -5,6 +5,7 @@ import { EXAM_TRACKS, SUBJECT_INFO } from '../../data/mock';
 import { toast } from 'sonner';
 import CourseWizard from './CourseWizard';
 import CustomCourseWizard from './CustomCourseWizard';
+import { usePlus, PlusBadge } from './PlusLock';
 import EmptyStateScene from '../decor/EmptyStateScene';
 
 const STATUS = ['Active', 'On hold', 'Completed'];
@@ -108,6 +109,7 @@ function EmptyState({ onAdd, onAddCustom }) {
 
 export default function MyCourses() {
   const { state, removeCourse, updateCourse } = useApp();
+  const { requirePlus } = usePlus();
   const courses = state.courses || [];
   const [open, setOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
@@ -120,14 +122,14 @@ export default function MyCourses() {
           <button onClick={() => setOpen(true)} className="btn-violet inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-medium">
             <Plus className="w-5 h-5" /> Add course
           </button>
-          <button onClick={() => setCustomOpen(true)} data-testid="add-custom-course" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-semibold border border-blue-300 text-blue-800 bg-white hover:bg-blue-50 transition-colors">
-            <Sparkles className="w-5 h-5" /> + Custom Course
+          <button onClick={() => { if (requirePlus('customCourse')) setCustomOpen(true); }} data-testid="add-custom-course" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[14px] font-semibold border border-blue-300 text-blue-800 bg-white hover:bg-blue-50 transition-colors">
+            <Sparkles className="w-5 h-5" /> + Custom Course <PlusBadge />
           </button>
         </div>
       </div>
 
       {courses.length === 0 ? (
-        <EmptyState onAdd={() => setOpen(true)} onAddCustom={() => setCustomOpen(true)} />
+        <EmptyState onAdd={() => setOpen(true)} onAddCustom={() => { if (requirePlus('customCourse')) setCustomOpen(true); }} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {courses.map((c) => (

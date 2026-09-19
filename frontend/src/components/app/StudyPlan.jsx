@@ -21,10 +21,19 @@ export default function StudyPlan({ weaknesses = [], go }) {
     setBusy(true);
     try {
       const weak = [...weaknesses].sort((a, b) => a.acc - b.acc).slice(0, 6).map((t) => ({ subject: t.subject, topic: t.topic, accuracy: t.acc }));
+      // Every exam the student registered, across all courses (each subject may
+      // have several: Paper 1, Paper 2, a mock), plus the account-wide fallback.
+      const exams = [];
+      (state.courses || []).forEach((c) => (Array.isArray(c.subjects) ? c.subjects : []).forEach((e) => {
+        const entry = typeof e === 'string' ? { subject: e } : e;
+        const list = Array.isArray(entry.exams) && entry.exams.length ? entry.exams : (entry.examDate ? [{ name: 'Exam', date: entry.examDate }] : []);
+        list.forEach((x) => { if (x.date) exams.push({ subject: entry.subject, name: x.name || 'Exam', date: x.date }); });
+      }));
       const p = await buildStudyPlan({
         board: primaryTrack(state.courses, state.user?.examTrack),
         boards: subjectBoards(state.courses, primaryTrack(state.courses, state.user?.examTrack)),
         examDate: state.settings?.examDate,
+        exams,
         frequency: state.settings?.frequency,
         weeklyGoal: state.settings?.weeklyGoal,
         weakTopics: weak,

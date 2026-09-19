@@ -66,6 +66,8 @@ const defaultState = {
   // answerType, difficulty, duration, questions, board, ibLevel, createdAt,
   // dueDate }.
   pendingSubmissions: [],
+  // Test-mode only: which tier an admin is previewing ('free' | 'plus').
+  testPlan: 'free',
   questionsToday: 0,
   goalDate: null,
   // In-progress worksheet the student left mid-way (null when none). Lets them
@@ -617,6 +619,7 @@ export function AppProvider({ children }) {
       consent: s.consent || { ageBand: '18+', at: Date.now() },
       onboardingDone: false,
       tutorialDone: false,
+      testPlan: 'free',
     }, []));
     setLoaded(true);
   }, []);
@@ -627,6 +630,9 @@ export function AppProvider({ children }) {
     // real account and discards the in-memory demo data.
     if (typeof window !== 'undefined') window.location.reload();
   }, []);
+
+  // Test mode: preview the free or the InfinitySheets+ experience.
+  const setTestPlan = useCallback((plan) => setState((s) => ({ ...s, testPlan: plan === 'plus' ? 'plus' : 'free' })), []);
 
 
   // ---- past papers --------------------------------------------------------
@@ -807,7 +813,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation, addPendingSubmission, removePendingSubmission, setSubmissionDue,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation, addPendingSubmission, removePendingSubmission, setSubmissionDue, setTestPlan,
   }), [
     state, loaded, syncStatus,
     signup, login, logout,
@@ -819,7 +825,7 @@ export function AppProvider({ children }) {
     addCourse, removeCourse, updateCourse,
     addPastPaper, removePastPaper, refreshPastPapers,
     toggleTheme, completeOnboarding, restartOnboarding,
-    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation, addPendingSubmission, removePendingSubmission, setSubmissionDue,
+    markFlashcard, saveFlashcardDeck, setStudyPlan, togglePlanTask, setSyllabusTopics, tagMistakeReason, recordConsent, logFocusSession, setThemeMode, saveFlashcardExplanation, addPendingSubmission, removePendingSubmission, setSubmissionDue, setTestPlan,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

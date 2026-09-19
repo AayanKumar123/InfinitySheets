@@ -22,6 +22,7 @@ import { presetFor, presetMarks, simulationScore } from '../../lib/examPresets';
 import { workedSolution } from '../../lib/ai';
 import { track as trackEvent } from '../../lib/analytics';
 import { Wand2, BookOpenCheck, MessageCircleQuestion, Zap } from 'lucide-react';
+import { usePlus, PlusBadge } from './PlusLock';
 import AiChat from './ai/AiChat';
 
 // Why a question was missed — tagged on the result screen.
@@ -399,6 +400,7 @@ function downloadWorksheetPDF({ questions, subject, topics, difficulty, answerTy
 
 export default function Worksheets({ go }) {
   const { state, recordWorksheet, updateWorksheet, saveDraftWorksheet, clearDraftWorksheet, tagMistakeReason, addPendingSubmission, removePendingSubmission } = useApp();
+  const { isPlus: plus, requirePlus } = usePlus();
   const tagReason = (sheetId, i, reason) => { tagMistakeReason(sheetId, i, reason); if (reason) trackEvent('mistake_tagged', { reason }); };
   const track = primaryTrack(state.courses, state.user?.examTrack);
   const examMinutes = EXAM_DURATIONS[track] || 60;
@@ -1402,7 +1404,11 @@ export default function Worksheets({ go }) {
         ) : (
           <>
             <div className="mb-5">
-              <DiagnosisPanel sheet={result} autoRun testid="worksheet-diagnosis" />
+              {plus ? (
+                <DiagnosisPanel sheet={result} autoRun testid="worksheet-diagnosis" />
+              ) : (
+                <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 text-[13px] text-slate-700 inline-flex items-center gap-2" data-testid="diagnosis-locked"><Lock className="w-4 h-4 text-violet-600" /> AI worksheet diagnosis is an InfinitySheets+ feature.</div>
+              )}
             </div>
             <div className="mb-5">
               <WorksheetAnalysis sheet={result} testid="worksheet-analysis" />
@@ -1682,10 +1688,10 @@ export default function Worksheets({ go }) {
               testid="ws-past-papers"
             />
             <CheckboxCard
-              label={<>&#x2728; Accurate to you</>}
+              label={<span className="inline-flex items-center gap-1.5">&#x2728; Accurate to you {!plus && <PlusBadge />}</span>}
               icon={<Sparkles className="w-5 h-5 text-blue-700" />}
-              checked={aiGenerated}
-              onChange={setAiGenerated}
+              checked={plus && aiGenerated}
+              onChange={(v) => { if (requirePlus('accurate')) setAiGenerated(v); }}
               testid="ws-ai-generated"
             />
           </div>
@@ -1754,12 +1760,12 @@ export default function Worksheets({ go }) {
           {generating ? <><Loader2 className="w-5 h-5 animate-spin" /> Writing original questions…</> : 'Create interactive worksheet'}
         </button>
         <button
-          onClick={downloadPDF}
+          onClick={() => { if (requirePlus('pdf')) downloadPDF(); }}
           disabled={generating}
           data-testid="ws-download-pdf"
           className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-medium bg-white text-slate-800 border border-slate-300 hover:border-blue-500 hover:text-blue-700 transition-colors disabled:opacity-70"
         >
-          <Download className="w-5 h-5" /> Download as PDF
+          <Download className="w-5 h-5" /> Download as PDF {!plus && <PlusBadge />}
         </button>
       </div>
       {aiGenerated && aiOn && (
@@ -1856,10 +1862,11 @@ function AskRow({ q, given, board, ibLevel, subject, idx }) {
   const accepted = q.answerType === 'Multiple choice' && Array.isArray(q.options) ? q.options[q.a] : (q.typedAnswer || q.examAnswer || (q.examKeywords || []).join(', '));
   const student = q.answerType === 'Multiple choice' ? (typeof given === 'number' && given >= 0 ? q.options?.[given] : '(no answer)') : (given || '(blank)');
   const primer = `We are discussing one question the student got wrong.\nQuestion: ${q.q}\nCorrect answer: ${accepted}\nStudent's answer: ${student}\nAnswer their follow-up questions about this question only, briefly, in the exam's terms.`;
+  const { isPlus: plus, requirePlus } = usePlus();
   return (
     <div className="mt-2">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 hover:text-violet-900" data-testid={`ask-${idx}`}>
-        <MessageCircleQuestion className="w-4 h-4" /> {open ? 'Hide chat' : 'Ask about this question'}
+      <button type="button" onClick={() => { if (plus) setOpen((v) => !v); else requirePlus('askDoubt'); }} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 hover:text-violet-900" data-testid={`ask-${idx}`}>
+        <MessageCircleQuestion className="w-4 h-4" /> {open ? 'Hide chat' : 'Ask about this question'} {!plus && <PlusBadge />}
       </button>
       {open && (
         <div className="mt-2">

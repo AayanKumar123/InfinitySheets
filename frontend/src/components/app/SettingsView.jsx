@@ -7,6 +7,8 @@ import { primaryTrack, enrolledSubjects } from '../../lib/subjects';
 import { RemindersSection } from './ReminderSettings';
 import { PrivacySection, ThemeModeToggle } from './PrivacyExportSettings';
 import ExamDatesSettings from './ExamDatesSettings';
+import { isPlus } from '../../lib/entitlements';
+import { Lock, Sparkles as SparklesIcon } from 'lucide-react';
 
 const GOALS = [5, 10, 20];
 const WEEKLY_GOALS = [20, 50, 100];
@@ -24,6 +26,14 @@ export default function SettingsView() {
   return (
     <div className="max-w-[820px] flex flex-col gap-5">
       <p className="text-[14px] text-slate-500">Manage your account, study preferences, and how the app behaves.</p>
+
+      <Section title="InfinitySheets+" icon={SparklesIcon} subtitle="The AI-powered tier — study plans, coach, flashcards, diagnosis, ask-a-doubt, PDF export, custom courses and more than 6 subjects.">
+        {isPlus(state) ? (
+          <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-2 text-[13px] font-semibold" data-testid="plus-status"><SparklesIcon className="w-4 h-4" /> {state.user?.role === 'admin' ? 'Active (included with admin)' : 'Active'}</div>
+        ) : (
+          <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 text-slate-700 border border-[color:var(--color-border)] px-3 py-2 text-[13px] font-medium" data-testid="plus-status"><Lock className="w-4 h-4 text-violet-600" /> Free plan — InfinitySheets+ features are shown locked.</div>
+        )}
+      </Section>
 
       {isAdmin && (
         <Section title="Admin tools" icon={User} subtitle="Only visible to administrators.">
