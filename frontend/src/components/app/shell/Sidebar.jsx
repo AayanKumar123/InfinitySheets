@@ -9,16 +9,19 @@ import { Infinity, LogOut, PanelLeftClose, Lock } from 'lucide-react';
  * `onClose` (optional) toggles the sidebar collapsed state in the shell —
  * a chevron button appears in the header when provided.
  */
-export default function Sidebar({ nav, activeKey, onNavigate, onLogout, onClose }) {
+export default function Sidebar({ nav, activeKey, onNavigate, onLogout, onClose, plus = false }) {
   return (
     <aside className="border border-[color:var(--color-border)] flex flex-col bg-white relative overflow-hidden rounded-2xl shadow-sm h-full">
       <div className="relative px-5 pt-5 pb-6 flex items-center gap-2 shrink-0">
-        <span className="w-9 h-9 rounded-xl bg-[color:var(--color-primary)] flex items-center justify-center" data-testid="brand-mark">
+        <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${plus ? 'bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-[0_0_0_2px_rgba(139,92,246,0.25)]' : 'bg-[color:var(--color-primary)]'}`} data-testid="brand-mark">
           <Infinity className="w-6 h-6 text-white" strokeWidth={2.6} />
         </span>
         <div className="leading-tight min-w-0 flex-1">
-          <div className="font-semibold text-[14.5px] tracking-tight">InfinitySheets</div>
-          <div className="text-[10px] text-slate-500">Adaptive study</div>
+          <div className="font-semibold text-[14.5px] tracking-tight inline-flex items-baseline gap-0.5">
+            InfinitySheets
+            {plus && <span className="text-[13px] font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-500 bg-clip-text text-transparent" data-testid="brand-plus">+</span>}
+          </div>
+          <div className={`text-[10px] ${plus ? 'text-violet-600 font-semibold' : 'text-slate-500'}`}>{plus ? 'InfinitySheets+ member' : 'Adaptive study'}</div>
         </div>
         {onClose && (
           <button

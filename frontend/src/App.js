@@ -46,7 +46,15 @@ function Router() {
   // The landing page is always the front door: with no route in the URL
   // (or a landing anchor), show it even when a session exists — the navbar
   // then offers "Open app". App routes (#dashboard, #courses, …) open the app.
-  const landingAnchor = hash === '' || hash === '#' || LANDING_ANCHORS.has(hash.replace(/\?.*$/, ''));
+  const bare = hash.replace(/\?.*$/, '');
+  const landingAnchor = hash === '' || hash === '#' || LANDING_ANCHORS.has(bare);
+  // Signed-in students never land on the marketing page: the front door
+  // (and the login / sign-up anchors) go straight to the dashboard. The other
+  // landing anchors (#features, #pricing…) stay reachable if they ask for them.
+  if (state.user && (hash === '' || hash === '#' || bare === '#top' || bare === '#login' || bare === '#signup')) {
+    window.location.replace('#dashboard');
+    return <AppShell hash="#dashboard" />;
+  }
   if (state.user && !landingAnchor) {
     return <AppShell hash={hash} />;
   }

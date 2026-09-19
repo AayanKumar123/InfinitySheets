@@ -223,6 +223,7 @@ export default function AppShell({ hash }) {
             nav={NAV}
             activeKey={current.key}
             onNavigate={go}
+            plus={plus}
             onLogout={exitAccount}
             onClose={() => setSidebarOpen(false)}
           />
