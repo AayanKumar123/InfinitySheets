@@ -1688,10 +1688,10 @@ export default function Worksheets({ go }) {
               testid="ws-past-papers"
             />
             <CheckboxCard
-              label={<span className="inline-flex items-center gap-1.5">&#x2728; Accurate to you {!plus && <PlusBadge />}</span>}
+              label={<>&#x2728; Accurate to you</>}
               icon={<Sparkles className="w-5 h-5 text-blue-700" />}
-              checked={plus && aiGenerated}
-              onChange={(v) => { if (requirePlus('accurate')) setAiGenerated(v); }}
+              checked={aiGenerated}
+              onChange={setAiGenerated}
               testid="ws-ai-generated"
             />
           </div>

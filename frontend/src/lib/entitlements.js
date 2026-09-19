@@ -27,6 +27,5 @@ export const PLUS_FEATURES = {
   diagnosis: 'AI worksheet diagnosis',
   pdf: 'Saving a worksheet as PDF',
   customCourse: 'Custom courses',
-  accurate: 'Accurate-to-you AI questions',
   moreSubjects: `More than ${FREE_SUBJECT_LIMIT} subjects`,
 };
